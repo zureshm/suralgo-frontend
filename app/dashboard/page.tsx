@@ -5,11 +5,7 @@ import { useEffect, useState } from "react";
 import { searchSymbols } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
-
-type WatchlistItem = {
-  symbol: string;
-  ltp: number | null;
-};
+import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
 
 const activeTrades = [
   {
@@ -45,30 +41,12 @@ const activeTrades = [
 ];
 
 export default function DashboardPage() {
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState<WatchlistItem[]>([]);
 
   const router = useRouter();
   const { setSelection, waitingTrades, removeWaitingTrade } = useTradeStore();
-
-  function addToWatchlist(item: WatchlistItem) {
-    const alreadyExists = watchlist.some((row) => row.symbol === item.symbol);
-
-    if (alreadyExists) {
-      setSearchText("");
-      setSuggestions([]);
-      return;
-    }
-
-    setWatchlist((prev) => [...prev, item]);
-    setSearchText("");
-    setSuggestions([]);
-  }
-
-  function removeFromWatchlist(symbol: string) {
-    setWatchlist((prev) => prev.filter((row) => row.symbol !== symbol));
-  }
+  const { watchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
 
   useEffect(() => {
     const text = searchText.trim();
@@ -113,6 +91,8 @@ export default function DashboardPage() {
             onClick={() => {
               if (suggestions.length > 0) {
                 addToWatchlist(suggestions[0]);
+                setSearchText("");
+                setSuggestions([]);
               }
             }}
           >
@@ -126,7 +106,11 @@ export default function DashboardPage() {
                   key={item.symbol}
                   type="button"
                   className={styles.suggestionItem}
-                  onClick={() => addToWatchlist(item)}
+                  onClick={() => {
+                    addToWatchlist(item);
+                    setSearchText("");
+                    setSuggestions([]);
+                  }}
                 >
                   {item.symbol}
                 </button>
