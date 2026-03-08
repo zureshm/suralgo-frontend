@@ -1,0 +1,82 @@
+.page {
+  min-height: 100vh;
+  padding: 24px;
+  display: grid;
+  place-items: start center;
+  background: #fff;
+}
+
+.container {
+  width: min(720px, 100%);
+}
+
+.title {
+  font-size: 18px;
+  margin: 0 0 12px;
+  letter-spacing: 0.5px;
+}
+
+.card {
+  border: 2px solid #222;
+  border-radius: 18px;
+  background: #fff;
+  padding: 16px;
+}
+
+.topRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.userId {
+  font-weight: 800;
+}
+
+.disconnect {
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #e53935;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.statusRow {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.statusLabel {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.statusValue {
+  color: #0a9b3f;
+  font-weight: 800;
+}
+
+.divider {
+  height: 2px;
+  background: rgba(0, 0, 0, 0.18);
+  margin: 14px 0;
+}
+
+.backButton {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 2px solid #222;
+  border-radius: 10px;
+  background: #f0f0f0;
+  color: #222;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}

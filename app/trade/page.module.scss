@@ -1,0 +1,235 @@
+.page {
+  min-height: 100vh;
+  padding: 18px;
+  display: grid;
+  place-items: start center;
+  background: #fff;
+}
+
+.card {
+  width: min(520px, 100%);
+  border: 2px solid #222;
+  border-radius: 18px;
+  background: #fff;
+  padding: 18px 16px;
+}
+
+.section {
+  padding: 4px 2px;
+}
+
+.sectionHeader {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.sectionTitle {
+  font-weight: 800;
+}
+
+.divider {
+  height: 2px;
+  background: rgba(0, 0, 0, 0.18);
+  margin: 14px 0;
+}
+
+.details {
+  margin: 0;
+}
+
+.summary {
+  cursor: pointer;
+  font-weight: 800;
+  list-style: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 12px 10px;
+  align-items: center;
+}
+
+.checkRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.input {
+  height: 34px;
+  border: 2px solid #222;
+  border-radius: 10px;
+  padding: 0 10px;
+}
+
+.select {
+  height: 34px;
+  border: 2px solid #222;
+  border-radius: 10px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.selectSmall {
+  height: 34px;
+  border: 2px solid #222;
+  border-radius: 10px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.note {
+  margin-top: 10px;
+  color: #f18a00;
+  font-size: 12px;
+}
+
+.rangeGrid {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.rangeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.rangeLabel {
+  font-size: 13px;
+}
+
+.inputSmall {
+  height: 32px;
+  width: 86px;
+  border: 2px solid #222;
+  border-radius: 10px;
+  padding: 0 10px;
+}
+
+.selectTiny {
+  height: 32px;
+  width: 64px;
+  border: 2px solid #222;
+  border-radius: 10px;
+  padding: 0 8px;
+  background: #fff;
+}
+
+.tradeTaking {
+  padding: 10px 4px 0;
+}
+
+.availableRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.availableLabel {
+  color: rgba(0, 0, 0, 0.72);
+}
+
+.availableValue {
+  font-weight: 900;
+}
+
+.instrumentRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0 14px;
+}
+
+.instrumentSymbol {
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.instrumentPrice {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.lotRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.lotLeft {
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.lotLabel {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.72);
+  font-weight: 900;
+}
+
+.lotInput {
+  height: 30px;
+  width: 56px;
+  border: 2px solid #222;
+  border-radius: 10px;
+  padding: 0 10px;
+  text-align: center;
+}
+
+.totalText {
+  font-size: 13px;
+  text-align: right;
+  color: rgba(0, 0, 0, 0.72);
+}
+
+.totalEq {
+  margin-left: 10px;
+  font-weight: 900;
+  color: #111;
+  white-space: nowrap;
+}
+
+.tradeActions {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.buyBtn {
+  height: 50px;
+  border: 0;
+  border-radius: 12px;
+  background: #2b9b3a;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cancelBtn {
+  height: 50px;
+  border: 0;
+  border-radius: 12px;
+  background: #e23a3a;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
