@@ -6,6 +6,7 @@ import { searchSymbols } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
+import { getPrices } from "@/lib/getPrices";
 
 const activeTrades = [
   {
@@ -46,7 +47,27 @@ export default function DashboardPage() {
 
   const router = useRouter();
   const { setSelection, waitingTrades, removeWaitingTrade } = useTradeStore();
-  const { watchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const { watchlist, addToWatchlist, removeFromWatchlist, updateWatchlistPrices } = useWatchlist();
+
+  useEffect(() => {
+  if (watchlist.length === 0) {
+    return;
+  }
+
+  const fetchPrices = async () => {
+    const symbols = watchlist.map((item) => item.symbol);
+
+    const latestPrices = await getPrices(symbols);
+
+    updateWatchlistPrices(latestPrices);
+  };
+
+  fetchPrices();
+
+  const interval = setInterval(fetchPrices, 1000);
+
+  return () => clearInterval(interval);
+}, [watchlist.length]);
 
   useEffect(() => {
     const text = searchText.trim();
@@ -73,6 +94,8 @@ export default function DashboardPage() {
 
     return () => clearTimeout(timer);
   }, [searchText]);
+
+  
 
   return (
     <div className={styles.page}>

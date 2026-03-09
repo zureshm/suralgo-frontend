@@ -11,6 +11,7 @@ const WatchlistContext = createContext<{
   watchlist: WatchlistItem[];
   addToWatchlist: (item: WatchlistItem) => void;
   removeFromWatchlist: (symbol: string) => void;
+  updateWatchlistPrices: (prices: WatchlistItem[]) => void;
 } | undefined>(undefined);
 
 export const WatchlistProvider = ({ children }: { children: ReactNode }): ReactNode => {
@@ -28,8 +29,26 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }): ReactN
     setWatchlist((prev) => prev.filter((row) => row.symbol !== symbol));
   };
 
+  const updateWatchlistPrices = (prices: WatchlistItem[]) => {
+  setWatchlist((prev) =>
+    prev.map((item) => {
+      const match = prices.find((row) => row.symbol === item.symbol);
+
+      if (match) {
+        return {
+          ...item,
+          ltp: match.ltp,
+        };
+      }
+
+      return item;
+    })
+  );
+};
+
   return (
-    <WatchlistContext.Provider value={{ watchlist, addToWatchlist, removeFromWatchlist }}>
+    <WatchlistContext.Provider  value={{ watchlist, addToWatchlist, removeFromWatchlist, updateWatchlistPrices }}
+>
       {children}
     </WatchlistContext.Provider>
   );
