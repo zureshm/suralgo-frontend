@@ -49,25 +49,56 @@ export default function DashboardPage() {
   const { setSelection, waitingTrades, removeWaitingTrade } = useTradeStore();
   const { watchlist, addToWatchlist, removeFromWatchlist, updateWatchlistPrices } = useWatchlist();
 
+  const watchlistItems = watchlist.map((row) => {
+    const isActive = waitingTrades.some((t) => t.symbol === row.symbol);
+    const buttonClass = isActive ? `${styles.symbolButton} ${styles.active}` : styles.symbolButton;
+    return (
+      <div key={row.symbol} className={styles.row}>
+        <button
+          className={buttonClass}
+          type="button"
+          onClick={() => {
+            setSelection({
+              symbol: row.symbol,
+              price: String(row.ltp ?? ""),
+            });
+            router.push("/trade");
+          }}
+        >
+          {row.symbol}
+        </button>
+        <div className={styles.ltp}>{row.ltp ?? "-"}</div>
+        <button
+          className={styles.trash}
+          type="button"
+          aria-label="delete"
+          onClick={() => removeFromWatchlist(row.symbol)}
+        >
+          🗑️
+        </button>
+      </div>
+    );
+  });
+
   useEffect(() => {
-  if (watchlist.length === 0) {
-    return;
-  }
+    if (watchlist.length === 0) {
+      return;
+    }
 
-  const fetchPrices = async () => {
-    const symbols = watchlist.map((item) => item.symbol);
+    const fetchPrices = async () => {
+      const symbols = watchlist.map((item) => item.symbol);
 
-    const latestPrices = await getPrices(symbols);
+      const latestPrices = await getPrices(symbols);
 
-    updateWatchlistPrices(latestPrices);
-  };
+      updateWatchlistPrices(latestPrices);
+    };
 
-  fetchPrices();
+    fetchPrices();
 
-  const interval = setInterval(fetchPrices, 1000);
+    const interval = setInterval(fetchPrices, 1000);
 
-  return () => clearInterval(interval);
-}, [watchlist.length]);
+    return () => clearInterval(interval);
+  }, [watchlist.length]);
 
   useEffect(() => {
     const text = searchText.trim();
@@ -94,8 +125,6 @@ export default function DashboardPage() {
 
     return () => clearTimeout(timer);
   }, [searchText]);
-
-  
 
   return (
     <div className={styles.page}>
@@ -153,34 +182,7 @@ export default function DashboardPage() {
           <hr />
           <div className={styles.rows}>
             {!watchlist.length && <div className={styles.empty}>No symbols in watchlist</div>}
-            {watchlist.map((row) => (
-              <div key={row.symbol} className={styles.row}>
-                <button
-                  className={styles.symbolButton}
-                  type="button"
-                  onClick={() => {
-                    setSelection({
-                      symbol: row.symbol,
-                      price: String(row.ltp ?? ""),
-                    });
-                    router.push("/trade");
-                  }}
-                >
-                  {row.symbol}
-                </button>
-
-                <div className={styles.ltp}>{row.ltp ?? "-"}</div>
-
-                <button
-                  className={styles.trash}
-                  type="button"
-                  aria-label="delete"
-                  onClick={() => removeFromWatchlist(row.symbol)}
-                >
-                  🗑️
-                </button>
-              </div>
-            ))}
+            {watchlistItems}
           </div>
         </div>
 
