@@ -1,15 +1,44 @@
 "use client";
 
 import styles from "./page.module.scss";
+import { useEffect, useState } from "react";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useRouter } from "next/navigation";
+import { getPrices } from "@/lib/getPrices";
 
 export default function TradePage() {
   const router = useRouter();
   const { selection, addWaitingTradeFromSelection, waitingTrades } = useTradeStore();
+  const [currentPrice, setCurrentPrice] = useState<string | null>(null);
+  const [lotValue, setLotValue] = useState(5);
 
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
   const buttonText = isAlreadyWaiting ? "UPDATE" : "ENTER";
+
+  const lotSize: number = 65;
+
+  const price = Number(currentPrice || selection?.price || 0);
+  const total = price * (lotSize * lotValue);
+
+  useEffect(() => {
+    if (!selection?.symbol) {
+      setCurrentPrice(null);
+      return;
+    }
+
+    const fetchPrice = async () => {
+      const prices = await getPrices([selection.symbol]);
+      if (prices.length > 0) {
+        setCurrentPrice(prices[0].ltp?.toString() ?? null);
+      }
+    };
+
+    fetchPrice();
+
+    const interval = setInterval(fetchPrice, 1000);
+
+    return () => clearInterval(interval);
+  }, [selection?.symbol]);
 
   return (
     <div className={styles.page}>
@@ -58,7 +87,7 @@ export default function TradePage() {
         <div className={styles.divider} />
 
         <details className={styles.details} open>
-          <summary className={styles.summary}>Target</summary>
+          <summary className={styles.summary}>Exit Strategy</summary>
           <div className={styles.grid}>
             <label className={styles.checkRow}>
               <input type="checkbox" defaultChecked />
@@ -121,18 +150,17 @@ export default function TradePage() {
             <div className={styles.instrumentSymbol}>
               {selection?.symbol ?? "Select a symbol from Watchlist"}
             </div>
-            <div className={styles.instrumentPrice}>₹{selection?.price ?? "--"}</div>
+            <div className={styles.instrumentPrice}>₹{currentPrice ?? selection?.price ?? "--"}</div>
           </div>
 
           <div className={styles.lotRow}>
             <div className={styles.lotLeft}>
-              <div className={styles.lotLabel}>LOT :</div>
-              <input className={styles.lotInput} defaultValue="5" />
+              <div className={styles.lotLabel}>LOT  ({lotSize}) :</div>
+              <input className={styles.lotInput} value={lotValue} onChange={(e) => setLotValue(Number(e.target.value) || 0)} />
             </div>
 
             <div className={styles.totalText}>
-              Total : 200.00 * 325
-              <span className={styles.totalEq}>= ₹65,000</span>
+              Total : {price.toFixed(2)} * {lotSize * lotValue} = ₹{total.toFixed(2)}
             </div>
           </div>
 
