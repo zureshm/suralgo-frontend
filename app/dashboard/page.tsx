@@ -5,11 +5,8 @@ import { useEffect, useState } from "react";
 import { searchSymbols } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
-
-type WatchlistItem = {
-  symbol: string;
-  ltp: number | null;
-};
+import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
+import { getPrices } from "@/lib/getPrices";
 
 const activeTrades = [
   {
@@ -45,30 +42,68 @@ const activeTrades = [
 ];
 
 export default function DashboardPage() {
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState<WatchlistItem[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const router = useRouter();
   const { setSelection, waitingTrades, removeWaitingTrade } = useTradeStore();
+  const { watchlist, addToWatchlist, removeFromWatchlist, updateWatchlistPrices } = useWatchlist();
 
-  function addToWatchlist(item: WatchlistItem) {
-    const alreadyExists = watchlist.some((row) => row.symbol === item.symbol);
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
-    if (alreadyExists) {
-      setSearchText("");
-      setSuggestions([]);
+  const watchlistItems = watchlist.map((row) => {
+    const isActive = waitingTrades.some((t) => t.symbol === row.symbol);
+    const buttonClass = isActive ? `${styles.symbolButton} ${styles.active}` : styles.symbolButton;
+    return (
+      <div key={row.symbol} className={styles.row}>
+        <button
+          className={buttonClass}
+          type="button"
+          onClick={() => {
+            setSelection({
+              symbol: row.symbol,
+              price: String(row.ltp ?? ""),
+            });
+            router.push("/trade");
+          }}
+        >
+          {row.symbol}
+        </button>
+        <div className={styles.ltp}>{row.ltp ?? "-"}</div>
+        <button
+          className={styles.trash}
+          type="button"
+          aria-label="delete"
+          onClick={() => removeFromWatchlist(row.symbol)}
+        >
+          🗑️
+        </button>
+      </div>
+    );
+  });
+
+  useEffect(() => {
+    if (watchlist.length === 0) {
       return;
     }
 
-    setWatchlist((prev) => [...prev, item]);
-    setSearchText("");
-    setSuggestions([]);
-  }
+    const fetchPrices = async () => {
+      const symbols = watchlist.map((item) => item.symbol);
 
-  function removeFromWatchlist(symbol: string) {
-    setWatchlist((prev) => prev.filter((row) => row.symbol !== symbol));
-  }
+      const latestPrices = await getPrices(symbols);
+
+      updateWatchlistPrices(latestPrices);
+    };
+
+    fetchPrices();
+
+    const interval = setInterval(fetchPrices, 1000);
+
+    return () => clearInterval(interval);
+  }, [watchlist.length]);
 
   useEffect(() => {
     const text = searchText.trim();
@@ -113,6 +148,8 @@ export default function DashboardPage() {
             onClick={() => {
               if (suggestions.length > 0) {
                 addToWatchlist(suggestions[0]);
+                setSearchText("");
+                setSuggestions([]);
               }
             }}
           >
@@ -126,7 +163,11 @@ export default function DashboardPage() {
                   key={item.symbol}
                   type="button"
                   className={styles.suggestionItem}
-                  onClick={() => addToWatchlist(item)}
+                  onClick={() => {
+                    addToWatchlist(item);
+                    setSearchText("");
+                    setSuggestions([]);
+                  }}
                 >
                   {item.symbol}
                 </button>
@@ -145,35 +186,13 @@ export default function DashboardPage() {
           </div>
           <hr />
           <div className={styles.rows}>
-            {!watchlist.length && <div className={styles.empty}>No symbols in watchlist</div>}
-            {watchlist.map((row) => (
-              <div key={row.symbol} className={styles.row}>
-                <button
-                  className={styles.symbolButton}
-                  type="button"
-                  onClick={() => {
-                    setSelection({
-                      symbol: row.symbol,
-                      price: String(row.ltp ?? ""),
-                    });
-                    router.push("/trade");
-                  }}
-                >
-                  {row.symbol}
-                </button>
-
-                <div className={styles.ltp}>{row.ltp ?? "-"}</div>
-
-                <button
-                  className={styles.trash}
-                  type="button"
-                  aria-label="delete"
-                  onClick={() => removeFromWatchlist(row.symbol)}
-                >
-                  🗑️
-                </button>
-              </div>
-            ))}
+            {!isHydrated ? (
+              <div className={styles.empty}>Loading watchlist...</div>
+            ) : !watchlist.length ? (
+              <div className={styles.empty}>No symbols in watchlist</div>
+            ) : (
+              watchlistItems
+            )}
           </div>
         </div>
 
@@ -181,38 +200,6 @@ export default function DashboardPage() {
 
         <div className={styles.card}>
           <div className={styles.activeTrades}>
-            {waitingTrades.map((t: WaitingTrade, index: number) => (
-              <div key={index} className={styles.trade}>
-                <div className={styles.tradeRow}>
-                  <div className={styles.tradeSymbol}>{t.symbol}</div>
-
-                  <div className={styles.tradeRight}>
-                    <div className={`${styles.tradeMeta} ${styles.waiting}`}>
-                      {t.stateText}
-                    </div>
-
-                    <button
-                      className={`${styles.tradeAction} ${styles.danger}`}
-                      type="button"
-                      onClick={() => removeWaitingTrade(t.symbol)}
-                    >
-                      CANCEL
-                    </button>
-                  </div>
-                </div>
-
-                {t.logs.length > 0 ? (
-                  <div className={styles.tradeLogs}>
-                    {t.logs.map((line: string, logIndex: number) => (
-                      <div key={logIndex} className={styles.logLine}>
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-
             {activeTrades.map((t) => (
               <div key={t.symbol} className={styles.trade}>
                 <div className={styles.tradeRow}>
@@ -239,6 +226,38 @@ export default function DashboardPage() {
                 {t.logs.length > 0 ? (
                   <div className={styles.tradeLogs}>
                     {t.logs.map((line, logIndex) => (
+                      <div key={logIndex} className={styles.logLine}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+
+            {isHydrated && waitingTrades.map((t: WaitingTrade, index: number) => (
+              <div key={index} className={styles.trade}>
+                <div className={styles.tradeRow}>
+                  <div className={styles.tradeSymbol}>{t.symbol}</div>
+
+                  <div className={styles.tradeRight}>
+                    <div className={`${styles.tradeMeta} ${styles.waiting}`}>
+                      {t.stateText}
+                    </div>
+
+                    <button
+                      className={`${styles.tradeAction} ${styles.danger}`}
+                      type="button"
+                      onClick={() => removeWaitingTrade(t.symbol)}
+                    >
+                      CANCEL
+                    </button>
+                  </div>
+                </div>
+
+                {t.logs.length > 0 ? (
+                  <div className={styles.tradeLogs}>
+                    {t.logs.map((line: string, logIndex: number) => (
                       <div key={logIndex} className={styles.logLine}>
                         {line}
                       </div>
