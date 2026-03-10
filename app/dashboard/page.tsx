@@ -44,10 +44,15 @@ const activeTrades = [
 export default function DashboardPage() {
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState<WatchlistItem[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const router = useRouter();
   const { setSelection, waitingTrades, removeWaitingTrade } = useTradeStore();
   const { watchlist, addToWatchlist, removeFromWatchlist, updateWatchlistPrices } = useWatchlist();
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const watchlistItems = watchlist.map((row) => {
     const isActive = waitingTrades.some((t) => t.symbol === row.symbol);
@@ -181,8 +186,13 @@ export default function DashboardPage() {
           </div>
           <hr />
           <div className={styles.rows}>
-            {!watchlist.length && <div className={styles.empty}>No symbols in watchlist</div>}
-            {watchlistItems}
+            {!isHydrated ? (
+              <div className={styles.empty}>Loading watchlist...</div>
+            ) : !watchlist.length ? (
+              <div className={styles.empty}>No symbols in watchlist</div>
+            ) : (
+              watchlistItems
+            )}
           </div>
         </div>
 
@@ -190,38 +200,6 @@ export default function DashboardPage() {
 
         <div className={styles.card}>
           <div className={styles.activeTrades}>
-            {waitingTrades.map((t: WaitingTrade, index: number) => (
-              <div key={index} className={styles.trade}>
-                <div className={styles.tradeRow}>
-                  <div className={styles.tradeSymbol}>{t.symbol}</div>
-
-                  <div className={styles.tradeRight}>
-                    <div className={`${styles.tradeMeta} ${styles.waiting}`}>
-                      {t.stateText}
-                    </div>
-
-                    <button
-                      className={`${styles.tradeAction} ${styles.danger}`}
-                      type="button"
-                      onClick={() => removeWaitingTrade(t.symbol)}
-                    >
-                      CANCEL
-                    </button>
-                  </div>
-                </div>
-
-                {t.logs.length > 0 ? (
-                  <div className={styles.tradeLogs}>
-                    {t.logs.map((line: string, logIndex: number) => (
-                      <div key={logIndex} className={styles.logLine}>
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-
             {activeTrades.map((t) => (
               <div key={t.symbol} className={styles.trade}>
                 <div className={styles.tradeRow}>
@@ -248,6 +226,38 @@ export default function DashboardPage() {
                 {t.logs.length > 0 ? (
                   <div className={styles.tradeLogs}>
                     {t.logs.map((line, logIndex) => (
+                      <div key={logIndex} className={styles.logLine}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+
+            {isHydrated && waitingTrades.map((t: WaitingTrade, index: number) => (
+              <div key={index} className={styles.trade}>
+                <div className={styles.tradeRow}>
+                  <div className={styles.tradeSymbol}>{t.symbol}</div>
+
+                  <div className={styles.tradeRight}>
+                    <div className={`${styles.tradeMeta} ${styles.waiting}`}>
+                      {t.stateText}
+                    </div>
+
+                    <button
+                      className={`${styles.tradeAction} ${styles.danger}`}
+                      type="button"
+                      onClick={() => removeWaitingTrade(t.symbol)}
+                    >
+                      CANCEL
+                    </button>
+                  </div>
+                </div>
+
+                {t.logs.length > 0 ? (
+                  <div className={styles.tradeLogs}>
+                    {t.logs.map((line: string, logIndex: number) => (
                       <div key={logIndex} className={styles.logLine}>
                         {line}
                       </div>

@@ -30,7 +30,13 @@ export function TradeStoreProvider({
   children: React.ReactNode;
 }) {
   const [selection, setSelection] = useState<TradeSelection>(null);
-  const [waitingTrades, setWaitingTrades] = useState<WaitingTrade[]>([]);
+  const [waitingTrades, setWaitingTrades] = useState<WaitingTrade[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('waitingTrades');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
 
   const addWaitingTradeFromSelection = () => {
     if (!selection) return;
@@ -39,22 +45,27 @@ export function TradeStoreProvider({
     const alreadyExists = waitingTrades.some((trade) => trade.symbol === selection.symbol);
     if (alreadyExists) return;
 
-    setWaitingTrades((prev) => [
+    const newWaitingTrades = [
       {
         symbol: selection.symbol,
         price: selection.price,
         stateText: "...WAITING",
         logs: [],
       },
-      ...prev,
-    ]);
+      ...waitingTrades,
+    ];
+
+    setWaitingTrades(newWaitingTrades);
+    localStorage.setItem('waitingTrades', JSON.stringify(newWaitingTrades));
 
     // Clear selection after adding
     setSelection(null);
   };
 
   const removeWaitingTrade = (symbol: string) => {
-    setWaitingTrades((prev) => prev.filter((trade) => trade.symbol !== symbol));
+    const newWaitingTrades = waitingTrades.filter((trade) => trade.symbol !== symbol);
+    setWaitingTrades(newWaitingTrades);
+    localStorage.setItem('waitingTrades', JSON.stringify(newWaitingTrades));
   };
 
   const value = useMemo(

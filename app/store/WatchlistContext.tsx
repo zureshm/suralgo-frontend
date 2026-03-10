@@ -15,18 +15,28 @@ const WatchlistContext = createContext<{
 } | undefined>(undefined);
 
 export const WatchlistProvider = ({ children }: { children: ReactNode }): ReactNode => {
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('watchlist');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
 
   const addToWatchlist = (item: WatchlistItem) => {
     const alreadyExists = watchlist.some((row) => row.symbol === item.symbol);
 
     if (alreadyExists) return;
 
-    setWatchlist((prev) => [...prev, item]);
+    const newWatchlist = [...watchlist, item];
+    setWatchlist(newWatchlist);
+    localStorage.setItem('watchlist', JSON.stringify(newWatchlist));
   };
 
   const removeFromWatchlist = (symbol: string) => {
-    setWatchlist((prev) => prev.filter((row) => row.symbol !== symbol));
+    const newWatchlist = watchlist.filter((row) => row.symbol !== symbol);
+    setWatchlist(newWatchlist);
+    localStorage.setItem('watchlist', JSON.stringify(newWatchlist));
   };
 
   const updateWatchlistPrices = (prices: WatchlistItem[]) => {
