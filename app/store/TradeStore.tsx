@@ -66,6 +66,7 @@ export function TradeStoreProvider({
     const newWaitingTrades = waitingTrades.filter((trade) => trade.symbol !== symbol);
     setWaitingTrades(newWaitingTrades);
     localStorage.setItem('waitingTrades', JSON.stringify(newWaitingTrades));
+    localStorage.removeItem('tradeForm_' + symbol);
   };
 
   const value = useMemo(

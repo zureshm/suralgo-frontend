@@ -12,6 +12,21 @@ export default function TradePage() {
   const [currentPrice, setCurrentPrice] = useState<string | null>(null);
   const [lotValue, setLotValue] = useState(5);
 
+  // Form states
+  const [strategy, setStrategy] = useState('nifty');
+  const [stopLossNumber, setStopLossNumber] = useState(15);
+  const [stopLossPercentage, setStopLossPercentage] = useState(10);
+  const [stopLossCandle, setStopLossCandle] = useState('closing');
+  const [targetPoints, setTargetPoints] = useState(20);
+  const [minToHold, setMinToHold] = useState(8);
+  const [trailing, setTrailing] = useState(15);
+  const [timeFrom, setTimeFrom] = useState('10:15');
+  const [timeFromAmpm, setTimeFromAmpm] = useState('am');
+  const [timeTo, setTimeTo] = useState('02:45');
+  const [timeToAmpm, setTimeToAmpm] = useState('pm');
+  const [priceFrom, setPriceFrom] = useState(180);
+  const [priceTo, setPriceTo] = useState(220);
+
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
   const buttonText = isAlreadyWaiting ? "UPDATE" : "ENTER";
 
@@ -40,13 +55,75 @@ export default function TradePage() {
     return () => clearInterval(interval);
   }, [selection?.symbol]);
 
+  useEffect(() => {
+    if (!selection?.symbol) return;
+
+    const saved = localStorage.getItem('tradeForm_' + selection.symbol);
+    if (saved) {
+      const data = JSON.parse(saved);
+      setStrategy(data.strategy || 'nifty');
+      setStopLossNumber(data.stopLossNumber || 15);
+      setStopLossPercentage(data.stopLossPercentage || 10);
+      setStopLossCandle(data.stopLossCandle || 'closing');
+      setTargetPoints(data.targetPoints || 20);
+      setMinToHold(data.minToHold || 8);
+      setTrailing(data.trailing || 15);
+      setTimeFrom(data.timeFrom || '10:15');
+      setTimeFromAmpm(data.timeFromAmpm || 'am');
+      setTimeTo(data.timeTo || '02:45');
+      setTimeToAmpm(data.timeToAmpm || 'pm');
+      setPriceFrom(data.priceFrom || 180);
+      setPriceTo(data.priceTo || 220);
+      setLotValue(data.lotValue || 5);
+    } else {
+      // Reset to defaults
+      setStrategy('nifty');
+      setStopLossNumber(15);
+      setStopLossPercentage(10);
+      setStopLossCandle('closing');
+      setTargetPoints(20);
+      setMinToHold(8);
+      setTrailing(15);
+      setTimeFrom('10:15');
+      setTimeFromAmpm('am');
+      setTimeTo('02:45');
+      setTimeToAmpm('pm');
+      setPriceFrom(180);
+      setPriceTo(220);
+      setLotValue(5);
+    }
+  }, [selection?.symbol]);
+
+  const saveForm = () => {
+    if (!selection?.symbol) return;
+    const formData = {
+      strategy,
+      stopLossNumber,
+      stopLossPercentage,
+      stopLossCandle,
+      targetPoints,
+      minToHold,
+      trailing,
+      timeFrom,
+      timeFromAmpm,
+      timeTo,
+      timeToAmpm,
+      priceFrom,
+      priceTo,
+      symbol: selection.symbol,
+      lotValue,
+      takenPrice: price,
+    };
+    localStorage.setItem('tradeForm_' + selection.symbol, JSON.stringify(formData));
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <div className={styles.sectionTitle}>Stretegy</div>
-            <select className={styles.select} defaultValue="nifty">
+            <select className={styles.select} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
               <option value="nifty">NIFTY CE STRATEGY</option>
               <option value="banknifty">BANKNIFTY CE STRATEGY</option>
             </select>
@@ -62,19 +139,19 @@ export default function TradePage() {
               <input type="checkbox" defaultChecked />
               <span>Based on number</span>
             </label>
-            <input className={styles.input} defaultValue="15" />
+            <input className={styles.input} value={stopLossNumber} onChange={(e) => setStopLossNumber(Number(e.target.value) || 0)} />
 
             <label className={styles.checkRow}>
               <input type="checkbox" defaultChecked />
               <span>Based on percentage %</span>
             </label>
-            <input className={styles.input} defaultValue="10" />
+            <input className={styles.input} value={stopLossPercentage} onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)} />
 
             <label className={styles.checkRow}>
               <input type="checkbox" defaultChecked />
               <span>Based on previous candle</span>
             </label>
-            <select className={styles.selectSmall} defaultValue="closing">
+            <select className={styles.selectSmall} value={stopLossCandle} onChange={(e) => setStopLossCandle(e.target.value)}>
               <option value="closing">Closing</option>
               <option value="open">Open</option>
               <option value="high">High</option>
@@ -93,19 +170,19 @@ export default function TradePage() {
               <input type="checkbox" defaultChecked />
               <span>Target Points</span>
             </label>
-            <input className={styles.input} defaultValue="20" />
+            <input className={styles.input} value={targetPoints} onChange={(e) => setTargetPoints(Number(e.target.value) || 0)} />
 
             <label className={styles.checkRow}>
               <input type="checkbox" defaultChecked />
               <span>Minimum to hold</span>
             </label>
-            <input className={styles.input} defaultValue="8" />
+            <input className={styles.input} value={minToHold} onChange={(e) => setMinToHold(Number(e.target.value) || 0)} />
 
             <label className={styles.checkRow}>
               <input type="checkbox" defaultChecked />
               <span>Trailing after target</span>
             </label>
-            <input className={styles.input} defaultValue="15" />
+            <input className={styles.input} value={trailing} onChange={(e) => setTrailing(Number(e.target.value) || 0)} />
           </div>
         </details>
 
@@ -116,14 +193,14 @@ export default function TradePage() {
           <div className={styles.rangeGrid}>
             <div className={styles.rangeRow}>
               <div className={styles.rangeLabel}>Time :</div>
-              <input className={styles.inputSmall} defaultValue="10:15" />
-              <select className={styles.selectTiny} defaultValue="am">
+              <input className={styles.inputSmall} value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
+              <select className={styles.selectTiny} value={timeFromAmpm} onChange={(e) => setTimeFromAmpm(e.target.value)}>
                 <option value="am">AM</option>
                 <option value="pm">PM</option>
               </select>
               <div className={styles.rangeLabel}>To</div>
-              <input className={styles.inputSmall} defaultValue="02:45" />
-              <select className={styles.selectTiny} defaultValue="pm">
+              <input className={styles.inputSmall} value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
+              <select className={styles.selectTiny} value={timeToAmpm} onChange={(e) => setTimeToAmpm(e.target.value)}>
                 <option value="am">AM</option>
                 <option value="pm">PM</option>
               </select>
@@ -131,9 +208,9 @@ export default function TradePage() {
 
             <div className={styles.rangeRow}>
               <div className={styles.rangeLabel}>Price :</div>
-              <input className={styles.inputSmall} defaultValue="180" />
+              <input className={styles.inputSmall} value={priceFrom} onChange={(e) => setPriceFrom(Number(e.target.value) || 0)} />
               <div className={styles.rangeLabel}>To</div>
-              <input className={styles.inputSmall} defaultValue="220" />
+              <input className={styles.inputSmall} value={priceTo} onChange={(e) => setPriceTo(Number(e.target.value) || 0)} />
             </div>
           </div>
         </details>
@@ -169,6 +246,7 @@ export default function TradePage() {
               className={styles.buyBtn}
               type="button"
               onClick={() => {
+                saveForm();
                 addWaitingTradeFromSelection();
                 router.push("/dashboard");
               }}
