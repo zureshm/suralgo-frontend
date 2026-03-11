@@ -2,13 +2,13 @@
 
 import styles from "./page.module.scss";
 import { useEffect, useState } from "react";
-import { searchSymbols } from "@/lib/api";
+import { searchSymbols, getStrategySignal } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
 import { getPrices } from "@/lib/getPrices";
 
-const activeTrades = [
+const demoActiveTrades = [
   {
     symbol: "NIFTY 10MAR26 24800 CE",
     pnlText: "+2345.75",
@@ -42,21 +42,43 @@ const activeTrades = [
 ];
 
 export default function DashboardPage() {
+
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState<WatchlistItem[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
 
+  const [strategySignal, setStrategySignal] = useState<any>(null);
+  const [lastHandledSignalKey, setLastHandledSignalKey] = useState("");
+
   const router = useRouter();
-  const { setSelection, waitingTrades, removeWaitingTrade } = useTradeStore();
-  const { watchlist, addToWatchlist, removeFromWatchlist, updateWatchlistPrices } = useWatchlist();
+
+  const {
+    setSelection,
+    waitingTrades,
+    removeWaitingTrade,
+    activateWaitingTrade,
+    activeTrades,
+  } = useTradeStore();
+
+  const {
+    watchlist,
+    addToWatchlist,
+    removeFromWatchlist,
+    updateWatchlistPrices,
+  } = useWatchlist();
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
   const watchlistItems = watchlist.map((row) => {
+
     const isActive = waitingTrades.some((t) => t.symbol === row.symbol);
-    const buttonClass = isActive ? `${styles.symbolButton} ${styles.active}` : styles.symbolButton;
+
+    const buttonClass = isActive
+      ? `${styles.symbolButton} ${styles.active}`
+      : styles.symbolButton;
+
     return (
       <div key={row.symbol} className={styles.row}>
         <button
@@ -72,11 +94,12 @@ export default function DashboardPage() {
         >
           {row.symbol}
         </button>
+
         <div className={styles.ltp}>{row.ltp ?? "-"}</div>
+
         <button
           className={styles.trash}
           type="button"
-          aria-label="delete"
           onClick={() => removeFromWatchlist(row.symbol)}
         >
           🗑️
@@ -86,11 +109,11 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    if (watchlist.length === 0) {
-      return;
-    }
+
+    if (watchlist.length === 0) return;
 
     const fetchPrices = async () => {
+
       const symbols = watchlist.map((item) => item.symbol);
 
       const latestPrices = await getPrices(symbols);
@@ -103,9 +126,11 @@ export default function DashboardPage() {
     const interval = setInterval(fetchPrices, 1000);
 
     return () => clearInterval(interval);
+
   }, [watchlist.length]);
 
   useEffect(() => {
+
     const text = searchText.trim();
 
     if (!text) {
@@ -114,7 +139,9 @@ export default function DashboardPage() {
     }
 
     const timer = setTimeout(async () => {
+
       try {
+
         const data: WatchlistItem[] = await searchSymbols(text);
 
         const filtered = data.filter((item) =>
@@ -122,19 +149,69 @@ export default function DashboardPage() {
         );
 
         setSuggestions(filtered.slice(0, 8));
-      } catch (error) {
-        console.error("Search failed", error);
+
+      } catch {
+
         setSuggestions([]);
+
       }
+
     }, 300);
 
     return () => clearTimeout(timer);
+
   }, [searchText]);
 
+  // polling strategy
+  useEffect(() => {
+
+    const fetchStrategySignal = async () => {
+      const data = await getStrategySignal();
+      setStrategySignal(data);
+    };
+
+    fetchStrategySignal();
+
+    const interval = setInterval(fetchStrategySignal, 1000);
+
+    return () => clearInterval(interval);
+
+  }, []);
+
+  // trigger waiting → active
+  useEffect(() => {
+
+    if (!strategySignal) return;
+    if (strategySignal.signal !== "BUY") return;
+
+    const signalKey =
+      strategySignal.signal + "-" + strategySignal.lastCandleTime;
+
+    if (signalKey === lastHandledSignalKey) return;
+
+    const matchingTrade = waitingTrades.find(
+      (t) => t.symbol === strategySignal.symbol
+    );
+
+    if (!matchingTrade) return;
+
+    activateWaitingTrade(
+      matchingTrade.symbol,
+      "BUY triggered by strategy at " + strategySignal.lastCandleTime
+    );
+
+    setLastHandledSignalKey(signalKey);
+
+  }, [strategySignal, waitingTrades]);
+
   return (
+
     <div className={styles.page}>
+
       <div className={styles.container}>
+
         <header className={styles.header}>
+
           <input
             className={styles.search}
             placeholder="Search symbol"
@@ -174,18 +251,23 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+
         </header>
 
         <h2 className={styles.sectionTitle}>WATCHLIST</h2>
 
         <div className={styles.card}>
+
           <div className={styles.tableHeader}>
             <div className={styles.thLeft}>SYMBOL</div>
             <div className={styles.thRight}>LTP</div>
-            <div className={styles.thIcon} />
+            <div className={styles.thIcon}/>
           </div>
-          <hr />
+
+          <hr/>
+
           <div className={styles.rows}>
+
             {!isHydrated ? (
               <div className={styles.empty}>Loading watchlist...</div>
             ) : !watchlist.length ? (
@@ -193,19 +275,27 @@ export default function DashboardPage() {
             ) : (
               watchlistItems
             )}
+
           </div>
+
         </div>
 
         <h2 className={styles.sectionTitle}>ACTIVE TRADES</h2>
 
         <div className={styles.card}>
+
           <div className={styles.activeTrades}>
-            {activeTrades.map((t) => (
+
+            {/* dummy trades */}
+            {demoActiveTrades.map((t) => (
               <div key={t.symbol} className={styles.trade}>
+
                 <div className={styles.tradeRow}>
+
                   <div className={styles.tradeSymbol}>{t.symbol}</div>
 
                   <div className={styles.tradeRight}>
+
                     <div
                       className={`${styles.tradeMeta} ${
                         t.pnlVariant === "profit" ? styles.profit : styles.loss
@@ -220,56 +310,102 @@ export default function DashboardPage() {
                     >
                       {t.actionText}
                     </button>
+
                   </div>
+
                 </div>
 
-                {t.logs.length > 0 ? (
+                {t.logs.length > 0 && (
                   <div className={styles.tradeLogs}>
-                    {t.logs.map((line, logIndex) => (
-                      <div key={logIndex} className={styles.logLine}>
+                    {t.logs.map((line, i) => (
+                      <div key={i} className={styles.logLine}>
                         {line}
                       </div>
                     ))}
                   </div>
-                ) : null}
+                )}
+
               </div>
             ))}
 
-            {isHydrated && waitingTrades.map((t: WaitingTrade, index: number) => (
-              <div key={index} className={styles.trade}>
+            {/* real active trades */}
+            {activeTrades.map((t) => (
+              <div key={t.symbol} className={styles.trade}>
+
                 <div className={styles.tradeRow}>
+
                   <div className={styles.tradeSymbol}>{t.symbol}</div>
 
                   <div className={styles.tradeRight}>
-                    <div className={`${styles.tradeMeta} ${styles.waiting}`}>
-                      {t.stateText}
+
+                    <div
+                      className={`${styles.tradeMeta} ${
+                        t.pnl >= 0 ? styles.profit : styles.loss
+                      }`}
+                    >
+                      {t.pnl.toFixed(2)}
                     </div>
 
                     <button
-                      className={`${styles.tradeAction} ${styles.danger}`}
+                      className={`${styles.tradeAction} ${styles.dark}`}
                       type="button"
-                      onClick={() => removeWaitingTrade(t.symbol)}
                     >
-                      CANCEL
+                      EXIT
                     </button>
+
                   </div>
+
                 </div>
 
-                {t.logs.length > 0 ? (
+                {t.logs.length > 0 && (
                   <div className={styles.tradeLogs}>
-                    {t.logs.map((line: string, logIndex: number) => (
-                      <div key={logIndex} className={styles.logLine}>
+                    {t.logs.map((line, i) => (
+                      <div key={i} className={styles.logLine}>
                         {line}
                       </div>
                     ))}
                   </div>
-                ) : null}
+                )}
+
               </div>
             ))}
+
+            {/* waiting trades */}
+            {isHydrated &&
+              waitingTrades.map((t: WaitingTrade, index: number) => (
+                <div key={index} className={styles.trade}>
+
+                  <div className={styles.tradeRow}>
+
+                    <div className={styles.tradeSymbol}>{t.symbol}</div>
+
+                    <div className={styles.tradeRight}>
+
+                      <div className={`${styles.tradeMeta} ${styles.waiting}`}>
+                        {t.stateText}
+                      </div>
+
+                      <button
+                        className={`${styles.tradeAction} ${styles.danger}`}
+                        type="button"
+                        onClick={() => removeWaitingTrade(t.symbol)}
+                      >
+                        CANCEL
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              ))}
+
           </div>
+
         </div>
 
         <div className={styles.bottomActions}>
+
           <button
             className={styles.bottomBtn}
             type="button"
@@ -285,8 +421,11 @@ export default function DashboardPage() {
           >
             TRADE HISTORY
           </button>
+
         </div>
+
       </div>
+
     </div>
   );
 }
