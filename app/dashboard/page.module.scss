@@ -194,22 +194,22 @@
 }
 
 .rsGold {
-  color: #ffd700;
+  color: #c0a610;
   font-weight: bold;
 }
 
 .cyanTime {
-  color: #00ffff;
+  color: #0084ff;
   font-weight: bold;
 }
 
 .plProfit {
-  color: #0a8a43;
+  color: #5ee099;
   font-weight: bold;
 }
 
 .plLoss {
-  color: #d12b2b;
+  color: #f14a4a;
   font-weight: bold;
 }
 
@@ -272,4 +272,10 @@
 .active {
   background: purple;
   color: white;
+}
+
+.running {
+  background: green;
+  color: white;
+  pointer-events: none;
 }

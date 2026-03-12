@@ -49,6 +49,7 @@ export default function DashboardPage() {
 
   const [strategySignal, setStrategySignal] = useState<any>(null);
   const [lastHandledSignalKey, setLastHandledSignalKey] = useState("");
+  const [activeLtps, setActiveLtps] = useState<Record<string, number>>({});
 
   const router = useRouter();
 
@@ -75,10 +76,13 @@ export default function DashboardPage() {
 
   const watchlistItems = watchlist.map((row) => {
 
-    const isActive = waitingTrades.some((t) => t.symbol === row.symbol);
+    const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);
+    const isRunning = activeTrades.some((t) => t.symbol === row.symbol);
 
-    const buttonClass = isActive
+    const buttonClass = isWaiting
       ? `${styles.symbolButton} ${styles.active}`
+      : isRunning
+      ? `${styles.symbolButton} ${styles.running}`
       : styles.symbolButton;
 
     return (
@@ -86,13 +90,14 @@ export default function DashboardPage() {
         <button
           className={buttonClass}
           type="button"
-          onClick={() => {
+          onClick={isRunning ? undefined : () => {
             setSelection({
               symbol: row.symbol,
               price: String(row.ltp ?? ""),
             });
             router.push("/trade");
           }}
+          style={isRunning ? { pointerEvents: "none" } : {}}
         >
           {row.symbol}
         </button>
@@ -277,6 +282,31 @@ export default function DashboardPage() {
     updateActiveTradeBuy,
   ]);
 
+  useEffect(() => {
+    if (activeTrades.length === 0) return;
+
+    const fetchActivePrices = async () => {
+      const symbols = activeTrades.map((t) => t.symbol);
+      const latestPrices = await getPrices(symbols);
+
+      setActiveLtps((prev) => {
+        const next = { ...prev };
+        for (const p of latestPrices) {
+          if (!p?.symbol) continue;
+          const ltpNum = Number(p.ltp);
+          if (Number.isFinite(ltpNum)) {
+            next[p.symbol] = ltpNum;
+          }
+        }
+        return next;
+      });
+    };
+
+    fetchActivePrices();
+    const interval = setInterval(fetchActivePrices, 1000);
+    return () => clearInterval(interval);
+  }, [activeTrades]);
+
   return (
     <div className={styles.page}>
       <div className={styles.container}>
@@ -358,7 +388,7 @@ export default function DashboardPage() {
           <div className={styles.activeTrades}>
 
             {/* dummy trades */}
-            {demoActiveTrades.map((t) => (
+            {/* {demoActiveTrades.map((t) => (
               <div key={t.symbol} className={styles.trade}>
 
                 <div className={styles.tradeRow}>
@@ -396,7 +426,7 @@ export default function DashboardPage() {
                 )}
 
               </div>
-            ))}
+            ))} */}
 
             {/* real active trades */}
             {activeTrades.map((t) => (
@@ -408,12 +438,25 @@ export default function DashboardPage() {
 
                   <div className={styles.tradeRight}>
 
-                    <div
-                      className={`${styles.tradeMeta} ${t.pnl >= 0 ? styles.profit : styles.loss
-                        }`}
-                    >
-                      {t.pnl.toFixed(2)}
-                    </div>
+                    {(() => {
+                      const ltp = activeLtps[t.symbol];
+                      const entry = Number(t.entryPrice);
+                      const qty = t.lotSize * t.lotValue;
+                      const unrealized =
+                        t.inPosition && Number.isFinite(ltp) && Number.isFinite(entry)
+                          ? (ltp - entry) * qty
+                          : 0;
+                      const livePnl = t.pnl + unrealized;
+
+                      return (
+                        <div
+                          className={`${styles.tradeMeta} ${livePnl >= 0 ? styles.profit : styles.loss
+                            }`}
+                        >
+                          {livePnl.toFixed(2)}
+                        </div>
+                      );
+                    })()}
 
                     <button
                       className={`${styles.tradeAction} ${styles.dark}`}

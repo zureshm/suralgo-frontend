@@ -112,6 +112,7 @@ export default function TradePage() {
       priceTo,
       symbol: selection.symbol,
       lotValue,
+      lotSize,
       takenPrice: price,
     };
     localStorage.setItem('tradeForm_' + selection.symbol, JSON.stringify(formData));
@@ -142,13 +143,13 @@ export default function TradePage() {
             <input className={styles.input} value={stopLossNumber} onChange={(e) => setStopLossNumber(Number(e.target.value) || 0)} />
 
             <label className={styles.checkRow}>
-              <input type="checkbox" defaultChecked />
+              <input type="checkbox"  />
               <span>Based on percentage %</span>
             </label>
             <input className={styles.input} value={stopLossPercentage} onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)} />
 
             <label className={styles.checkRow}>
-              <input type="checkbox" defaultChecked />
+              <input type="checkbox"  />
               <span>Based on previous candle</span>
             </label>
             <select className={styles.selectSmall} value={stopLossCandle} onChange={(e) => setStopLossCandle(e.target.value)}>
@@ -173,13 +174,13 @@ export default function TradePage() {
             <input className={styles.input} value={targetPoints} onChange={(e) => setTargetPoints(Number(e.target.value) || 0)} />
 
             <label className={styles.checkRow}>
-              <input type="checkbox" defaultChecked />
+              <input type="checkbox"  />
               <span>Minimum to hold</span>
             </label>
             <input className={styles.input} value={minToHold} onChange={(e) => setMinToHold(Number(e.target.value) || 0)} />
 
             <label className={styles.checkRow}>
-              <input type="checkbox" defaultChecked />
+              <input type="checkbox"  />
               <span>Trailing after target</span>
             </label>
             <input className={styles.input} value={trailing} onChange={(e) => setTrailing(Number(e.target.value) || 0)} />

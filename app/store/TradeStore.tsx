@@ -12,6 +12,8 @@ export type WaitingTrade = {
   price: string;
   stateText: string;
   logs: string[];
+  lotSize: number;
+  lotValue: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -20,6 +22,9 @@ export type ActiveTrade = {
   entryPrice: string;
   pnl: number;
   logs: string[];
+  lotSize: number;
+  lotValue: number;
+  inPosition: boolean;
   entryTime?: string;
   exitTime?: string;
   exitPrice?: string;
@@ -57,7 +62,21 @@ export function TradeStoreProvider({
   const [waitingTrades, setWaitingTrades] = useState<WaitingTrade[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("waitingTrades");
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      try {
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map((t: any) => ({
+          symbol: String(t.symbol ?? ""),
+          price: String(t.price ?? ""),
+          stateText: String(t.stateText ?? "...WAITING"),
+          logs: Array.isArray(t.logs) ? t.logs.map(String) : [],
+          lotSize: Number.isFinite(Number(t.lotSize)) && Number(t.lotSize) > 0 ? Number(t.lotSize) : 65,
+          lotValue: Number.isFinite(Number(t.lotValue)) && Number(t.lotValue) > 0 ? Number(t.lotValue) : 1,
+        })) as WaitingTrade[];
+      } catch {
+        return [];
+      }
     }
     return [];
   });
@@ -79,6 +98,28 @@ export function TradeStoreProvider({
         price: selection.price,
         stateText: "...WAITING",
         logs: ["Strategy initialized - waiting for signals"],
+        lotSize: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 65;
+            const data = JSON.parse(saved);
+            const v = Number(data.lotSize);
+            return Number.isFinite(v) && v > 0 ? v : 65;
+          } catch {
+            return 65;
+          }
+        })(),
+        lotValue: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 1;
+            const data = JSON.parse(saved);
+            const v = Number(data.lotValue);
+            return Number.isFinite(v) && v > 0 ? v : 1;
+          } catch {
+            return 1;
+          }
+        })(),
       },
       ...waitingTrades,
     ];
@@ -101,30 +142,35 @@ export function TradeStoreProvider({
 
   // move a waiting trade to active after strategy signal
   const activateWaitingTrade = (
-  symbol: string,
-  entryPrice: string,
-  logLine: string
-) => {
+    symbol: string,
+    entryPrice: string,
+    logLine: string
+  ) => {
     const tradeToActivate = waitingTrades.find((t) => t.symbol === symbol);
-
-  
 
     if (!tradeToActivate) return;
 
-  const newActiveTrade: ActiveTrade = {
-  symbol: tradeToActivate.symbol,
-  entryPrice,
-  pnl: 0,
-  logs: [...tradeToActivate.logs, logLine],
-  entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
-  exitTime: undefined,
-  exitPrice: undefined,
-  status: "ACTIVE",
-};
+    const newActiveTrade: ActiveTrade = {
+      symbol: tradeToActivate.symbol,
+      entryPrice,
+      pnl: 0,
+      logs: [...tradeToActivate.logs, logLine],
+      lotSize: tradeToActivate.lotSize,
+      lotValue: tradeToActivate.lotValue,
+      inPosition: true,
+      entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
+      exitTime: undefined,
+      exitPrice: undefined,
+      status: "ACTIVE",
+    };
 
     setActiveTrades((prev) => [...prev, newActiveTrade]);
 
-    setWaitingTrades((prev) => prev.filter((t) => t.symbol !== symbol));
+    setWaitingTrades((prev) => {
+      const next = prev.filter((t) => t.symbol !== symbol);
+      localStorage.setItem("waitingTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   // close an active trade when strategy gives SELL and accumulate pnl
@@ -149,7 +195,8 @@ export function TradeStoreProvider({
           };
         }
 
-        const cyclePnl = exit - entry;
+        const qty = trade.lotSize * trade.lotValue;
+        const cyclePnl = (exit - entry) * qty;
 
         // Accumulate total P/L
         const totalPnl = trade.pnl + cyclePnl;
@@ -157,6 +204,7 @@ export function TradeStoreProvider({
         return {
           ...trade,
           pnl: totalPnl,
+          inPosition: false,
           logs: [...trade.logs, logLine, `Trade P/L: ${cyclePnl.toFixed(2)}`],
           // Keep status ACTIVE for multiple cycles
         };
@@ -178,6 +226,7 @@ export function TradeStoreProvider({
         return {
           ...trade,
           entryPrice,
+          inPosition: true,
           logs: [...trade.logs, logLine],
         };
       })
