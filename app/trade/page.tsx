@@ -14,6 +14,7 @@ export default function TradePage() {
 
   // Form states
   const [strategy, setStrategy] = useState('nifty');
+  const [numberOfTrades, setNumberOfTrades] = useState(3);
   const [stopLossNumber, setStopLossNumber] = useState(15);
   const [stopLossPercentage, setStopLossPercentage] = useState(10);
   const [stopLossCandle, setStopLossCandle] = useState('closing');
@@ -62,6 +63,7 @@ export default function TradePage() {
     if (saved) {
       const data = JSON.parse(saved);
       setStrategy(data.strategy || 'nifty');
+      setNumberOfTrades(data.numberOfTrades || 3);
       setStopLossNumber(data.stopLossNumber || 15);
       setStopLossPercentage(data.stopLossPercentage || 10);
       setStopLossCandle(data.stopLossCandle || 'closing');
@@ -98,6 +100,7 @@ export default function TradePage() {
     if (!selection?.symbol) return;
     const formData = {
       strategy,
+      numberOfTrades,
       stopLossNumber,
       stopLossPercentage,
       stopLossCandle,
@@ -127,6 +130,21 @@ export default function TradePage() {
             <select className={styles.select} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
               <option value="nifty">NIFTY CE STRATEGY</option>
               <option value="banknifty">BANKNIFTY CE STRATEGY</option>
+            </select>
+          </div>
+        </div>
+
+        <div className={styles.divider} />
+
+        <div className={styles.section}>
+          <div className={styles.sectionHeaderWide}>
+            <div className={styles.sectionTitle}>Number of Trades to take</div>
+            <select className={styles.select} value={numberOfTrades} onChange={(e) => setNumberOfTrades(Number(e.target.value))}>
+              {Array.from({ length: 10 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {i + 1}
+                </option>
+              ))}
             </select>
           </div>
         </div>

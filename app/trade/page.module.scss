@@ -29,6 +29,13 @@
   font-weight: 800;
 }
 
+.sectionHeaderWide {
+  display: grid;
+  grid-template-columns: 60%  35%;
+  gap: 12px;
+  align-items: center;
+}
+
 .divider {
   height: 2px;
   background: rgba(0, 0, 0, 0.18);
