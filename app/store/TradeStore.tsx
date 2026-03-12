@@ -20,6 +20,10 @@ export type ActiveTrade = {
   entryPrice: string;
   pnl: number;
   logs: string[];
+  entryTime?: string;
+  exitTime?: string;
+  exitPrice?: string;
+  status: "ACTIVE" | "COMPLETED";
 };
 
 type TradeStoreValue = {
@@ -34,7 +38,9 @@ type TradeStoreValue = {
   activeTrades: ActiveTrade[];
 
   // move a waiting trade to active when strategy triggers
-  activateWaitingTrade: (symbol: string, logLine: string) => void;
+  activateWaitingTrade: (symbol: string, entryPrice: string, logLine: string) => void;
+  // close an active trade when strategy gives SELL
+  completeActiveTrade: (symbol: string, exitPrice: string, logLine: string) => void;
 };
 
 const TradeStoreContext = createContext<TradeStoreValue | null>(null);
@@ -92,22 +98,71 @@ export function TradeStoreProvider({
   };
 
   // move a waiting trade to active after strategy signal
-  const activateWaitingTrade = (symbol: string, logLine: string) => {
+  const activateWaitingTrade = (
+  symbol: string,
+  entryPrice: string,
+  logLine: string
+) => {
     const tradeToActivate = waitingTrades.find((t) => t.symbol === symbol);
+
+  
 
     if (!tradeToActivate) return;
 
-    const newActiveTrade: ActiveTrade = {
-      symbol: tradeToActivate.symbol,
-      entryPrice: tradeToActivate.price,
-      pnl: 0,
-      logs: [...tradeToActivate.logs, logLine],
-    };
+  const newActiveTrade: ActiveTrade = {
+  symbol: tradeToActivate.symbol,
+  entryPrice,
+  pnl: 0,
+  logs: [...tradeToActivate.logs, logLine],
+  entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
+  exitTime: undefined,
+  exitPrice: undefined,
+  status: "ACTIVE",
+};
 
     setActiveTrades((prev) => [...prev, newActiveTrade]);
 
     setWaitingTrades((prev) => prev.filter((t) => t.symbol !== symbol));
   };
+
+  // close an active trade when strategy gives SELL and calculate final pnl
+const completeActiveTrade = (
+  symbol: string,
+  exitPrice: string,
+  logLine: string
+) => {
+  setActiveTrades((prev) =>
+    prev.map((trade) => {
+      if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
+        return trade;
+      }
+
+      const entry = Number(trade.entryPrice);
+const exit = Number(exitPrice);
+
+if (Number.isNaN(entry) || Number.isNaN(exit)) {
+  return {
+    ...trade,
+    logs: [...trade.logs, logLine, "Trade P/L: invalid price data"],
+    exitPrice,
+    exitTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
+    status: "COMPLETED",
+  };
+}
+
+const finalPnl = exit - entry;
+
+      return {
+        ...trade,
+        pnl: finalPnl,
+        logs: [...trade.logs, logLine, `Trade P/L: ${finalPnl.toFixed(2)}`],
+        exitPrice,
+        exitTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
+        status: "COMPLETED",
+      };
+    })
+  );
+};
 
   const value = useMemo(
     () => ({
@@ -118,6 +173,7 @@ export function TradeStoreProvider({
       removeWaitingTrade,
       activeTrades,
       activateWaitingTrade,
+      completeActiveTrade,
     }),
     [selection, waitingTrades, activeTrades]
   );

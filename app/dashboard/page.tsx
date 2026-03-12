@@ -53,12 +53,13 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const {
-    setSelection,
-    waitingTrades,
-    removeWaitingTrade,
-    activateWaitingTrade,
-    activeTrades,
-  } = useTradeStore();
+  setSelection,
+  waitingTrades,
+  removeWaitingTrade,
+  activateWaitingTrade,
+  completeActiveTrade,
+  activeTrades,
+} = useTradeStore();
 
   const {
     watchlist,
@@ -182,6 +183,31 @@ export default function DashboardPage() {
   useEffect(() => {
 
     if (!strategySignal) return;
+    const latestClose =
+  strategySignal.close ??
+  strategySignal.candles?.[strategySignal.candles.length - 1]?.close;
+    // handle SELL signal (close active trade)
+if (strategySignal.signal === "SELL") {
+
+  const signalKey =
+    strategySignal.signal + "-" + strategySignal.lastCandleTime;
+
+  if (signalKey === lastHandledSignalKey) return;
+
+  const active = activeTrades.find(
+    (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
+  );
+
+  if (!active) return;
+
+ completeActiveTrade(
+  active.symbol,
+  String(latestClose ?? ""),
+  "SELL triggered by strategy at " + strategySignal.lastCandleTime
+);
+
+  setLastHandledSignalKey(signalKey);
+}
     if (strategySignal.signal !== "BUY") return;
 
     const signalKey =
@@ -195,10 +221,11 @@ export default function DashboardPage() {
 
     if (!matchingTrade) return;
 
-    activateWaitingTrade(
-      matchingTrade.symbol,
-      "BUY triggered by strategy at " + strategySignal.lastCandleTime
-    );
+activateWaitingTrade(
+  matchingTrade.symbol,
+  String(latestClose ?? ""),
+  "BUY triggered by strategy at " + strategySignal.lastCandleTime
+);
 
     setLastHandledSignalKey(signalKey);
 
