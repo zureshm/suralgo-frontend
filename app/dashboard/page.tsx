@@ -205,7 +205,7 @@ export default function DashboardPage() {
       completeActiveTrade(
         active.symbol,
         String(latestClose ?? ""),
-        "SELL triggered for ₹" + String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
+        "SELL triggered for ₹"+ String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
       );
 
       setLastHandledSignalKey(signalKey);
@@ -248,7 +248,7 @@ export default function DashboardPage() {
         activateWaitingTrade(
           matchingTrade.symbol,
           String(latestClose ?? ""),
-          "BUY triggered for ₹" + String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
+          "BUY triggered for ₹ " + String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
         );
       } else {
         // If already active, update entry price for next cycle
@@ -430,8 +430,8 @@ export default function DashboardPage() {
                   <div className={styles.tradeLogs}>
                     {t.logs.map((line, i) => (
                       <div key={i} className={styles.logLine} dangerouslySetInnerHTML={{
-                        __html: line.replace(/₹(\d+(?:\.\d+)?)/g, `<span class="${styles.rsGold}">₹$1</span>`)
-                          .replace(/at (\d{2}:\d{2})/g, `at <span class="${styles.cyanTime}">$1</span>`)
+                        __html: line.replace(/₹ ?(\d+(?:\.\d+)?)/g, `<span class="${styles.rsGold}">₹$1</span>`)
+                                  .replace(/at (\d{2}:\d{2})/g, `at <span class="${styles.cyanTime}">$1</span>`)
                       }} />
                     ))}
                   </div>
