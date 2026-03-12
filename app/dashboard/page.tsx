@@ -432,6 +432,11 @@ export default function DashboardPage() {
                       <div key={i} className={styles.logLine} dangerouslySetInnerHTML={{
                         __html: line.replace(/₹ ?(\d+(?:\.\d+)?)/g, `<span class="${styles.rsGold}">₹$1</span>`)
                                   .replace(/at (\d{2}:\d{2})/g, `at <span class="${styles.cyanTime}">$1</span>`)
+                                  .replace(/Trade P\/L: (-?\d+(?:\.\d+)?)/g, (match, plValue) => {
+                                    const isProfit = !plValue.startsWith('-');
+                                    const className = isProfit ? styles.plProfit : styles.plLoss;
+                                    return `<span class="${className}">Trade P/L: ${plValue}</span>`;
+                                  })
                       }} />
                     ))}
                   </div>
