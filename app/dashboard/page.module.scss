@@ -180,15 +180,27 @@
   border: 2px solid rgba(0, 0, 0, 0.22);
   border-radius: 0;
   padding: 16px;
-  background: #737b83;
+  background: #000000;
   color: #fff;
   min-height: 150px; max-height: 150px; overflow-y: auto;
+  font-family: Courier;
+  font-size: 10px;
 }
 
 .logLine {
   font-size: 13px;
   line-height: 1.6;
   font-variant-numeric: tabular-nums;
+}
+
+.rsGold {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.cyanTime {
+  color: #00ffff;
+  font-weight: bold;
 }
 
 .bottomActions {

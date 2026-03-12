@@ -41,6 +41,8 @@ type TradeStoreValue = {
   activateWaitingTrade: (symbol: string, entryPrice: string, logLine: string) => void;
   // close an active trade when strategy gives SELL
   completeActiveTrade: (symbol: string, exitPrice: string, logLine: string) => void;
+  // update active trade with new buy signal
+  updateActiveTradeBuy: (symbol: string, entryPrice: string, logLine: string) => void;
 };
 
 const TradeStoreContext = createContext<TradeStoreValue | null>(null);
@@ -76,7 +78,7 @@ export function TradeStoreProvider({
         symbol: selection.symbol,
         price: selection.price,
         stateText: "...WAITING",
-        logs: [],
+        logs: ["Strategy initialized - waiting for signals"],
       },
       ...waitingTrades,
     ];
@@ -125,44 +127,62 @@ export function TradeStoreProvider({
     setWaitingTrades((prev) => prev.filter((t) => t.symbol !== symbol));
   };
 
-  // close an active trade when strategy gives SELL and calculate final pnl
-const completeActiveTrade = (
-  symbol: string,
-  exitPrice: string,
-  logLine: string
-) => {
-  setActiveTrades((prev) =>
-    prev.map((trade) => {
-      if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
-        return trade;
-      }
+  // close an active trade when strategy gives SELL and accumulate pnl
+  const completeActiveTrade = (
+    symbol: string,
+    exitPrice: string,
+    logLine: string
+  ) => {
+    setActiveTrades((prev) =>
+      prev.map((trade) => {
+        if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
+          return trade;
+        }
 
-      const entry = Number(trade.entryPrice);
-const exit = Number(exitPrice);
+        const entry = Number(trade.entryPrice);
+        const exit = Number(exitPrice);
 
-if (Number.isNaN(entry) || Number.isNaN(exit)) {
-  return {
-    ...trade,
-    logs: [...trade.logs, logLine, "Trade P/L: invalid price data"],
-    exitPrice,
-    exitTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
-    status: "COMPLETED",
+        if (Number.isNaN(entry) || Number.isNaN(exit)) {
+          return {
+            ...trade,
+            logs: [...trade.logs, logLine, "Trade P/L: invalid price data"],
+          };
+        }
+
+        const cyclePnl = exit - entry;
+
+        // Accumulate total P/L
+        const totalPnl = trade.pnl + cyclePnl;
+
+        return {
+          ...trade,
+          pnl: totalPnl,
+          logs: [...trade.logs, logLine, `Trade P/L: ${cyclePnl.toFixed(2)}`],
+          // Keep status ACTIVE for multiple cycles
+        };
+      })
+    );
   };
-}
 
-const finalPnl = exit - entry;
+  const updateActiveTradeBuy = (
+    symbol: string,
+    entryPrice: string,
+    logLine: string
+  ) => {
+    setActiveTrades((prev) =>
+      prev.map((trade) => {
+        if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
+          return trade;
+        }
 
-      return {
-        ...trade,
-        pnl: finalPnl,
-        logs: [...trade.logs, logLine, `Trade P/L: ${finalPnl.toFixed(2)}`],
-        exitPrice,
-        exitTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
-        status: "COMPLETED",
-      };
-    })
-  );
-};
+        return {
+          ...trade,
+          entryPrice,
+          logs: [...trade.logs, logLine],
+        };
+      })
+    );
+  };
 
   const value = useMemo(
     () => ({
@@ -174,6 +194,7 @@ const finalPnl = exit - entry;
       activeTrades,
       activateWaitingTrade,
       completeActiveTrade,
+      updateActiveTradeBuy,
     }),
     [selection, waitingTrades, activeTrades]
   );

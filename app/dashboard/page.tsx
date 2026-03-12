@@ -53,13 +53,14 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const {
-  setSelection,
-  waitingTrades,
-  removeWaitingTrade,
-  activateWaitingTrade,
-  completeActiveTrade,
-  activeTrades,
-} = useTradeStore();
+    setSelection,
+    waitingTrades,
+    removeWaitingTrade,
+    activateWaitingTrade,
+    completeActiveTrade,
+    activeTrades,
+    updateActiveTradeBuy,
+  } = useTradeStore();
 
   const {
     watchlist,
@@ -179,62 +180,105 @@ export default function DashboardPage() {
 
   }, []);
 
-  // trigger waiting → active
+  // trigger waiting → active or update active trade
   useEffect(() => {
 
     if (!strategySignal) return;
     const latestClose =
-  strategySignal.close ??
-  strategySignal.candles?.[strategySignal.candles.length - 1]?.close;
-    // handle SELL signal (close active trade)
-if (strategySignal.signal === "SELL") {
+      strategySignal.close ??
+      strategySignal.candles?.[strategySignal.candles.length - 1]?.close;
 
-  const signalKey =
-    strategySignal.signal + "-" + strategySignal.lastCandleTime;
+    // handle SELL signal (close cycle in active trade)
+    if (strategySignal.signal === "SELL") {
 
-  if (signalKey === lastHandledSignalKey) return;
+      const signalKey =
+        strategySignal.signal + "-" + strategySignal.lastCandleTime;
 
-  const active = activeTrades.find(
-    (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
-  );
+      if (signalKey === lastHandledSignalKey) return;
 
-  if (!active) return;
+      const active = activeTrades.find(
+        (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
+      );
 
- completeActiveTrade(
-  active.symbol,
-  String(latestClose ?? ""),
-  "SELL triggered by strategy at " + strategySignal.lastCandleTime
-);
+      if (!active) return;
 
-  setLastHandledSignalKey(signalKey);
-}
-    if (strategySignal.signal !== "BUY") return;
+      completeActiveTrade(
+        active.symbol,
+        String(latestClose ?? ""),
+        "SELL triggered for ₹" + String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
+      );
 
-    const signalKey =
-      strategySignal.signal + "-" + strategySignal.lastCandleTime;
+      setLastHandledSignalKey(signalKey);
+      return;
+    }
 
-    if (signalKey === lastHandledSignalKey) return;
+    // handle WAIT signal (log wait in active trade)
+    if (strategySignal.signal === "WAIT") {
+      const signalKey =
+        strategySignal.signal + "-" + strategySignal.lastCandleTime;
 
-    const matchingTrade = waitingTrades.find(
-      (t) => t.symbol === strategySignal.symbol
-    );
+      if (signalKey === lastHandledSignalKey) return;
 
-    if (!matchingTrade) return;
+      const active = activeTrades.find(
+        (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
+      );
 
-activateWaitingTrade(
-  matchingTrade.symbol,
-  String(latestClose ?? ""),
-  "BUY triggered by strategy at " + strategySignal.lastCandleTime
-);
+      if (active) {
+        // Update active trade logs with WAIT - this should be handled in store
+        // For now, we'll just continue with the existing logic
+      }
 
-    setLastHandledSignalKey(signalKey);
+      setLastHandledSignalKey(signalKey);
+      return;
+    }
 
-  }, [strategySignal, waitingTrades]);
+    // handle BUY signal
+    if (strategySignal.signal === "BUY") {
+      const signalKey =
+        strategySignal.signal + "-" + strategySignal.lastCandleTime;
+
+      if (signalKey === lastHandledSignalKey) return;
+
+      const matchingTrade = waitingTrades.find(
+        (t) => t.symbol === strategySignal.symbol
+      );
+
+      // If waiting trade exists, activate it
+      if (matchingTrade) {
+        activateWaitingTrade(
+          matchingTrade.symbol,
+          String(latestClose ?? ""),
+          "BUY triggered for ₹" + String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
+        );
+      } else {
+        // If already active, update entry price for next cycle
+        const active = activeTrades.find(
+          (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
+        );
+
+        if (active) {
+          updateActiveTradeBuy(
+            active.symbol,
+            String(latestClose ?? ""),
+            "BUY triggered for ₹ " + String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
+          );
+        }
+      }
+
+      setLastHandledSignalKey(signalKey);
+    }
+
+  }, [
+    strategySignal,
+    waitingTrades,
+    activeTrades,
+    activateWaitingTrade,
+    completeActiveTrade,
+    updateActiveTradeBuy,
+  ]);
 
   return (
-
     <div className={styles.page}>
-
       <div className={styles.container}>
 
         <header className={styles.header}>
@@ -288,10 +332,10 @@ activateWaitingTrade(
           <div className={styles.tableHeader}>
             <div className={styles.thLeft}>SYMBOL</div>
             <div className={styles.thRight}>LTP</div>
-            <div className={styles.thIcon}/>
+            <div className={styles.thIcon} />
           </div>
 
-          <hr/>
+          <hr />
 
           <div className={styles.rows}>
 
@@ -324,9 +368,8 @@ activateWaitingTrade(
                   <div className={styles.tradeRight}>
 
                     <div
-                      className={`${styles.tradeMeta} ${
-                        t.pnlVariant === "profit" ? styles.profit : styles.loss
-                      }`}
+                      className={`${styles.tradeMeta} ${t.pnlVariant === "profit" ? styles.profit : styles.loss
+                        }`}
                     >
                       {t.pnlText}
                     </div>
@@ -366,9 +409,8 @@ activateWaitingTrade(
                   <div className={styles.tradeRight}>
 
                     <div
-                      className={`${styles.tradeMeta} ${
-                        t.pnl >= 0 ? styles.profit : styles.loss
-                      }`}
+                      className={`${styles.tradeMeta} ${t.pnl >= 0 ? styles.profit : styles.loss
+                        }`}
                     >
                       {t.pnl.toFixed(2)}
                     </div>
@@ -387,9 +429,10 @@ activateWaitingTrade(
                 {t.logs.length > 0 && (
                   <div className={styles.tradeLogs}>
                     {t.logs.map((line, i) => (
-                      <div key={i} className={styles.logLine}>
-                        {line}
-                      </div>
+                      <div key={i} className={styles.logLine} dangerouslySetInnerHTML={{
+                        __html: line.replace(/₹(\d+(?:\.\d+)?)/g, `<span class="${styles.rsGold}">₹$1</span>`)
+                          .replace(/at (\d{2}:\d{2})/g, `at <span class="${styles.cyanTime}">$1</span>`)
+                      }} />
                     ))}
                   </div>
                 )}
