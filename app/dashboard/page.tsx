@@ -8,38 +8,7 @@ import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
 import { getPrices } from "@/lib/getPrices";
 
-const demoActiveTrades = [
-  {
-    symbol: "NIFTY 10MAR26 24800 CE",
-    pnlText: "+2345.75",
-    pnlVariant: "profit" as const,
-    actionText: "EXIT",
-    actionVariant: "dark" as const,
-    logs: [
-      "09:31  Condition1 true",
-      "09:31  Condition2 true",
-      "09:31  BUY signal",
-    ],
-  },
-  {
-    symbol: "NIFTY 10MAR26 24900 PE",
-    pnlText: "-320.00",
-    pnlVariant: "loss" as const,
-    actionText: "EXIT",
-    actionVariant: "dark" as const,
-    logs: [
-      "Logs comes here",
-      "Logs comes here",
-      "Logs comes here",
-      "Logs comes here",
-      "Logs comes here",
-      "Logs comes here",
-      "Logs comes here",
-      "Logs comes here",
-      "Logs comes here",
-    ],
-  },
-];
+
 
 export default function DashboardPage() {
 
