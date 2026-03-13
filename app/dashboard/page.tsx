@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
 import { getPrices } from "@/lib/getPrices";
+import TradeHistory from "./TradeHistory";
 
 
 
@@ -471,6 +472,8 @@ export default function DashboardPage() {
           </div>
 
         </div>
+
+        <TradeHistory />
 
         <div className={styles.bottomActions}>
 
