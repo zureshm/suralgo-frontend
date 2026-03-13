@@ -304,6 +304,24 @@ export function TradeStoreProvider({
           : 0;
         
         const pnlLog = `Trade P/L: ${currentCyclePnl.toFixed(2)}`;
+        const finalLogs = [...trade.logs, exitLog, pnlLog];
+
+        // Add to history
+        setTradeHistory((historyPrev) => {
+          const historyEntry = {
+            id: `${trade.symbol}-${Date.now()}`,
+            symbol: trade.symbol,
+            pnl: pnl, // Use total accumulated P&L
+            logs: finalLogs,
+            createdAt: new Date().toISOString(),
+          };
+          const nextHistory = [historyEntry, ...historyPrev];
+          localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
+          return nextHistory;
+        });
+
+        // Remove completed trade from active trades
+        removeActiveTrade(symbol);
 
         return {
           ...trade,
@@ -312,7 +330,7 @@ export function TradeStoreProvider({
           status: "COMPLETED",
           inPosition: false,
           pnl: pnl, // Keep total accumulated P&L for trade state
-          logs: [...trade.logs, exitLog, pnlLog],
+          logs: finalLogs,
         };
       })
     );
