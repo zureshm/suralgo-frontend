@@ -295,14 +295,15 @@ export function TradeStoreProvider({
           return trade;
         }
 
-        // Calculate complete P&L: existing accumulated + current unrealized
+        // Calculate current cycle P&L (entry vs exit only)
         const entry = Number(trade.entryPrice);
         const exit = Number(exitPrice);
         const qty = trade.lotSize * trade.lotValue;
-        const unrealized = trade.inPosition && Number.isFinite(exit) && Number.isFinite(entry)
+        const currentCyclePnl = trade.inPosition && Number.isFinite(exit) && Number.isFinite(entry)
           ? (exit - entry) * qty
           : 0;
-        const totalPnl = trade.pnl + unrealized;
+        
+        const pnlLog = `Trade P/L: ${currentCyclePnl.toFixed(2)}`;
 
         return {
           ...trade,
@@ -310,8 +311,8 @@ export function TradeStoreProvider({
           exitTime: currentTime,
           status: "COMPLETED",
           inPosition: false,
-          pnl: totalPnl,
-          logs: [...trade.logs, exitLog],
+          pnl: pnl, // Keep total accumulated P&L for trade state
+          logs: [...trade.logs, exitLog, pnlLog],
         };
       })
     );
