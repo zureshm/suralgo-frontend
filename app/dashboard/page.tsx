@@ -32,6 +32,7 @@ export default function DashboardPage() {
     updateActiveTradeBuy,
     removeActiveTrade,
     addTradeHistoryEntry,
+    logManualExit,
   } = useTradeStore();
 
   const {
@@ -407,15 +408,8 @@ export default function DashboardPage() {
                             : 0;
                         const livePnl = t.pnl + unrealized;
 
-                        addTradeHistoryEntry({
-                          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                          symbol: t.symbol,
-                          pnl: livePnl,
-                          logs: t.logs,
-                          createdAt: new Date().toISOString(),
-                        });
-
-                        removeActiveTrade(t.symbol);
+                        // Just log manual exit, don't remove trade
+                        logManualExit(t.symbol, String(ltp ?? ""), livePnl);
                       }}
                     >
                       EXIT

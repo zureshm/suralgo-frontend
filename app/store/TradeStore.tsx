@@ -58,6 +58,8 @@ type TradeStoreValue = {
   updateActiveTradeBuy: (symbol: string, entryPrice: string, logLine: string) => void;
   // remove active trade completely
   removeActiveTrade: (symbol: string) => void;
+  // log manual exit before removing trade
+  logManualExit: (symbol: string, exitPrice: string, pnl: number) => void;
 
   tradeHistory: TradeHistoryItem[];
   addTradeHistoryEntry: (entry: TradeHistoryItem) => void;
@@ -275,6 +277,46 @@ export function TradeStoreProvider({
     setActiveTrades((prev) => prev.filter((trade) => trade.symbol !== symbol));
   };
 
+  const logManualExit = (
+    symbol: string,
+    exitPrice: string,
+    pnl: number
+  ) => {
+    const currentTime = new Date().toLocaleTimeString('en-IN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    const exitLog = `Manual Sell triggered for ₹${exitPrice} at ${currentTime}`;
+
+    setActiveTrades((prev) =>
+      prev.map((trade) => {
+        if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
+          return trade;
+        }
+
+        // Calculate complete P&L: existing accumulated + current unrealized
+        const entry = Number(trade.entryPrice);
+        const exit = Number(exitPrice);
+        const qty = trade.lotSize * trade.lotValue;
+        const unrealized = trade.inPosition && Number.isFinite(exit) && Number.isFinite(entry)
+          ? (exit - entry) * qty
+          : 0;
+        const totalPnl = trade.pnl + unrealized;
+
+        return {
+          ...trade,
+          exitPrice,
+          exitTime: currentTime,
+          status: "COMPLETED",
+          inPosition: false,
+          pnl: totalPnl,
+          logs: [...trade.logs, exitLog],
+        };
+      })
+    );
+  };
+
   const addTradeHistoryEntry = (entry: TradeHistoryItem) => {
     setTradeHistory((prev) => {
       const next = [entry, ...prev];
@@ -295,10 +337,11 @@ export function TradeStoreProvider({
       completeActiveTrade,
       updateActiveTradeBuy,
       removeActiveTrade,
+      logManualExit,
       tradeHistory,
       addTradeHistoryEntry,
     }),
-    [selection, waitingTrades, activeTrades, tradeHistory]
+    [selection, waitingTrades, activeTrades, tradeHistory, logManualExit]
   );
 
   return (
