@@ -48,6 +48,8 @@ type TradeStoreValue = {
   completeActiveTrade: (symbol: string, exitPrice: string, logLine: string) => void;
   // update active trade with new buy signal
   updateActiveTradeBuy: (symbol: string, entryPrice: string, logLine: string) => void;
+  // remove active trade completely
+  removeActiveTrade: (symbol: string) => void;
 };
 
 const TradeStoreContext = createContext<TradeStoreValue | null>(null);
@@ -233,6 +235,10 @@ export function TradeStoreProvider({
     );
   };
 
+  const removeActiveTrade = (symbol: string) => {
+    setActiveTrades((prev) => prev.filter((trade) => trade.symbol !== symbol));
+  };
+
   const value = useMemo(
     () => ({
       selection,
@@ -244,6 +250,7 @@ export function TradeStoreProvider({
       activateWaitingTrade,
       completeActiveTrade,
       updateActiveTradeBuy,
+      removeActiveTrade,
     }),
     [selection, waitingTrades, activeTrades]
   );

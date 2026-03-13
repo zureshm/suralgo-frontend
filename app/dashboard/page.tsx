@@ -61,6 +61,7 @@ export default function DashboardPage() {
     completeActiveTrade,
     activeTrades,
     updateActiveTradeBuy,
+    removeActiveTrade,
   } = useTradeStore();
 
   const {
@@ -461,6 +462,7 @@ export default function DashboardPage() {
                     <button
                       className={`${styles.tradeAction} ${styles.dark}`}
                       type="button"
+                      onClick={() => removeActiveTrade(t.symbol)}
                     >
                       EXIT
                     </button>
