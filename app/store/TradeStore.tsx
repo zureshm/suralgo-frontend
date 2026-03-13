@@ -31,6 +31,14 @@ export type ActiveTrade = {
   status: "ACTIVE" | "COMPLETED";
 };
 
+export type TradeHistoryItem = {
+  id: string;
+  symbol: string;
+  pnl: number;
+  logs: string[];
+  createdAt: string;
+};
+
 type TradeStoreValue = {
   selection: TradeSelection;
   setSelection: (s: TradeSelection) => void;
@@ -50,6 +58,9 @@ type TradeStoreValue = {
   updateActiveTradeBuy: (symbol: string, entryPrice: string, logLine: string) => void;
   // remove active trade completely
   removeActiveTrade: (symbol: string) => void;
+
+  tradeHistory: TradeHistoryItem[];
+  addTradeHistoryEntry: (entry: TradeHistoryItem) => void;
 };
 
 const TradeStoreContext = createContext<TradeStoreValue | null>(null);
@@ -68,6 +79,7 @@ export function TradeStoreProvider({
       try {
         const parsed = JSON.parse(saved);
         if (!Array.isArray(parsed)) return [];
+
         return parsed.map((t: any) => ({
           symbol: String(t.symbol ?? ""),
           price: String(t.price ?? ""),
@@ -85,6 +97,30 @@ export function TradeStoreProvider({
 
   // active trades that have been triggered by strategy
   const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>([]);
+
+  const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("tradeHistory");
+      if (!saved) return [];
+      try {
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
+
+        return parsed
+          .map((t: any) => ({
+            id: String(t.id ?? ""),
+            symbol: String(t.symbol ?? ""),
+            pnl: Number(t.pnl ?? 0),
+            logs: Array.isArray(t.logs) ? t.logs.map(String) : [],
+            createdAt: String(t.createdAt ?? ""),
+          }))
+          .filter((t: TradeHistoryItem) => Boolean(t.id) && Boolean(t.symbol));
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
 
   const addWaitingTradeFromSelection = () => {
     if (!selection) return;
@@ -239,6 +275,14 @@ export function TradeStoreProvider({
     setActiveTrades((prev) => prev.filter((trade) => trade.symbol !== symbol));
   };
 
+  const addTradeHistoryEntry = (entry: TradeHistoryItem) => {
+    setTradeHistory((prev) => {
+      const next = [entry, ...prev];
+      localStorage.setItem("tradeHistory", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const value = useMemo(
     () => ({
       selection,
@@ -251,8 +295,10 @@ export function TradeStoreProvider({
       completeActiveTrade,
       updateActiveTradeBuy,
       removeActiveTrade,
+      tradeHistory,
+      addTradeHistoryEntry,
     }),
-    [selection, waitingTrades, activeTrades]
+    [selection, waitingTrades, activeTrades, tradeHistory]
   );
 
   return (

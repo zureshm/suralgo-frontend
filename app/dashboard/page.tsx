@@ -62,6 +62,7 @@ export default function DashboardPage() {
     activeTrades,
     updateActiveTradeBuy,
     removeActiveTrade,
+    addTradeHistoryEntry,
   } = useTradeStore();
 
   const {
@@ -389,45 +390,10 @@ export default function DashboardPage() {
           <div className={styles.activeTrades}>
 
             {/* dummy trades */}
-            {/* {demoActiveTrades.map((t) => (
-              <div key={t.symbol} className={styles.trade}>
-
-                <div className={styles.tradeRow}>
-
-                  <div className={styles.tradeSymbol}>{t.symbol}</div>
-
-                  <div className={styles.tradeRight}>
-
-                    <div
-                      className={`${styles.tradeMeta} ${t.pnlVariant === "profit" ? styles.profit : styles.loss
-                        }`}
-                    >
-                      {t.pnlText}
-                    </div>
-
-                    <button
-                      className={`${styles.tradeAction} ${styles.dark}`}
-                      type="button"
-                    >
-                      {t.actionText}
-                    </button>
-
-                  </div>
-
-                </div>
-
-                {t.logs.length > 0 && (
-                  <div className={styles.tradeLogs}>
-                    {t.logs.map((line, i) => (
-                      <div key={i} className={styles.logLine}>
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-              </div>
-            ))} */}
+            {activeTrades.length === 0 && (
+              <div className={styles.empty}>No active trades</div>
+            )}
+           
 
             {/* real active trades */}
             {activeTrades.map((t) => (
@@ -462,7 +428,26 @@ export default function DashboardPage() {
                     <button
                       className={`${styles.tradeAction} ${styles.dark}`}
                       type="button"
-                      onClick={() => removeActiveTrade(t.symbol)}
+                      onClick={() => {
+                        const ltp = activeLtps[t.symbol];
+                        const entry = Number(t.entryPrice);
+                        const qty = t.lotSize * t.lotValue;
+                        const unrealized =
+                          t.inPosition && Number.isFinite(ltp) && Number.isFinite(entry)
+                            ? (ltp - entry) * qty
+                            : 0;
+                        const livePnl = t.pnl + unrealized;
+
+                        addTradeHistoryEntry({
+                          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                          symbol: t.symbol,
+                          pnl: livePnl,
+                          logs: t.logs,
+                          createdAt: new Date().toISOString(),
+                        });
+
+                        removeActiveTrade(t.symbol);
+                      }}
                     >
                       EXIT
                     </button>

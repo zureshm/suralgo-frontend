@@ -2,15 +2,11 @@
 
 import styles from "./page.module.scss";
 import { useRouter } from "next/navigation";
-
-const history = [
-  { symbol: "NIFTY 10MAR26 24800 CE", pnl: "+3200.05", positive: true },
-  { symbol: "NIFTY 10MAR26 24900 PE", pnl: "+425.05", positive: true },
-  { symbol: "NIFTY 10MAR26 24900 PE", pnl: "-1820.00", positive: false },
-];
+import { useTradeStore } from "../store/TradeStore";
 
 export default function TradeHistoryPage() {
   const router = useRouter();
+  const { tradeHistory } = useTradeStore();
 
   return (
     <div className={styles.page}>
@@ -20,21 +16,42 @@ export default function TradeHistoryPage() {
         <h1 className={styles.title}>FINISHED TRADE HISTORY</h1>
 
         <div className={styles.card}>
-          {history.map((item, idx) => (
-            <div key={`${item.symbol}-${idx}`} className={styles.item}>
-              <div className={styles.itemTop}>
-                <div className={styles.symbol}>{item.symbol}</div>
-                <div
-                  className={`${styles.pnl} ${
-                    item.positive ? styles.positive : styles.negative
-                  }`}
-                >
-                  {item.pnl}
+          {tradeHistory.length === 0 ? (
+            <div className={styles.details}>No history yet</div>
+          ) : (
+            tradeHistory.map((item) => {
+              const pnlText = item.pnl >= 0 ? `+${item.pnl.toFixed(2)}` : item.pnl.toFixed(2);
+              return (
+                <div key={item.id} className={styles.item}>
+                  <div className={styles.itemTop}>
+                    <div className={styles.symbol}>{item.symbol}</div>
+                    <div
+                      className={`${styles.pnl} ${
+                        item.pnl >= 0 ? styles.positive : styles.negative
+                      }`}
+                    >
+                      {pnlText}
+                    </div>
+                  </div>
+
+                  <details>
+                    <summary className={styles.details}>Details......</summary>
+                    <div>
+                      {item.logs.length === 0 ? (
+                        <div className={styles.details}>No logs</div>
+                      ) : (
+                        item.logs.map((line, i) => (
+                          <div key={i} className={styles.details}>
+                            {line}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </details>
                 </div>
-              </div>
-              <div className={styles.details}>Details......</div>
-            </div>
-          ))}
+              );
+            })
+          )}
         </div>
       </div>
     </div>
