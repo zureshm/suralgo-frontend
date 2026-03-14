@@ -7,19 +7,25 @@ interface PaginationProps {
 }
 
 export function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
-  const pages = [];
-  const maxVisiblePages = 5;
-  
-  let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-  let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-  
-  if (endPage - startPage + 1 < maxVisiblePages) {
-    startPage = Math.max(1, endPage - maxVisiblePages + 1);
-  }
+  const getVisiblePages = () => {
+    const pages = [];
+    const maxVisible = 4;
+    
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    
+    if (endPage - startPage + 1 < maxVisible) {
+      startPage = Math.max(1, endPage - maxVisible + 1);
+    }
 
-  for (let i = startPage; i <= endPage; i++) {
-    pages.push(i);
-  }
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return pages;
+  };
+
+  const visiblePages = getVisiblePages();
 
   return (
     <div className="flex items-center justify-center space-x-2 mt-4">
@@ -29,23 +35,23 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
       >
-        Previous
+        ←
       </Button>
       
-      {startPage > 1 && (
+      {visiblePages[0] > 1 && (
         <>
           <Button
-            variant={1 === currentPage ? "default" : "outline"}
+            variant="outline"
             size="sm"
             onClick={() => onPageChange(1)}
           >
             1
           </Button>
-          {startPage > 2 && <span className="px-2">...</span>}
+          {visiblePages[0] > 2 && <span className="px-2">...</span>}
         </>
       )}
       
-      {pages.map((page) => (
+      {visiblePages.map((page) => (
         <Button
           key={page}
           variant={page === currentPage ? "default" : "outline"}
@@ -56,9 +62,9 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
         </Button>
       ))}
       
-      {endPage < totalPages && (
+      {visiblePages[visiblePages.length - 1] < totalPages && (
         <>
-          {endPage < totalPages - 1 && <span className="px-2">...</span>}
+          {visiblePages[visiblePages.length - 1] < totalPages - 1 && <span className="px-2">...</span>}
           <Button
             variant={totalPages === currentPage ? "default" : "outline"}
             size="sm"
@@ -75,7 +81,7 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
       >
-        Next
+        →
       </Button>
     </div>
   );

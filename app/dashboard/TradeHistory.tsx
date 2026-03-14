@@ -60,7 +60,7 @@ export default function TradeHistory() {
       
       <CardContent className="space-y-3">
         <Separator />
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="max-h-[380px] overflow-y-auto">
           {safeHistory.length === 0 ? (
             <div className={styles.empty}>No trade history yet</div>
           ) : (
