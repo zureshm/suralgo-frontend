@@ -9,6 +9,7 @@ import TradeHistory from "./TradeHistory";
 import AccountDetails from "./AccountDetails";
 import ConnectionStatus from "./ConnectionStatus";
 import Watchlist from "./Watchlist";
+import ActiveTrade from "./ActiveTrade";
 
 export default function DashboardPage() {
 
@@ -304,6 +305,16 @@ export default function DashboardPage() {
           </div>
 
         </div>
+
+        <ActiveTrade
+          activeTrades={activeTrades}
+          waitingTrades={waitingTrades}
+          activeLtps={activeLtps}
+          isHydrated={isHydrated}
+          strategyLastCandleTime={strategySignal?.lastCandleTime}
+          onManualExit={logManualExit}
+          onCancelWaiting={removeWaitingTrade}
+        />
 
         <TradeHistory />
 

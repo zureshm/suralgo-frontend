@@ -1,0 +1,121 @@
+.sectionTitle {
+  margin: 18px 0 10px;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+}
+
+.card {
+  border: 2px solid #222;
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.activeTrades {
+  display: grid;
+}
+
+.trade {
+  padding: 14px 16px;
+  border-top: 2px solid rgba(0, 0, 0, 0.12);
+}
+
+.tradeRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.tradeSymbol {
+  font-size: 14px;
+}
+
+.tradeRight {
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.tradeMeta {
+  min-width: 90px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.waiting {
+  color: #d12b2b;
+}
+
+.profit {
+  color: #0a8a43;
+}
+
+.loss {
+  color: #d12b2b;
+}
+
+.tradeAction {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.danger {
+  background: #e23a3a;
+}
+
+.dark {
+  background: #2f343b;
+}
+
+.tradeLogs {
+  margin-top: 10px;
+  border: 2px solid rgba(0, 0, 0, 0.22);
+  border-radius: 0;
+  padding: 16px;
+  background: #000000;
+  color: #fff;
+  min-height: 150px;
+  max-height: 150px;
+  overflow-y: auto;
+  font-family: Courier;
+  font-size: 10px;
+}
+
+.logLine {
+  font-size: 13px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.rsGold {
+  color: #c0a610;
+  font-weight: bold;
+}
+
+.cyanTime {
+  color: #0084ff;
+  font-weight: bold;
+}
+
+.plProfit {
+  color: #5ee099;
+  font-weight: bold;
+}
+
+.plLoss {
+  color: #f14a4a;
+  font-weight: bold;
+}
+
+.empty {
+  padding: 14px 16px;
+  color: #d12b2b;
+}
