@@ -283,13 +283,16 @@ export function TradeStoreProvider({
     pnl: number,
     lastCandleTime: string
   ) => {
-    const exitLog = `Manual Sell triggered for ₹${exitPrice} at ${lastCandleTime}`;
-
     setActiveTrades((prev) =>
       prev.map((trade) => {
         if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
           return trade;
         }
+
+        // Log different messages based on whether we're in position or not
+        const exitLog = trade.inPosition 
+          ? `SELL manually for ₹${exitPrice} at ${lastCandleTime}`
+          : `EXIT  at ${lastCandleTime}`;
 
         // Calculate current cycle P&L (entry vs exit only)
         const entry = Number(trade.entryPrice);
