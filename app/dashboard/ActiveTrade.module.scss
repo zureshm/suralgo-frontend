@@ -5,10 +5,10 @@
 }
 
 .card {
-  border: 2px solid #222;
   border-radius: 18px;
   background: #fff;
   overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
 .activeTrades {
