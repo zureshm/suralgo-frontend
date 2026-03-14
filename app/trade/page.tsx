@@ -1,10 +1,13 @@
 "use client";
 
-import styles from "./page.module.scss";
 import { useEffect, useState } from "react";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useRouter } from "next/navigation";
 import { getPrices } from "@/lib/getPrices";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 
 export default function TradePage() {
   const router = useRouter();
@@ -122,24 +125,38 @@ export default function TradePage() {
   };
 
   return (
-    <div className={styles.page}>
-      <div className={styles.card}>
-        <div className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionTitle}>Stretegy</div>
-            <select className={styles.select} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
+    <div className="min-h-screen p-4 bg-white">
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle className="text-lg font-bold">Trade Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          
+          {/* Strategy Selection */}
+          <div className="space-y-2">
+            <label htmlFor="strategy" className="text-sm font-medium">Strategy</label>
+            <select 
+              id="strategy"
+              value={strategy} 
+              onChange={(e) => setStrategy(e.target.value)}
+              className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <option value="nifty">NIFTY CE STRATEGY</option>
               <option value="banknifty">BANKNIFTY CE STRATEGY</option>
             </select>
           </div>
-        </div>
 
-        <div className={styles.divider} />
+          <Separator />
 
-        <div className={styles.section}>
-          <div className={styles.sectionHeaderWide}>
-            <div className={styles.sectionTitle}>Number of Trades to take</div>
-            <select className={styles.select} value={numberOfTrades} onChange={(e) => setNumberOfTrades(Number(e.target.value))}>
+          {/* Number of Trades */}
+          <div className="space-y-2">
+            <label htmlFor="trades" className="text-sm font-medium">Number of Trades to take</label>
+            <select 
+              id="trades"
+              value={numberOfTrades.toString()} 
+              onChange={(value) => setNumberOfTrades(Number(value))}
+              className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               {Array.from({ length: 10 }, (_, i) => (
                 <option key={i + 1} value={i + 1}>
                   {i + 1}
@@ -147,137 +164,212 @@ export default function TradePage() {
               ))}
             </select>
           </div>
-        </div>
 
-        <div className={styles.divider} />
+          <Separator />
 
-        <details className={styles.details} open>
-          <summary className={styles.summary}>Stop Loss Strategy</summary>
-          <div className={styles.grid}>
-            <label className={styles.checkRow}>
-              <input type="checkbox" defaultChecked />
-              <span>Based on number</span>
-            </label>
-            <input className={styles.input} value={stopLossNumber} onChange={(e) => setStopLossNumber(Number(e.target.value) || 0)} />
+          {/* Stop Loss Strategy */}
+          <div className="space-y-4">
+            <div className="text-base font-medium">Stop Loss Strategy</div>
+            
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" id="stopLossNumber" defaultChecked className="h-4 w-4" />
+                <label htmlFor="stopLossNumber" className="text-sm">Based on number</label>
+                <Input 
+                  type="number" 
+                  value={stopLossNumber} 
+                  onChange={(e) => setStopLossNumber(Number(e.target.value) || 0)}
+                  className="w-20 h-8"
+                />
+              </div>
 
-            <label className={styles.checkRow}>
-              <input type="checkbox"  />
-              <span>Based on percentage %</span>
-            </label>
-            <input className={styles.input} value={stopLossPercentage} onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)} />
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" id="stopLossPercentage" className="h-4 w-4" />
+                <label htmlFor="stopLossPercentage" className="text-sm">Based on percentage %</label>
+                <Input 
+                  type="number" 
+                  value={stopLossPercentage} 
+                  onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)}
+                  className="w-20 h-8"
+                />
+              </div>
 
-            <label className={styles.checkRow}>
-              <input type="checkbox"  />
-              <span>Based on previous candle</span>
-            </label>
-            <select className={styles.selectSmall} value={stopLossCandle} onChange={(e) => setStopLossCandle(e.target.value)}>
-              <option value="closing">Closing</option>
-              <option value="open">Open</option>
-              <option value="high">High</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-          <div className={styles.note}>(* Whichever first happens)</div>
-        </details>
-
-        <div className={styles.divider} />
-
-        <details className={styles.details} open>
-          <summary className={styles.summary}>Exit Strategy</summary>
-          <div className={styles.grid}>
-            <label className={styles.checkRow}>
-              <input type="checkbox" defaultChecked />
-              <span>Target Points</span>
-            </label>
-            <input className={styles.input} value={targetPoints} onChange={(e) => setTargetPoints(Number(e.target.value) || 0)} />
-
-            <label className={styles.checkRow}>
-              <input type="checkbox"  />
-              <span>Minimum to hold</span>
-            </label>
-            <input className={styles.input} value={minToHold} onChange={(e) => setMinToHold(Number(e.target.value) || 0)} />
-
-            <label className={styles.checkRow}>
-              <input type="checkbox"  />
-              <span>Trailing after target</span>
-            </label>
-            <input className={styles.input} value={trailing} onChange={(e) => setTrailing(Number(e.target.value) || 0)} />
-          </div>
-        </details>
-
-        <div className={styles.divider} />
-
-        <details className={styles.details} open>
-          <summary className={styles.summary}>Range</summary>
-          <div className={styles.rangeGrid}>
-            <div className={styles.rangeRow}>
-              <div className={styles.rangeLabel}>Time :</div>
-              <input className={styles.inputSmall} value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
-              <select className={styles.selectTiny} value={timeFromAmpm} onChange={(e) => setTimeFromAmpm(e.target.value)}>
-                <option value="am">AM</option>
-                <option value="pm">PM</option>
-              </select>
-              <div className={styles.rangeLabel}>To</div>
-              <input className={styles.inputSmall} value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
-              <select className={styles.selectTiny} value={timeToAmpm} onChange={(e) => setTimeToAmpm(e.target.value)}>
-                <option value="am">AM</option>
-                <option value="pm">PM</option>
-              </select>
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" id="stopLossCandle" className="h-4 w-4" />
+                <label htmlFor="stopLossCandle" className="text-sm">Based on previous candle</label>
+                <select 
+                  value={stopLossCandle} 
+                  onChange={(e) => setStopLossCandle(e.target.value)}
+                  className="w-24 h-8 px-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="closing">Closing</option>
+                  <option value="open">Open</option>
+                  <option value="high">High</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
             </div>
-
-            <div className={styles.rangeRow}>
-              <div className={styles.rangeLabel}>Price :</div>
-              <input className={styles.inputSmall} value={priceFrom} onChange={(e) => setPriceFrom(Number(e.target.value) || 0)} />
-              <div className={styles.rangeLabel}>To</div>
-              <input className={styles.inputSmall} value={priceTo} onChange={(e) => setPriceTo(Number(e.target.value) || 0)} />
-            </div>
-          </div>
-        </details>
-
-        <div className={styles.divider} />
-
-        <div className={styles.tradeTaking}>
-          <div className={styles.availableRow}>
-            <div className={styles.availableLabel}>Available to Trade</div>
-            <div className={styles.availableValue}>= ₹85,000</div>
+            
+            <p className="text-xs text-gray-500">* Whichever first happens</p>
           </div>
 
-          <div className={styles.instrumentRow}>
-            <div className={styles.instrumentSymbol}>
-              {selection?.symbol ?? "Select a symbol from Watchlist"}
-            </div>
-            <div className={styles.instrumentPrice}>₹{currentPrice ?? selection?.price ?? "--"}</div>
-          </div>
+          <Separator />
 
-          <div className={styles.lotRow}>
-            <div className={styles.lotLeft}>
-              <div className={styles.lotLabel}>LOT  ({lotSize}) :</div>
-              <input className={styles.lotInput} value={lotValue} onChange={(e) => setLotValue(Number(e.target.value) || 0)} />
-            </div>
+          {/* Exit Strategy */}
+          <div className="space-y-4">
+            <div className="text-base font-medium">Exit Strategy</div>
+            
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" id="targetPoints" defaultChecked className="h-4 w-4" />
+                <label htmlFor="targetPoints" className="text-sm">Target Points</label>
+                <Input 
+                  type="number" 
+                  value={targetPoints} 
+                  onChange={(e) => setTargetPoints(Number(e.target.value) || 0)}
+                  className="w-20 h-8"
+                />
+              </div>
 
-            <div className={styles.totalText}>
-              Total : {price.toFixed(2)} * {lotSize * lotValue} = ₹{total.toFixed(2)}
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" id="minToHold" className="h-4 w-4" />
+                <label htmlFor="minToHold" className="text-sm">Minimum to hold</label>
+                <Input 
+                  type="number" 
+                  value={minToHold} 
+                  onChange={(e) => setMinToHold(Number(e.target.value) || 0)}
+                  className="w-20 h-8"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" id="trailing" className="h-4 w-4" />
+                <label htmlFor="trailing" className="text-sm">Trailing after target</label>
+                <Input 
+                  type="number" 
+                  value={trailing} 
+                  onChange={(e) => setTrailing(Number(e.target.value) || 0)}
+                  className="w-20 h-8"
+                />
+              </div>
             </div>
           </div>
 
-          <div className={styles.tradeActions}>
-            <button
-              className={styles.buyBtn}
-              type="button"
-              onClick={() => {
-                saveForm();
-                addWaitingTradeFromSelection();
-                router.push("/dashboard");
-              }}
-            >
-              {buttonText}
-            </button>
-            <button className={styles.cancelBtn} type="button" onClick={() => router.push("/dashboard")}>
-              CANCEL
-            </button>
+          <Separator />
+
+          {/* Range */}
+          <div className="space-y-4">
+            <div className="text-base font-medium">Range</div>
+            
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <label className="text-sm w-12">Time:</label>
+                <Input 
+                  type="text" 
+                  value={timeFrom} 
+                  onChange={(e) => setTimeFrom(e.target.value)}
+                  className="w-16 h-8 text-sm"
+                />
+                <select 
+                  value={timeFromAmpm} 
+                  onChange={(e) => setTimeFromAmpm(e.target.value)}
+                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                >
+                  <option value="am">AM</option>
+                  <option value="pm">PM</option>
+                </select>
+                <label className="text-sm w-8">To</label>
+                <Input 
+                  type="text" 
+                  value={timeTo} 
+                  onChange={(e) => setTimeTo(e.target.value)}
+                  className="w-16 h-8 text-sm"
+                />
+                <select 
+                  value={timeToAmpm} 
+                  onChange={(e) => setTimeToAmpm(e.target.value)}
+                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                >
+                  <option value="am">AM</option>
+                  <option value="pm">PM</option>
+                </select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <label className="text-sm w-12">Price:</label>
+                <Input 
+                  type="number" 
+                  value={priceFrom} 
+                  onChange={(e) => setPriceFrom(Number(e.target.value) || 0)}
+                  className="w-20 h-8 text-sm"
+                />
+                <label className="text-sm w-8">To</label>
+                <Input 
+                  type="number" 
+                  value={priceTo} 
+                  onChange={(e) => setPriceTo(Number(e.target.value) || 0)}
+                  className="w-20 h-8 text-sm"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+
+          <Separator />
+
+          {/* Trade Taking Section */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <label className="text-sm">Available to Trade</label>
+              <span className="text-sm font-semibold">≥ ₹85,000</span>
+            </div>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium">
+                  {selection?.symbol ?? "Select a symbol from Watchlist"}
+                </span>
+                <span className="text-sm font-bold">
+                  ₹{currentPrice ?? selection?.price ?? "--"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm">LOT ({lotSize}):</label>
+                <Input 
+                  type="number" 
+                  value={lotValue} 
+                  onChange={(e) => setLotValue(Number(e.target.value) || 0)}
+                  className="w-16 h-8 text-sm"
+                />
+              </div>
+
+              <div className="text-sm text-gray-600">
+                Total: {price.toFixed(2)} × {lotSize * lotValue} = ₹{total.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <Button
+                onClick={() => {
+                  saveForm();
+                  addWaitingTradeFromSelection();
+                  router.push("/dashboard");
+                }}
+                className="flex-1"
+              >
+                {buttonText}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => router.push("/dashboard")}
+                className="flex-1"
+              >
+                CANCEL
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
