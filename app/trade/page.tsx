@@ -184,23 +184,25 @@ export default function TradePage() {
               </div>
 
               <div className="flex items-center space-x-2">
-                <input type="checkbox" id="stopLossPercentage" className="h-4 w-4" />
-                <label htmlFor="stopLossPercentage" className="text-sm">Based on percentage %</label>
+                <input type="checkbox" id="stopLossPercentage" disabled className="h-4 w-4" />
+                <label htmlFor="stopLossPercentage" className="text-sm text-gray-400">Based on percentage %</label>
                 <Input 
                   type="number" 
                   value={stopLossPercentage} 
                   onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)}
                   className="w-20 h-8"
+                  disabled
                 />
               </div>
 
               <div className="flex items-center space-x-2">
-                <input type="checkbox" id="stopLossCandle" className="h-4 w-4" />
-                <label htmlFor="stopLossCandle" className="text-sm">Based on previous candle</label>
+                <input type="checkbox" id="stopLossCandle" disabled className="h-4 w-4" />
+                <label htmlFor="stopLossCandle" className="text-sm text-gray-400">Based on previous candle</label>
                 <select 
                   value={stopLossCandle} 
                   onChange={(e) => setStopLossCandle(e.target.value)}
-                  className="w-24 h-8 px-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-24 h-8 px-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled-select"
+                  disabled
                 >
                   <option value="closing">Closing</option>
                   <option value="open">Open</option>
@@ -232,24 +234,26 @@ export default function TradePage() {
               </div>
 
               <div className="flex items-center space-x-2">
-                <input type="checkbox" id="minToHold" className="h-4 w-4" />
-                <label htmlFor="minToHold" className="text-sm">Minimum to hold</label>
+                <input type="checkbox" id="minToHold" disabled className="h-4 w-4" />
+                <label htmlFor="minToHold" className="text-sm text-gray-400">Minimum to hold</label>
                 <Input 
                   type="number" 
                   value={minToHold} 
                   onChange={(e) => setMinToHold(Number(e.target.value) || 0)}
                   className="w-20 h-8"
+                  disabled
                 />
               </div>
 
               <div className="flex items-center space-x-2">
-                <input type="checkbox" id="trailing" className="h-4 w-4" />
-                <label htmlFor="trailing" className="text-sm">Trailing after target</label>
+                <input type="checkbox" id="trailing" disabled className="h-4 w-4" />
+                <label htmlFor="trailing" className="text-sm text-gray-400">Trailing after target</label>
                 <Input 
                   type="number" 
                   value={trailing} 
                   onChange={(e) => setTrailing(Number(e.target.value) || 0)}
                   className="w-20 h-8"
+                  disabled
                 />
               </div>
             </div>
@@ -263,32 +267,36 @@ export default function TradePage() {
             
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <label className="text-sm w-12">Time:</label>
+                <label className="text-sm text-gray-400 w-12">Time:</label>
                 <Input 
                   type="text" 
                   value={timeFrom} 
                   onChange={(e) => setTimeFrom(e.target.value)}
                   className="w-16 h-8 text-sm"
+                  disabled
                 />
                 <select 
                   value={timeFromAmpm} 
                   onChange={(e) => setTimeFromAmpm(e.target.value)}
-                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm disabled-select"
+                  disabled
                 >
                   <option value="am">AM</option>
                   <option value="pm">PM</option>
                 </select>
-                <label className="text-sm w-8">To</label>
+                <label className="text-sm text-gray-400 w-8">To</label>
                 <Input 
                   type="text" 
                   value={timeTo} 
                   onChange={(e) => setTimeTo(e.target.value)}
                   className="w-16 h-8 text-sm"
+                  disabled
                 />
                 <select 
                   value={timeToAmpm} 
                   onChange={(e) => setTimeToAmpm(e.target.value)}
-                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm disabled-select"
+                  disabled
                 >
                   <option value="am">AM</option>
                   <option value="pm">PM</option>
@@ -296,19 +304,21 @@ export default function TradePage() {
               </div>
 
               <div className="flex items-center space-x-2">
-                <label className="text-sm w-12">Price:</label>
+                <label className="text-sm text-gray-400 w-12">Price:</label>
                 <Input 
                   type="number" 
                   value={priceFrom} 
                   onChange={(e) => setPriceFrom(Number(e.target.value) || 0)}
                   className="w-20 h-8 text-sm"
+                  disabled
                 />
-                <label className="text-sm w-8">To</label>
+                <label className="text-sm text-gray-400 w-8">To</label>
                 <Input 
                   type="number" 
                   value={priceTo} 
                   onChange={(e) => setPriceTo(Number(e.target.value) || 0)}
                   className="w-20 h-8 text-sm"
+                  disabled
                 />
               </div>
             </div>
