@@ -1,11 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import styles from "./ConnectionStatus.module.scss";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface ConnectionStatus {
   api: boolean;
   strategy: boolean;
+}
+
+interface ConnectionItem {
+  name: string;
+  endpoint: string;
+  connected: boolean;
 }
 
 export default function ConnectionStatus() {
@@ -42,45 +49,45 @@ export default function ConnectionStatus() {
     return () => clearInterval(interval);
   }, []);
 
-  const getStatusColor = (connected: boolean) => {
-    return connected ? "#0a9b3f" : "#d60000";
-  };
-
-  const getStatusText = (connected: boolean) => {
-    return connected ? "Connected" : "Disconnected";
-  };
+  const connectionItems: ConnectionItem[] = [
+    {
+      name: "API Server",
+      endpoint: "localhost:2000",
+      connected: connections.api
+    },
+    {
+      name: "Strategy Engine",
+      endpoint: "localhost:4000",
+      connected: connections.strategy
+    }
+  ];
 
   return (
-    <>
-      <h2 className={styles.sectionTitle}>CONNECTION STATUS</h2>
-      
-      <div className={styles.card}>
-        <div className={styles.connectionRow}>
-          <div className={styles.connectionInfo}>
-            <div className={styles.connectionName}>API Server</div>
-            <div className={styles.connectionEndpoint}>localhost:2000</div>
-          </div>
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold">CONNECTION STATUS</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {connectionItems.map((item, index) => (
           <div 
-            className={styles.statusIndicator}
-            style={{ backgroundColor: getStatusColor(connections.api) }}
+            key={index}
+            className="flex items-center justify-between py-3 border-b last:border-b-0"
           >
-            {getStatusText(connections.api)}
+            <div className="space-y-1">
+              <div className="font-medium text-sm">{item.name}</div>
+              <div className="text-xs text-muted-foreground font-mono">
+                {item.endpoint}
+              </div>
+            </div>
+            <Badge 
+              variant={item.connected ? "success" : "destructive"}
+              className="min-w-[100px] justify-center"
+            >
+              {item.connected ? "Connected" : "Disconnected"}
+            </Badge>
           </div>
-        </div>
-
-        <div className={styles.connectionRow}>
-          <div className={styles.connectionInfo}>
-            <div className={styles.connectionName}>Strategy Engine</div>
-            <div className={styles.connectionEndpoint}>localhost:4000</div>
-          </div>
-          <div 
-            className={styles.statusIndicator}
-            style={{ backgroundColor: getStatusColor(connections.strategy) }}
-          >
-            {getStatusText(connections.strategy)}
-          </div>
-        </div>
-      </div>
-    </>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
