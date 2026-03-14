@@ -8,6 +8,7 @@ import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
 import { getPrices } from "@/lib/getPrices";
 import TradeHistory from "./TradeHistory";
+import AccountDetails from "./AccountDetails";
 
 
 
@@ -481,23 +482,9 @@ export default function DashboardPage() {
 
         <TradeHistory />
 
+        <AccountDetails />
+
         <div className={styles.bottomActions}>
-
-          <button
-            className={styles.bottomBtn}
-            type="button"
-            onClick={() => router.push("/account-details")}
-          >
-            ACCOUNT DETAILS
-          </button>
-
-          <button
-            className={styles.bottomBtn}
-            type="button"
-            onClick={() => router.push("/trade-history")}
-          >
-            TRADE HISTORY
-          </button>
 
         </div>
 
