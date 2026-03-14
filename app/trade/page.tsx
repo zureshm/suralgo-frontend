@@ -154,7 +154,7 @@ export default function TradePage() {
             <select 
               id="trades"
               value={numberOfTrades.toString()} 
-              onChange={(value) => setNumberOfTrades(Number(value))}
+              onChange={(e) => setNumberOfTrades(Number(e.target.value))}
               className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {Array.from({ length: 10 }, (_, i) => (
