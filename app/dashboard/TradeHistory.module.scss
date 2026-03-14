@@ -1,76 +1,74 @@
 // Trade History Component Styles
-.sectionTitle {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 20px 0 10px 0;
-  color: #333;
-}
-
-.card {
-  background: white;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 16px;
-}
-
-.historyCard {
-  padding: 12px 14px;
-  max-height: 320px;
-  overflow: auto;
-}
-
 .empty {
+  padding: 20px;
   text-align: center;
   color: #666;
   font-style: italic;
-  padding: 20px;
 }
 
 .historyItem {
-  padding: 12px 6px;
-}
-
-.historyItem + .historyItem {
-  border-top: 2px solid rgba(0, 0, 0, 0.12);
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  
+  &:last-child {
+    border-bottom: none;
+  }
 }
 
 .historyItemTop {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .historySymbol {
+  font-weight: 600;
   font-size: 14px;
-  font-weight: 500;
 }
 
 .historyPnl {
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
 
 .historyPositive {
-  color: #0a9b3f;
+  color: #0a8a43;
 }
 
 .historyNegative {
-  color: #d60000;
+  color: #d12b2b;
 }
 
 .historyDetails {
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
-  margin-top: 8px;
-  font-size: 12px;
-  line-height: 1.5;
   cursor: pointer;
+  font-size: 12px;
+  color: #666;
+  padding: 8px 0;
+  
+  &:hover {
+    color: #333;
+  }
+  
+  &[open] {
+    summary {
+      color: #333;
+    }
+  }
 }
 
-.historyDetails:hover {
-  background: #e9ecef;
+.historyDetails[open] > summary {
+  color: #333;
+}
+
+.historyDetails > div {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: monospace;
+  white-space: pre-wrap;
 }
