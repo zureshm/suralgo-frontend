@@ -9,6 +9,7 @@ import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
 import { getPrices } from "@/lib/getPrices";
 import TradeHistory from "./TradeHistory";
 import AccountDetails from "./AccountDetails";
+import ConnectionStatus from "./ConnectionStatus";
 
 
 
@@ -329,6 +330,8 @@ export default function DashboardPage() {
 
         </header>
 
+        <ConnectionStatus />
+
         <h2 className={styles.sectionTitle}>WATCHLIST</h2>
 
         <div className={styles.card}>
@@ -365,7 +368,6 @@ export default function DashboardPage() {
             {activeTrades.length === 0 && (
               <div className={styles.empty}>No active trades</div>
             )}
-           
 
             {/* real active trades */}
             {activeTrades.map((t) => (
@@ -475,7 +477,6 @@ export default function DashboardPage() {
 
                 </div>
               ))}
-
           </div>
 
         </div>
