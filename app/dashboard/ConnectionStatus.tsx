@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import styles from "./ConnectionStatus.module.scss";
 
 interface ConnectionStatus {
   api: boolean;
@@ -71,20 +72,21 @@ export default function ConnectionStatus() {
         {connectionItems.map((item, index) => (
           <div 
             key={index}
-            className="flex items-center justify-between py-3 border-b last:border-b-0"
+            className={styles.connectionRow}
           >
-            <div className="space-y-1">
-              <div className="font-medium text-sm">{item.name}</div>
-              <div className="text-xs text-muted-foreground font-mono">
+            <div className={styles.connectionInfo}>
+              <div className={styles.connectionName}>{item.name}</div>
+              <div className={styles.connectionEndpoint}>
                 {item.endpoint}
               </div>
             </div>
-            <Badge 
-              variant={item.connected ? "success" : "destructive"}
-              className="min-w-[100px] justify-center"
+            <div 
+              className={`${styles.statusIndicator} ${
+                item.connected ? styles.connected : styles.disconnected
+              }`}
             >
               {item.connected ? "Connected" : "Disconnected"}
-            </Badge>
+            </div>
           </div>
         ))}
       </CardContent>

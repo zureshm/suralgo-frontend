@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 
@@ -33,16 +37,27 @@ export default function ActiveTrade({
   const safeWaitingTrades = mounted ? waitingTrades : [];
 
   return (
-    <>
-      <h2 className={styles.sectionTitle}>ACTIVE TRADES (COMPONENT)</h2>
-
-      <div className={styles.card}>
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex flex-col gap-3">
+          <CardTitle className="text-lg font-semibold">ACTIVE TRADES</CardTitle>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Active: {safeActiveTrades.length} | Waiting: {safeWaitingTrades.length}
+            </span>
+            {safeActiveTrades.length > 0 && (
+              <Badge variant="default" className="font-semibold">
+                Running
+              </Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-3">
+        <Separator />
         <div className={styles.activeTrades}>
-          {/* dummy trades */}
-          {safeActiveTrades.length === 0 && (
-            <div className={styles.empty}>No active trades</div>
-          )}
-
           {/* real active trades */}
           {safeActiveTrades.map((t) => (
             <div key={t.symbol} className={styles.trade}>
@@ -158,7 +173,7 @@ export default function ActiveTrade({
               </div>
             ))}
         </div>
-      </div>
-    </>
+      </CardContent>
+    </Card>
   );
 }

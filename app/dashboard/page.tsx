@@ -175,11 +175,7 @@ export default function DashboardPage() {
     <div className={styles.page}>
       <div className={styles.container}>
 
-        <header className={styles.header}>
-
-          <ConnectionStatus />
-
-        </header>
+        <ConnectionStatus />
 
         <Watchlist />
 
