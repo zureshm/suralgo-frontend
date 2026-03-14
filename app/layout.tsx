@@ -3,6 +3,7 @@ import { Poppins, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TradeStoreProvider } from "./store/TradeStore";
 import { WatchlistProvider } from "./store/WatchlistContext";
+import { StrategyTimerProvider } from "./components/StrategyTimerProvider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -31,11 +32,13 @@ export default function RootLayout({
         className={`${poppins.variable} ${geistMono.variable} antialiased`}
       >
         <TradeStoreProvider>
-          <WatchlistProvider>
-            <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-              {children}
-            </div>
-          </WatchlistProvider>
+          <StrategyTimerProvider>
+            <WatchlistProvider>
+              <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+                {children}
+              </div>
+            </WatchlistProvider>
+          </StrategyTimerProvider>
         </TradeStoreProvider>
       </body>
     </html>

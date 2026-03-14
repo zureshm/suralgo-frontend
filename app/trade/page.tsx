@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 
 export default function TradePage() {
   const router = useRouter();
-  const { selection, addWaitingTradeFromSelection, waitingTrades } = useTradeStore();
+  const { selection, addWaitingTradeFromSelection, waitingTrades, activeTrades } = useTradeStore();
   const [currentPrice, setCurrentPrice] = useState<string | null>(null);
   const [lotValue, setLotValue] = useState(5);
 
@@ -32,7 +32,9 @@ export default function TradePage() {
   const [priceTo, setPriceTo] = useState(220);
 
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
-  const buttonText = isAlreadyWaiting ? "UPDATE" : "ENTER";
+  const isAlreadyActive = selection && activeTrades.some((trade) => trade.symbol === selection.symbol && trade.status === "ACTIVE");
+  const buttonText = isAlreadyActive ? "TRADE RUNNING" : (isAlreadyWaiting ? "UPDATE" : "ENTER");
+  const isButtonDisabled = isAlreadyActive;
 
   const lotSize: number = 65;
 
@@ -361,11 +363,14 @@ export default function TradePage() {
             <div className="flex space-x-3">
               <Button
                 onClick={() => {
-                  saveForm();
-                  addWaitingTradeFromSelection();
-                  router.push("/dashboard");
+                  if (!isButtonDisabled) {
+                    saveForm();
+                    addWaitingTradeFromSelection();
+                    router.push("/dashboard");
+                  }
                 }}
                 className="flex-1"
+                disabled={isButtonDisabled || false}
               >
                 {buttonText}
               </Button>
