@@ -59,7 +59,7 @@ type TradeStoreValue = {
   // remove active trade completely
   removeActiveTrade: (symbol: string) => void;
   // log manual exit before removing trade
-  logManualExit: (symbol: string, exitPrice: string, pnl: number) => void;
+  logManualExit: (symbol: string, exitPrice: string, pnl: number, lastCandleTime: string) => void;
 
   tradeHistory: TradeHistoryItem[];
   addTradeHistoryEntry: (entry: TradeHistoryItem) => void;
@@ -280,14 +280,10 @@ export function TradeStoreProvider({
   const logManualExit = (
     symbol: string,
     exitPrice: string,
-    pnl: number
+    pnl: number,
+    lastCandleTime: string
   ) => {
-    const currentTime = new Date().toLocaleTimeString('en-IN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    
-    const exitLog = `Manual Sell triggered for ₹${exitPrice} at ${currentTime}`;
+    const exitLog = `Manual Sell triggered for ₹${exitPrice} at ${lastCandleTime}`;
 
     setActiveTrades((prev) =>
       prev.map((trade) => {
@@ -326,7 +322,7 @@ export function TradeStoreProvider({
         return {
           ...trade,
           exitPrice,
-          exitTime: currentTime,
+          exitTime: lastCandleTime,
           status: "COMPLETED",
           inPosition: false,
           pnl: pnl, // Keep total accumulated P&L for trade state

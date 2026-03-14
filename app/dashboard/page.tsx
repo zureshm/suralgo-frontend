@@ -409,8 +409,14 @@ export default function DashboardPage() {
                             : 0;
                         const livePnl = t.pnl + unrealized;
 
+                        // Use backend time from strategy signal
+                        const lastCandleTime = strategySignal?.lastCandleTime || new Date().toLocaleTimeString('en-IN', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        });
+
                         // Just log manual exit, don't remove trade
-                        logManualExit(t.symbol, String(ltp ?? ""), livePnl);
+                        logManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
                       }}
                     >
                       EXIT
