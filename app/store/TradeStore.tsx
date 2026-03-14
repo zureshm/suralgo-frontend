@@ -60,6 +60,8 @@ type TradeStoreValue = {
   removeActiveTrade: (symbol: string) => void;
   // log manual exit before removing trade
   logManualExit: (symbol: string, exitPrice: string, pnl: number, lastCandleTime: string) => void;
+  // remove trade and free symbol
+  removeTradeAndFreeSymbol: (symbol: string) => void;
 
   tradeHistory: TradeHistoryItem[];
   addTradeHistoryEntry: (entry: TradeHistoryItem) => void;
@@ -277,6 +279,17 @@ export function TradeStoreProvider({
     setActiveTrades((prev) => prev.filter((trade) => trade.symbol !== symbol));
   };
 
+  const removeTradeAndFreeSymbol = (symbol: string) => {
+    // Remove trade from active trades
+    removeActiveTrade(symbol);
+    
+    // Free the symbol: clear selection if it matches, and remove localStorage data
+    if (selection?.symbol === symbol) {
+      setSelection(null);
+    }
+    localStorage.removeItem("tradeForm_" + symbol);
+  };
+
   const logManualExit = (
     symbol: string,
     exitPrice: string,
@@ -356,12 +369,14 @@ export function TradeStoreProvider({
       updateActiveTradeBuy,
       removeActiveTrade,
       logManualExit,
+      removeTradeAndFreeSymbol,
       tradeHistory,
       addTradeHistoryEntry,
     }),
     [selection, waitingTrades, activeTrades, tradeHistory, logManualExit]
   );
 
+// ...
   return (
     <TradeStoreContext.Provider value={value}>
       {children}

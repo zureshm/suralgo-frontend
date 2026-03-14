@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
+import { useTradeStore } from "../store/TradeStore";
 
 type Props = {
   activeTrades: ActiveTradeType[];
@@ -28,6 +29,8 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
+  const [exitClicked, setExitClicked] = useState(false);
+  const { removeTradeAndFreeSymbol } = useTradeStore();
 
   useEffect(() => {
     setMounted(true);
@@ -86,31 +89,45 @@ export default function ActiveTrade({
                     );
                   })()}
 
-                  <button
-                    className={`${styles.tradeAction} ${styles.dark}`}
-                    type="button"
-                    onClick={() => {
-                      const ltp = activeLtps[t.symbol];
-                      const entry = Number(t.entryPrice);
-                      const qty = t.lotSize * t.lotValue;
-                      const unrealized =
-                        t.inPosition && Number.isFinite(ltp) && Number.isFinite(entry)
-                          ? (ltp - entry) * qty
-                          : 0;
-                      const livePnl = t.pnl + unrealized;
+                  {!exitClicked && (
+                    <button
+                      className={`${styles.tradeAction} ${styles.dark}`}
+                      type="button"
+                      onClick={() => {
+                        const ltp = activeLtps[t.symbol];
+                        const entry = Number(t.entryPrice);
+                        const qty = t.lotSize * t.lotValue;
+                        const unrealized =
+                          t.inPosition && Number.isFinite(ltp) && Number.isFinite(entry)
+                            ? (ltp - entry) * qty
+                            : 0;
+                        const livePnl = t.pnl + unrealized;
 
-                      const lastCandleTime =
-                        strategyLastCandleTime ||
-                        new Date().toLocaleTimeString("en-IN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        });
+                        const lastCandleTime =
+                          strategyLastCandleTime ||
+                          new Date().toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          });
 
-                      onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
-                    }}
-                  >
-                    EXIT
-                  </button>
+                        onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
+                        setExitClicked(true);
+                      }}
+                    >
+                      EXIT
+                    </button>
+                  )}
+                  {exitClicked && (
+                    <button
+                      className={`${styles.tradeAction} ${styles.danger}`}
+                      type="button"
+                      onClick={() => {
+                        removeTradeAndFreeSymbol(t.symbol);
+                      }}
+                    >
+                      CLOSE
+                    </button>
+                  )}
                 </div>
               </div>
 
