@@ -61,6 +61,8 @@ type TradeStoreValue = {
   activateWaitingTrade: (symbol: string, entryPrice: string, logLine: string) => void;
   // close an active trade when strategy gives SELL
   completeActiveTrade: (symbol: string, exitPrice: string, logLine: string) => void;
+  // complete a cycle without exiting (for stop loss/target hits)
+  completeCycleWithoutExit: (symbol: string, exitPrice: string, logLine: string) => void;
   // update active trade with new buy signal
   updateActiveTradeBuy: (symbol: string, entryPrice: string, logLine: string) => void;
   // remove active trade completely
@@ -293,12 +295,9 @@ export function TradeStoreProvider({
 
         const qty = trade.lotSize * trade.lotValue;
         const cyclePnl = (exit - entry) * qty;
-
-        // Accumulate total P/L
         const totalPnl = trade.pnl + cyclePnl;
         const newCompletedCycles = trade.completedCycles + 1;
 
-        // Check if we've completed all required trades
         if (newCompletedCycles >= trade.numberOfTrades) {
           const finalLogs = [
             ...trade.logs,
@@ -307,7 +306,6 @@ export function TradeStoreProvider({
             `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
           ];
 
-          // Add to history
           setTradeHistory((historyPrev) => {
             const historyEntry = {
               id: `${trade.symbol}-${Date.now()}`,
@@ -321,14 +319,12 @@ export function TradeStoreProvider({
             return nextHistory;
           });
 
-          // DO NOT remove from active trades - keep it visible with COMPLETED status
-          // User must manually click CLOSE button to remove
-
           return {
             ...trade,
             pnl: totalPnl,
             inPosition: false,
             completedCycles: newCompletedCycles,
+            exitPrice,
             logs: finalLogs,
             status: "COMPLETED" as const,
           };
@@ -344,6 +340,81 @@ export function TradeStoreProvider({
             logLine,
             `Trade P/L: ${cyclePnl.toFixed(2)}`,
             `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          ],
+        };
+      })
+    );
+  };
+
+  // complete a cycle for stop loss or target hit
+  const completeCycleWithoutExit = (
+    symbol: string,
+    exitPrice: string,
+    logLine: string
+  ) => {
+    setActiveTrades((prev) =>
+      prev.map((trade) => {
+        if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
+          return trade;
+        }
+
+        const entry = Number(trade.entryPrice);
+        const exit = Number(exitPrice);
+
+        if (Number.isNaN(entry) || Number.isNaN(exit)) {
+          return {
+            ...trade,
+            logs: [...trade.logs, logLine, "Trade P/L: invalid price data"],
+          };
+        }
+
+        const qty = trade.lotSize * trade.lotValue;
+        const cyclePnl = (exit - entry) * qty;
+        const totalPnl = trade.pnl + cyclePnl;
+        const newCompletedCycles = trade.completedCycles + 1;
+
+        if (newCompletedCycles >= trade.numberOfTrades) {
+          const finalLogs = [
+            ...trade.logs,
+            logLine,
+            `Trade P/L: ${cyclePnl.toFixed(2)}`,
+            `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
+          ];
+
+          setTradeHistory((historyPrev) => {
+            const historyEntry = {
+              id: `${trade.symbol}-${Date.now()}`,
+              symbol: trade.symbol,
+              pnl: totalPnl,
+              logs: finalLogs,
+              createdAt: new Date().toISOString(),
+            };
+            const nextHistory = [historyEntry, ...historyPrev];
+            localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
+            return nextHistory;
+          });
+
+          return {
+            ...trade,
+            pnl: totalPnl,
+            inPosition: false,
+            completedCycles: newCompletedCycles,
+            exitPrice,
+            logs: finalLogs,
+            status: "COMPLETED" as const,
+          };
+        }
+
+        return {
+          ...trade,
+          pnl: totalPnl,
+          inPosition: false,
+          completedCycles: newCompletedCycles,
+          logs: [
+            ...trade.logs,
+            logLine,
+            `Trade P/L: ${cyclePnl.toFixed(2)}`,
+            `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`,
           ],
         };
       })
@@ -376,13 +447,12 @@ export function TradeStoreProvider({
   };
 
   const removeTradeAndFreeSymbol = (symbol: string) => {
-    // Remove trade from active trades
     removeActiveTrade(symbol);
-    
-    // Free the symbol: clear selection if it matches, and remove localStorage data
+
     if (selection?.symbol === symbol) {
       setSelection(null);
     }
+
     localStorage.removeItem("tradeForm_" + symbol);
   };
 
@@ -398,28 +468,25 @@ export function TradeStoreProvider({
           return trade;
         }
 
-        // Log different messages based on whether we're in position or not
-        const exitLog = trade.inPosition 
+        const exitLog = trade.inPosition
           ? `SELL manually for ₹${exitPrice} at ${lastCandleTime}`
           : `EXIT  at ${lastCandleTime}`;
 
-        // Calculate current cycle P&L (entry vs exit only)
         const entry = Number(trade.entryPrice);
         const exit = Number(exitPrice);
         const qty = trade.lotSize * trade.lotValue;
         const currentCyclePnl = trade.inPosition && Number.isFinite(exit) && Number.isFinite(entry)
           ? (exit - entry) * qty
           : 0;
-        
+
         const pnlLog = `Trade P/L: ${currentCyclePnl.toFixed(2)}`;
         const finalLogs = [...trade.logs, exitLog, pnlLog];
 
-        // Add to history
         setTradeHistory((historyPrev) => {
           const historyEntry = {
             id: `${trade.symbol}-${Date.now()}`,
             symbol: trade.symbol,
-            pnl: pnl, // Use total accumulated P&L
+            pnl,
             logs: finalLogs,
             createdAt: new Date().toISOString(),
           };
@@ -428,16 +495,15 @@ export function TradeStoreProvider({
           return nextHistory;
         });
 
-        // Remove completed trade from active trades
         removeActiveTrade(symbol);
 
         return {
           ...trade,
           exitPrice,
           exitTime: lastCandleTime,
-          status: "COMPLETED",
+          status: "COMPLETED" as const,
           inPosition: false,
-          pnl: pnl, // Keep total accumulated P&L for trade state
+          pnl,
           logs: finalLogs,
         };
       })
@@ -462,6 +528,7 @@ export function TradeStoreProvider({
       activeTrades,
       activateWaitingTrade,
       completeActiveTrade,
+      completeCycleWithoutExit,
       updateActiveTradeBuy,
       removeActiveTrade,
       logManualExit,
@@ -471,7 +538,7 @@ export function TradeStoreProvider({
       lastStrategyCandleTime,
       setLastStrategyCandleTime,
     }),
-    [selection, waitingTrades, activeTrades, tradeHistory, logManualExit, lastStrategyCandleTime]
+    [selection, waitingTrades, activeTrades, tradeHistory, lastStrategyCandleTime]
   );
 
   return (
