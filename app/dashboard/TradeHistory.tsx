@@ -1,0 +1,112 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useTradeStore } from "../store/TradeStore";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
+import styles from "./TradeHistory.module.scss";
+
+export default function TradeHistory() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const { tradeHistory } = useTradeStore();
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const tradesPerPage = 10;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const safeHistory = mounted ? tradeHistory : [];
+  
+  // Pagination calculations
+  const totalPages = Math.ceil(safeHistory.length / tradesPerPage);
+  const startIndex = (currentPage - 1) * tradesPerPage;
+  const endIndex = startIndex + tradesPerPage;
+  const currentTrades = safeHistory.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex flex-col gap-3">
+          <CardTitle className="text-lg font-semibold">TRADE HISTORY</CardTitle>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Total Trades: {safeHistory.length}
+            </span>
+            {safeHistory.length > 0 && (
+              <Badge variant="secondary" className="font-semibold">
+                {safeHistory.filter(item => item.pnl > 0).length} Wins / {safeHistory.filter(item => item.pnl < 0).length} Losses
+              </Badge>
+            )}
+            {totalPages > 1 && (
+              <span className="text-sm text-muted-foreground ml-auto">
+                Page {currentPage} of {totalPages}
+              </span>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-3">
+        <Separator />
+        <div className="max-h-[380px] overflow-y-auto">
+          {safeHistory.length === 0 ? (
+            <div className={styles.empty}>No trade history yet</div>
+          ) : (
+          currentTrades.map((item) => {
+            const pnlText = item.pnl >= 0 ? `+${item.pnl.toFixed(2)}` : item.pnl.toFixed(2);
+            return (
+              <div key={item.id} className={styles.historyItem}>
+                <div className={styles.historyItemTop}>
+                  <div className={styles.historySymbol}>{item.symbol}</div>
+                  <div
+                    className={`${styles.historyPnl} ${
+                      item.pnl >= 0 ? styles.historyPositive : styles.historyNegative
+                    }`}
+                  >
+                    {pnlText}
+                  </div>
+                </div>
+
+                <details>
+                  <summary className={styles.historyDetails}>Details......</summary>
+                  <div className={styles.historyDetails}>
+                    {item.logs.length === 0 ? (
+                      <div>No logs</div>
+                    ) : (
+                      item.logs.map((line, i) => (
+                        <div key={i}>
+                          {line}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </details>
+              </div>
+            );
+          })
+        )}
+        </div>
+        
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}

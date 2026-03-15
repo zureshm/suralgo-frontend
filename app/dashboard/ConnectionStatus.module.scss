@@ -1,0 +1,64 @@
+// Connection Status Component Styles
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 20px 0 10px 0;
+  color: #333;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+}
+
+.connectionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.connectionRow:last-child {
+  border-bottom: none;
+}
+
+.connectionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.connectionName {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.connectionEndpoint {
+  font-size: 12px;
+  color: #666;
+  font-family: monospace;
+}
+
+.statusIndicator {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: white;
+  text-align: center;
+  min-width: 100px;
+  transition: background-color 0.3s ease;
+}
+
+.statusIndicator.connected {
+  background-color: #0a9b3f;
+}
+
+.statusIndicator.disconnected {
+  background-color: #d60000;
+}

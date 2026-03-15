@@ -1,3 +1,13 @@
 {
-    "workbench.colorTheme": "Solarized Dark"
+    "workbench.colorTheme": "Solarized Dark",
+    "css.validate": false,
+    "scss.validate": false,
+    "less.validate": false,
+    "tailwindCSS.includeLanguages": {
+        "css": "css",
+        "scss": "scss"
+    },
+    "tailwindCSS.experimental.classRegex": [
+        ["@apply\\s+([^;]+)", "([^\\s]+)"]
+    ]
 }

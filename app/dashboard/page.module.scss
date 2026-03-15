@@ -1,13 +1,19 @@
 .page {
   min-height: 100vh;
-  padding: 24px;
+  padding: 12px;
   display: grid;
   place-items: start center;
   background: #ffffff;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
 }
 
 .container {
   width: min(720px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .header {
@@ -180,15 +186,37 @@
   border: 2px solid rgba(0, 0, 0, 0.22);
   border-radius: 0;
   padding: 16px;
-  background: #737b83;
+  background: #000000;
   color: #fff;
   min-height: 150px; max-height: 150px; overflow-y: auto;
+  font-family: Courier;
+  font-size: 10px;
 }
 
 .logLine {
   font-size: 13px;
   line-height: 1.6;
   font-variant-numeric: tabular-nums;
+}
+
+.rsGold {
+  color: #c0a610;
+  font-weight: bold;
+}
+
+.cyanTime {
+  color: #0084ff;
+  font-weight: bold;
+}
+
+.plProfit {
+  color: #5ee099;
+  font-weight: bold;
+}
+
+.plLoss {
+  color: #f14a4a;
+  font-weight: bold;
 }
 
 .bottomActions {
@@ -250,4 +278,10 @@
 .active {
   background: purple;
   color: white;
+}
+
+.running {
+  background: green;
+  color: white;
+  pointer-events: none;
 }

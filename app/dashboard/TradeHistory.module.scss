@@ -1,0 +1,74 @@
+// Trade History Component Styles
+.empty {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.historyItem {
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.historyItemTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.historySymbol {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.historyPnl {
+  font-weight: 700;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.historyPositive {
+  color: #0a8a43;
+}
+
+.historyNegative {
+  color: #d12b2b;
+}
+
+.historyDetails {
+  cursor: pointer;
+  font-size: 12px;
+  color: #666;
+  padding: 8px 0;
+  
+  &:hover {
+    color: #333;
+  }
+  
+  &[open] {
+    summary {
+      color: #333;
+    }
+  }
+}
+
+.historyDetails[open] > summary {
+  color: #333;
+}
+
+.historyDetails > div {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
