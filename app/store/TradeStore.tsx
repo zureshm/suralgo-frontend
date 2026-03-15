@@ -306,18 +306,7 @@ export function TradeStoreProvider({
             `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
           ];
 
-          setTradeHistory((historyPrev) => {
-            const historyEntry = {
-              id: `${trade.symbol}-${Date.now()}`,
-              symbol: trade.symbol,
-              pnl: totalPnl,
-              logs: finalLogs,
-              createdAt: new Date().toISOString(),
-            };
-            const nextHistory = [historyEntry, ...historyPrev];
-            localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
-            return nextHistory;
-          });
+          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs);
 
           return {
             ...trade,
@@ -346,7 +335,7 @@ export function TradeStoreProvider({
     );
   };
 
-  // complete a cycle for stop loss or target hit
+  // complete a cycle without exiting (for stop loss/target hits)
   const completeCycleWithoutExit = (
     symbol: string,
     exitPrice: string,
@@ -381,18 +370,7 @@ export function TradeStoreProvider({
             `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
           ];
 
-          setTradeHistory((historyPrev) => {
-            const historyEntry = {
-              id: `${trade.symbol}-${Date.now()}`,
-              symbol: trade.symbol,
-              pnl: totalPnl,
-              logs: finalLogs,
-              createdAt: new Date().toISOString(),
-            };
-            const nextHistory = [historyEntry, ...historyPrev];
-            localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
-            return nextHistory;
-          });
+          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs);
 
           return {
             ...trade,
@@ -482,18 +460,7 @@ export function TradeStoreProvider({
         const pnlLog = `Trade P/L: ${currentCyclePnl.toFixed(2)}`;
         const finalLogs = [...trade.logs, exitLog, pnlLog];
 
-        setTradeHistory((historyPrev) => {
-          const historyEntry = {
-            id: `${trade.symbol}-${Date.now()}`,
-            symbol: trade.symbol,
-            pnl,
-            logs: finalLogs,
-            createdAt: new Date().toISOString(),
-          };
-          const nextHistory = [historyEntry, ...historyPrev];
-          localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
-          return nextHistory;
-        });
+        appendTradeHistoryEntry(trade.symbol, pnl, finalLogs);
 
         removeActiveTrade(symbol);
 
@@ -510,12 +477,41 @@ export function TradeStoreProvider({
     );
   };
 
-  const addTradeHistoryEntry = (entry: TradeHistoryItem) => {
-    setTradeHistory((prev) => {
-      const next = [entry, ...prev];
-      localStorage.setItem("tradeHistory", JSON.stringify(next));
-      return next;
+  const appendTradeHistoryEntry = (
+    symbol: string,
+    pnl: number,
+    logs: string[]
+  ) => {
+    setTradeHistory((historyPrev) => {
+      const latest = historyPrev[0];
+      const lastLog = logs[logs.length - 1] ?? "";
+      const latestLastLog = latest?.logs?.[latest.logs.length - 1] ?? "";
+
+      if (
+        latest &&
+        latest.symbol === symbol &&
+        latest.pnl === pnl &&
+        latest.logs.length === logs.length &&
+        latestLastLog === lastLog
+      ) {
+        return historyPrev;
+      }
+
+      const historyEntry = {
+        id: `${symbol}-${Date.now()}`,
+        symbol,
+        pnl,
+        logs,
+        createdAt: new Date().toISOString(),
+      };
+      const nextHistory = [historyEntry, ...historyPrev];
+      localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
+      return nextHistory;
     });
+  };
+
+  const addTradeHistoryEntry = (entry: TradeHistoryItem) => {
+    appendTradeHistoryEntry(entry.symbol, entry.pnl, entry.logs);
   };
 
   const value = useMemo(
