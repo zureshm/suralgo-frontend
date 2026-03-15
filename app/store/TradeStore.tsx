@@ -14,6 +14,9 @@ export type WaitingTrade = {
   logs: string[];
   lotSize: number;
   lotValue: number;
+  numberOfTrades: number;
+  stopLossNumber: number;
+  targetPoints: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -24,6 +27,9 @@ export type ActiveTrade = {
   logs: string[];
   lotSize: number;
   lotValue: number;
+  numberOfTrades: number;
+  stopLossNumber: number;
+  targetPoints: number;
   inPosition: boolean;
   entryTime?: string;
   exitTime?: string;
@@ -65,6 +71,10 @@ type TradeStoreValue = {
 
   tradeHistory: TradeHistoryItem[];
   addTradeHistoryEntry: (entry: TradeHistoryItem) => void;
+
+  // strategy timing
+  lastStrategyCandleTime: string;
+  setLastStrategyCandleTime: (time: string) => void;
 };
 
 const TradeStoreContext = createContext<TradeStoreValue | null>(null);
@@ -91,6 +101,9 @@ export function TradeStoreProvider({
           logs: Array.isArray(t.logs) ? t.logs.map(String) : [],
           lotSize: Number.isFinite(Number(t.lotSize)) && Number(t.lotSize) > 0 ? Number(t.lotSize) : 65,
           lotValue: Number.isFinite(Number(t.lotValue)) && Number(t.lotValue) > 0 ? Number(t.lotValue) : 1,
+          numberOfTrades: Number.isFinite(Number(t.numberOfTrades)) && Number(t.numberOfTrades) > 0 ? Number(t.numberOfTrades) : 3,
+          stopLossNumber: Number.isFinite(Number(t.stopLossNumber)) && Number(t.stopLossNumber) > 0 ? Number(t.stopLossNumber) : 15,
+          targetPoints: Number.isFinite(Number(t.targetPoints)) && Number(t.targetPoints) > 0 ? Number(t.targetPoints) : 20,
         })) as WaitingTrade[];
       } catch {
         return [];
@@ -101,6 +114,9 @@ export function TradeStoreProvider({
 
   // active trades that have been triggered by strategy
   const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>([]);
+
+  // strategy timing
+  const [lastStrategyCandleTime, setLastStrategyCandleTime] = useState<string>("");
 
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>(() => {
     if (typeof window !== "undefined") {
@@ -162,6 +178,39 @@ export function TradeStoreProvider({
             return 1;
           }
         })(),
+        numberOfTrades: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 3;
+            const data = JSON.parse(saved);
+            const v = Number(data.numberOfTrades);
+            return Number.isFinite(v) && v > 0 ? v : 3;
+          } catch {
+            return 3;
+          }
+        })(),
+        stopLossNumber: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 15;
+            const data = JSON.parse(saved);
+            const v = Number(data.stopLossNumber);
+            return Number.isFinite(v) && v > 0 ? v : 15;
+          } catch {
+            return 15;
+          }
+        })(),
+        targetPoints: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 20;
+            const data = JSON.parse(saved);
+            const v = Number(data.targetPoints);
+            return Number.isFinite(v) && v > 0 ? v : 20;
+          } catch {
+            return 20;
+          }
+        })(),
       },
       ...waitingTrades,
     ];
@@ -199,6 +248,9 @@ export function TradeStoreProvider({
       logs: [...tradeToActivate.logs, logLine],
       lotSize: tradeToActivate.lotSize,
       lotValue: tradeToActivate.lotValue,
+      numberOfTrades: tradeToActivate.numberOfTrades,
+      stopLossNumber: tradeToActivate.stopLossNumber,
+      targetPoints: tradeToActivate.targetPoints,
       inPosition: true,
       entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
       exitTime: undefined,
@@ -372,11 +424,12 @@ export function TradeStoreProvider({
       removeTradeAndFreeSymbol,
       tradeHistory,
       addTradeHistoryEntry,
+      lastStrategyCandleTime,
+      setLastStrategyCandleTime,
     }),
-    [selection, waitingTrades, activeTrades, tradeHistory, logManualExit]
+    [selection, waitingTrades, activeTrades, tradeHistory, logManualExit, lastStrategyCandleTime]
   );
 
-// ...
   return (
     <TradeStoreContext.Provider value={value}>
       {children}

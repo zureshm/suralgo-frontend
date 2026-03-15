@@ -30,7 +30,7 @@ export default function ActiveTrade({
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [exitClicked, setExitClicked] = useState(false);
-  const { removeTradeAndFreeSymbol } = useTradeStore();
+  const { removeTradeAndFreeSymbol, lastStrategyCandleTime } = useTradeStore();
 
   useEffect(() => {
     setMounted(true);
@@ -104,11 +104,11 @@ export default function ActiveTrade({
                         const livePnl = t.pnl + unrealized;
 
                         const lastCandleTime =
-                          strategyLastCandleTime ||
+                          lastStrategyCandleTime ||
                           new Date().toLocaleTimeString("en-IN", {
                             hour: "2-digit",
                             minute: "2-digit",
-                          });
+                          }).replace("am", "").replace("pm", "");
 
                         onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
                         setExitClicked(true);
@@ -162,6 +162,13 @@ export default function ActiveTrade({
                   ))}
                 </div>
               )}
+
+              {/* Trade Configuration */}
+              <div className={styles.tradeConfig}>
+                <div className="text-xs text-gray-500">
+                  Trades: {t.numberOfTrades} | SL: {t.stopLossNumber} | Target: {t.targetPoints}
+                </div>
+              </div>
             </div>
           ))}
 
@@ -185,6 +192,13 @@ export default function ActiveTrade({
                     >
                       CANCEL
                     </button>
+                  </div>
+                </div>
+
+                {/* Trade Configuration for Waiting Trades */}
+                <div className={styles.tradeConfig}>
+                  <div className="text-xs text-gray-500">
+                    Trades: {t.numberOfTrades} | SL: {t.stopLossNumber} | Target: {t.targetPoints}
                   </div>
                 </div>
               </div>

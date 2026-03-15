@@ -12,6 +12,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     completeActiveTrade,
     activeTrades,
     updateActiveTradeBuy,
+    setLastStrategyCandleTime,
   } = useTradeStore();
   const [strategySignal, setStrategySignal] = useState<any>(null);
   const [lastHandledSignalKey, setLastHandledSignalKey] = useState("");
@@ -35,6 +36,11 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     const latestClose =
       strategySignal.close ??
       strategySignal.candles?.[strategySignal.candles.length - 1]?.close;
+
+    // Update the strategy candle time for manual exits
+    if (strategySignal.lastCandleTime) {
+      setLastStrategyCandleTime(strategySignal.lastCandleTime);
+    }
 
     // handle SELL signal
     if (strategySignal.signal === "SELL") {
@@ -100,7 +106,8 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
           (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
         );
 
-        if (active) {
+        // Only allow additional BUY if not already in position
+        if (active && !active.inPosition) {
           updateActiveTradeBuy(
             active.symbol,
             String(latestClose ?? ""),
@@ -119,6 +126,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     activateWaitingTrade,
     completeActiveTrade,
     updateActiveTradeBuy,
+    setLastStrategyCandleTime,
   ]);
 
   return <>{children}</>;
