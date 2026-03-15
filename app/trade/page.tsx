@@ -20,8 +20,8 @@ export default function TradePage() {
   const [numberOfTrades, setNumberOfTrades] = useState(3);
   const [stopLossNumberEnabled, setStopLossNumberEnabled] = useState(true);
   const [stopLossNumber, setStopLossNumber] = useState(15);
+  const [stopLossPercentageEnabled, setStopLossPercentageEnabled] = useState(false);
   const [stopLossPercentage, setStopLossPercentage] = useState(10);
-  const [stopLossCandle, setStopLossCandle] = useState('closing');
   const [targetPointsEnabled, setTargetPointsEnabled] = useState(true);
   const [targetPoints, setTargetPoints] = useState(20);
   const [minToHold, setMinToHold] = useState(8);
@@ -42,6 +42,13 @@ export default function TradePage() {
 
   const price = Number(currentPrice || selection?.price || 0);
   const total = price * (lotSize * lotValue);
+
+  useEffect(() => {
+    if (!stopLossPercentageEnabled || !Number.isFinite(price) || price <= 0) return;
+
+    const calculatedStopLossPoints = Number(((price * stopLossPercentage) / 100).toFixed(2));
+    setStopLossNumber(calculatedStopLossPoints);
+  }, [price, stopLossPercentage, stopLossPercentageEnabled]);
 
   useEffect(() => {
     if (!selection?.symbol) {
@@ -73,8 +80,8 @@ export default function TradePage() {
       setNumberOfTrades(data.numberOfTrades || 3);
       setStopLossNumberEnabled(Boolean(data.stopLossNumberEnabled ?? true));
       setStopLossNumber(data.stopLossNumber || 15);
+      setStopLossPercentageEnabled(Boolean(data.stopLossPercentageEnabled ?? false));
       setStopLossPercentage(data.stopLossPercentage || 10);
-      setStopLossCandle(data.stopLossCandle || 'closing');
       setTargetPointsEnabled(Boolean(data.targetPointsEnabled ?? true));
       setTargetPoints(data.targetPoints || 20);
       setMinToHold(data.minToHold || 8);
@@ -92,8 +99,8 @@ export default function TradePage() {
       setNumberOfTrades(3);
       setStopLossNumberEnabled(true);
       setStopLossNumber(15);
+      setStopLossPercentageEnabled(false);
       setStopLossPercentage(10);
-      setStopLossCandle('closing');
       setTargetPointsEnabled(true);
       setTargetPoints(20);
       setMinToHold(8);
@@ -113,10 +120,10 @@ export default function TradePage() {
     const formData = {
       strategy,
       numberOfTrades,
-      stopLossNumberEnabled,
+      stopLossNumberEnabled: stopLossNumberEnabled || stopLossPercentageEnabled,
       stopLossNumber,
+      stopLossPercentageEnabled,
       stopLossPercentage,
-      stopLossCandle,
       targetPointsEnabled,
       targetPoints,
       minToHold,
@@ -188,9 +195,10 @@ export default function TradePage() {
                   <input
                     type="checkbox"
                     id="stopLossNumberEnabled"
-                    checked={stopLossNumberEnabled}
+                    checked={stopLossNumberEnabled || stopLossPercentageEnabled}
                     onChange={(e) => setStopLossNumberEnabled(e.target.checked)}
                     className="h-4 w-4"
+                    disabled={stopLossPercentageEnabled}
                   />
                   <label htmlFor="stopLossNumberEnabled" className="text-sm font-medium">Based on number</label>
                 </div>
@@ -203,54 +211,39 @@ export default function TradePage() {
                     value={stopLossNumber} 
                     onChange={(e) => setStopLossNumber(Number(e.target.value) || 0)}
                     className="w-20 h-8"
-                    disabled={!stopLossNumberEnabled}
+                    disabled={!stopLossNumberEnabled && !stopLossPercentageEnabled}
+                    readOnly={stopLossPercentageEnabled}
                   />
                 </div>
               </div>
 
-              <div className="rounded-md border border-dashed border-gray-200 p-3 space-y-3 opacity-60">
+              <div className="rounded-md border border-gray-200 p-3 space-y-3">
                 <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="stopLossPercentage" disabled className="h-4 w-4" />
-                  <label htmlFor="stopLossPercentage" className="text-sm text-gray-400 font-medium">Based on percentage %</label>
+                  <input
+                    type="checkbox"
+                    id="stopLossPercentageEnabled"
+                    checked={stopLossPercentageEnabled}
+                    onChange={(e) => setStopLossPercentageEnabled(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="stopLossPercentageEnabled" className="text-sm font-medium">Based on percentage %</label>
                 </div>
 
                 <div className="flex items-center space-x-2 pl-6">
-                  <label htmlFor="stopLossPercentageValue" className="text-sm text-gray-400">Percentage</label>
+                  <label htmlFor="stopLossPercentageValue" className={`text-sm ${stopLossPercentageEnabled ? "" : "text-gray-400"}`}>Percentage</label>
                   <Input 
                     id="stopLossPercentageValue"
                     type="number" 
                     value={stopLossPercentage} 
                     onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)}
                     className="w-20 h-8"
-                    disabled
+                    disabled={!stopLossPercentageEnabled}
                   />
                 </div>
               </div>
 
-              <div className="rounded-md border border-dashed border-gray-200 p-3 space-y-3 opacity-60">
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="stopLossCandle" disabled className="h-4 w-4" />
-                  <label htmlFor="stopLossCandle" className="text-sm text-gray-400 font-medium">Based on previous candle</label>
-                </div>
-
-                <div className="flex items-center space-x-2 pl-6">
-                  <label htmlFor="stopLossCandleValue" className="text-sm text-gray-400">Candle</label>
-                  <select 
-                    id="stopLossCandleValue"
-                    value={stopLossCandle} 
-                    onChange={(e) => setStopLossCandle(e.target.value)}
-                    className="w-24 h-8 px-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled-select"
-                    disabled
-                  >
-                    <option value="closing">Closing</option>
-                    <option value="open">Open</option>
-                    <option value="high">High</option>
-                    <option value="low">Low</option>
-                  </select>
-                </div>
-              </div>
             </div>
-            
+
             <p className="text-xs text-gray-500">If no stop loss strategy is checked, stop loss will not be applied for this trade.</p>
           </div>
 
