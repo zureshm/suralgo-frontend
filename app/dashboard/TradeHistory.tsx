@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
+import { History } from "lucide-react";
 import styles from "./TradeHistory.module.scss";
 
 export default function TradeHistory() {
@@ -37,28 +38,28 @@ export default function TradeHistory() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <div className="flex flex-col gap-3">
-          <CardTitle className="text-lg font-semibold">TRADE HISTORY</CardTitle>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              Total Trades: {safeHistory.length}
-            </span>
-            {safeHistory.length > 0 && (
-              <Badge variant="secondary" className="font-semibold">
-                {safeHistory.filter(item => item.pnl > 0).length} Wins / {safeHistory.filter(item => item.pnl < 0).length} Losses
-              </Badge>
-            )}
-            {totalPages > 1 && (
-              <span className="text-sm text-muted-foreground ml-auto">
-                Page {currentPage} of {totalPages}
-              </span>
-            )}
-          </div>
-        </div>
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+          <History className="w-5 h-5" />
+          TRADE HISTORY
+        </CardTitle>
       </CardHeader>
       
       <CardContent className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Total Trades: {safeHistory.length}
+          </span>
+          {safeHistory.length > 0 && (
+            <Badge variant="secondary" className="font-semibold">
+              {safeHistory.filter(item => item.pnl > 0).length} Wins / {safeHistory.filter(item => item.pnl < 0).length} Losses
+            </Badge>
+          )}
+          {totalPages > 1 && (
+            <span className="text-sm text-muted-foreground ml-auto">
+              Page {currentPage} of {totalPages}
+            </span>
+          )}
+        </div>
         <Separator />
         <div className="max-h-[380px] overflow-y-auto">
           {safeHistory.length === 0 ? (

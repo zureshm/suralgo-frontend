@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import styles from "./ConnectionStatus.module.scss";
+import { Network } from "lucide-react";
 
 interface ConnectionStatus {
   api: boolean;
@@ -66,7 +67,10 @@ export default function ConnectionStatus() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">CONNECTION STATUS</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+          <Network className="w-5 h-5" />
+          CONNECTION STATUS
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {connectionItems.map((item, index) => (

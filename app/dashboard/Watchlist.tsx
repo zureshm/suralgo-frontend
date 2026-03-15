@@ -9,6 +9,7 @@ import { getPrices } from "@/lib/getPrices";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ListPlus } from "lucide-react";
 
 export default function Watchlist() {
   const [searchText, setSearchText] = useState("");
@@ -115,7 +116,10 @@ export default function Watchlist() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">WATCHLIST</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+          <ListPlus className="w-5 h-5" />
+          WATCHLIST
+        </CardTitle>
         
         <div className="flex gap-2">
           <Input

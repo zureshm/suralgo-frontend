@@ -4,13 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { UserCircle } from "lucide-react";
 
 export default function AccountDetails() {
   return (
     <Card className="w-full">
       <CardHeader>
         <div className="flex flex-col gap-3">
-          <CardTitle className="text-lg font-semibold">ACCOUNT DETAILS</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <UserCircle className="w-5 h-5" />
+            ACCOUNT DETAILS
+          </CardTitle>
           
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Status:</span>
