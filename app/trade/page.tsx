@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HelpCircle } from "lucide-react";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useRouter } from "next/navigation";
 import { getPrices } from "@/lib/getPrices";
@@ -24,8 +25,12 @@ export default function TradePage() {
   const [stopLossPercentage, setStopLossPercentage] = useState(10);
   const [targetPointsEnabled, setTargetPointsEnabled] = useState(true);
   const [targetPoints, setTargetPoints] = useState(20);
+  const [minToHoldEnabled, setMinToHoldEnabled] = useState(false);
   const [minToHold, setMinToHold] = useState(8);
-  const [trailing, setTrailing] = useState(15);
+  const [isMinToHoldInfoOpen, setIsMinToHoldInfoOpen] = useState(false);
+  const [trailingAfterTargetEnabled, setTrailingAfterTargetEnabled] = useState(false);
+  const [trailingAfterTarget, setTrailingAfterTarget] = useState(15);
+  const [isTrailingAfterInfoOpen, setIsTrailingAfterInfoOpen] = useState(false);
   const [timeFrom, setTimeFrom] = useState('10:15');
   const [timeFromAmpm, setTimeFromAmpm] = useState('am');
   const [timeTo, setTimeTo] = useState('02:45');
@@ -84,8 +89,10 @@ export default function TradePage() {
       setStopLossPercentage(data.stopLossPercentage || 10);
       setTargetPointsEnabled(Boolean(data.targetPointsEnabled ?? true));
       setTargetPoints(data.targetPoints || 20);
+      setMinToHoldEnabled(Boolean(data.minToHoldEnabled ?? false));
       setMinToHold(data.minToHold || 8);
-      setTrailing(data.trailing || 15);
+      setTrailingAfterTargetEnabled(Boolean(data.trailingAfterTargetEnabled ?? false));
+      setTrailingAfterTarget(data.trailingAfterTarget || 15);
       setTimeFrom(data.timeFrom || '10:15');
       setTimeFromAmpm(data.timeFromAmpm || 'am');
       setTimeTo(data.timeTo || '02:45');
@@ -103,8 +110,10 @@ export default function TradePage() {
       setStopLossPercentage(10);
       setTargetPointsEnabled(true);
       setTargetPoints(20);
+      setMinToHoldEnabled(false);
       setMinToHold(8);
-      setTrailing(15);
+      setTrailingAfterTargetEnabled(false);
+      setTrailingAfterTarget(15);
       setTimeFrom('10:15');
       setTimeFromAmpm('am');
       setTimeTo('02:45');
@@ -126,8 +135,10 @@ export default function TradePage() {
       stopLossPercentage,
       targetPointsEnabled,
       targetPoints,
+      minToHoldEnabled,
       minToHold,
-      trailing,
+      trailingAfterTargetEnabled,
+      trailingAfterTarget,
       timeFrom,
       timeFromAmpm,
       timeTo,
@@ -279,38 +290,62 @@ export default function TradePage() {
                 </div>
               </div>
 
-              <div className="rounded-md border border-dashed border-gray-200 p-3 space-y-3 opacity-60">
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="minToHold" disabled className="h-4 w-4" />
-                  <label htmlFor="minToHold" className="text-sm text-gray-400 font-medium">Minimum to hold</label>
+              <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="minToHoldEnabled"
+                      checked={minToHoldEnabled}
+                      onChange={(e) => setMinToHoldEnabled(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="minToHoldEnabled" className="text-sm font-medium">Trailing before target</label>
+                  </div>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                      onClick={() => setIsMinToHoldInfoOpen((prev) => !prev)}
+                      aria-label="Minimum to hold info"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                    </button>
+                    {isMinToHoldInfoOpen && (
+                      <div className="absolute right-0 mt-2 w-56 rounded-md bg-gray-900 p-2 text-xs text-white shadow-lg">
+                        Example: buy at 200 with trailing target 8. Once price hits 208 (trail level) plus 2 more points, we drag the stop loss up to 208 so even if it rallies to 219 and drops back, we still capture those 8 points.
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center space-x-2 pl-6">
-                  <label htmlFor="minToHoldValue" className="text-sm text-gray-400">Minutes</label>
+                  <label htmlFor="minToHoldValue" className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Points</label>
                   <Input 
                     id="minToHoldValue"
                     type="number" 
                     value={minToHold} 
                     onChange={(e) => setMinToHold(Number(e.target.value) || 0)}
                     className="w-20 h-8"
-                    disabled
+                    disabled={!minToHoldEnabled}
                   />
                 </div>
               </div>
 
               <div className="rounded-md border border-dashed border-gray-200 p-3 space-y-3 opacity-60">
                 <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="trailing" disabled className="h-4 w-4" />
-                  <label htmlFor="trailing" className="text-sm text-gray-400 font-medium">Trailing after target</label>
+                  <input type="checkbox" id="trailingAfterTargetEnabled" disabled className="h-4 w-4" />
+                  <label htmlFor="trailingAfterTargetEnabled" className="text-sm text-gray-400 font-medium">Trailing after target</label>
                 </div>
 
                 <div className="flex items-center space-x-2 pl-6">
-                  <label htmlFor="trailingValue" className="text-sm text-gray-400">Points</label>
+                  <label htmlFor="trailingAfterTargetValue" className="text-sm text-gray-400">Points</label>
                   <Input 
-                    id="trailingValue"
+                    id="trailingAfterTargetValue"
                     type="number" 
-                    value={trailing} 
-                    onChange={(e) => setTrailing(Number(e.target.value) || 0)}
+                    value={trailingAfterTarget} 
+                    onChange={(e) => setTrailingAfterTarget(Number(e.target.value) || 0)}
                     className="w-20 h-8"
                     disabled
                   />

@@ -19,6 +19,10 @@ export type WaitingTrade = {
   stopLossNumber: number;
   targetPointsEnabled: boolean;
   targetPoints: number;
+  minToHoldEnabled: boolean;
+  minToHold: number;
+  trailingAfterTargetEnabled: boolean;
+  trailingAfterTarget: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -113,6 +117,10 @@ export function TradeStoreProvider({
           stopLossNumber: Number.isFinite(Number(t.stopLossNumber)) && Number(t.stopLossNumber) > 0 ? Number(t.stopLossNumber) : 15,
           targetPointsEnabled: Boolean(t.targetPointsEnabled ?? true),
           targetPoints: Number.isFinite(Number(t.targetPoints)) && Number(t.targetPoints) > 0 ? Number(t.targetPoints) : 20,
+          minToHoldEnabled: Boolean(t.minToHoldEnabled ?? false),
+          minToHold: Number.isFinite(Number(t.minToHold)) && Number(t.minToHold) > 0 ? Number(t.minToHold) : 8,
+          trailingAfterTargetEnabled: Boolean(t.trailingAfterTargetEnabled ?? false),
+          trailingAfterTarget: Number.isFinite(Number(t.trailingAfterTarget)) && Number(t.trailingAfterTarget) > 0 ? Number(t.trailingAfterTarget) : 15,
         })) as WaitingTrade[];
       } catch {
         return [];
@@ -238,6 +246,48 @@ export function TradeStoreProvider({
             return Number.isFinite(v) && v > 0 ? v : 20;
           } catch {
             return 20;
+          }
+        })(),
+        minToHoldEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return false;
+            const data = JSON.parse(saved);
+            return Boolean(data.minToHoldEnabled ?? false);
+          } catch {
+            return false;
+          }
+        })(),
+        minToHold: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 8;
+            const data = JSON.parse(saved);
+            const v = Number(data.minToHold);
+            return Number.isFinite(v) && v > 0 ? v : 8;
+          } catch {
+            return 8;
+          }
+        })(),
+        trailingAfterTargetEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return false;
+            const data = JSON.parse(saved);
+            return Boolean(data.trailingAfterTargetEnabled ?? false);
+          } catch {
+            return false;
+          }
+        })(),
+        trailingAfterTarget: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 15;
+            const data = JSON.parse(saved);
+            const v = Number(data.trailingAfterTarget);
+            return Number.isFinite(v) && v > 0 ? v : 15;
+          } catch {
+            return 15;
           }
         })(),
       },
