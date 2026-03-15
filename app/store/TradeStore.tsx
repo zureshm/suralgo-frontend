@@ -15,7 +15,9 @@ export type WaitingTrade = {
   lotSize: number;
   lotValue: number;
   numberOfTrades: number;
+  stopLossNumberEnabled: boolean;
   stopLossNumber: number;
+  targetPointsEnabled: boolean;
   targetPoints: number;
 };
 
@@ -28,7 +30,9 @@ export type ActiveTrade = {
   lotSize: number;
   lotValue: number;
   numberOfTrades: number;
+  stopLossNumberEnabled: boolean;
   stopLossNumber: number;
+  targetPointsEnabled: boolean;
   targetPoints: number;
   inPosition: boolean;
   completedCycles: number;
@@ -105,7 +109,9 @@ export function TradeStoreProvider({
           lotSize: Number.isFinite(Number(t.lotSize)) && Number(t.lotSize) > 0 ? Number(t.lotSize) : 65,
           lotValue: Number.isFinite(Number(t.lotValue)) && Number(t.lotValue) > 0 ? Number(t.lotValue) : 1,
           numberOfTrades: Number.isFinite(Number(t.numberOfTrades)) && Number(t.numberOfTrades) > 0 ? Number(t.numberOfTrades) : 3,
+          stopLossNumberEnabled: Boolean(t.stopLossNumberEnabled ?? true),
           stopLossNumber: Number.isFinite(Number(t.stopLossNumber)) && Number(t.stopLossNumber) > 0 ? Number(t.stopLossNumber) : 15,
+          targetPointsEnabled: Boolean(t.targetPointsEnabled ?? true),
           targetPoints: Number.isFinite(Number(t.targetPoints)) && Number(t.targetPoints) > 0 ? Number(t.targetPoints) : 20,
         })) as WaitingTrade[];
       } catch {
@@ -192,6 +198,16 @@ export function TradeStoreProvider({
             return 3;
           }
         })(),
+        stopLossNumberEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return true;
+            const data = JSON.parse(saved);
+            return Boolean(data.stopLossNumberEnabled ?? true);
+          } catch {
+            return true;
+          }
+        })(),
         stopLossNumber: (() => {
           try {
             const saved = localStorage.getItem("tradeForm_" + selection.symbol);
@@ -201,6 +217,16 @@ export function TradeStoreProvider({
             return Number.isFinite(v) && v > 0 ? v : 15;
           } catch {
             return 15;
+          }
+        })(),
+        targetPointsEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return true;
+            const data = JSON.parse(saved);
+            return Boolean(data.targetPointsEnabled ?? true);
+          } catch {
+            return true;
           }
         })(),
         targetPoints: (() => {
@@ -252,7 +278,9 @@ export function TradeStoreProvider({
       lotSize: tradeToActivate.lotSize,
       lotValue: tradeToActivate.lotValue,
       numberOfTrades: tradeToActivate.numberOfTrades,
+      stopLossNumberEnabled: tradeToActivate.stopLossNumberEnabled,
       stopLossNumber: tradeToActivate.stopLossNumber,
+      targetPointsEnabled: tradeToActivate.targetPointsEnabled,
       targetPoints: tradeToActivate.targetPoints,
       inPosition: true,
       completedCycles: 0,

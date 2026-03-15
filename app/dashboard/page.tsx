@@ -99,7 +99,11 @@ export default function DashboardPage() {
         }).replace("am", "").replace("pm", "");
 
       // Check if target hit
-      if (trade.targetPoints > 0 && priceDiff >= trade.targetPoints) {
+      if (
+        trade.targetPointsEnabled &&
+        trade.targetPoints > 0 &&
+        priceDiff >= trade.targetPoints
+      ) {
         triggeredPositions.current.add(positionKey);
         completeCycleWithoutExit(
           trade.symbol,
@@ -110,7 +114,11 @@ export default function DashboardPage() {
       }
 
       // Check if stop loss hit
-      if (trade.stopLossNumber > 0 && priceDiff <= -trade.stopLossNumber) {
+      if (
+        trade.stopLossNumberEnabled &&
+        trade.stopLossNumber > 0 &&
+        priceDiff <= -trade.stopLossNumber
+      ) {
         triggeredPositions.current.add(positionKey);
         completeCycleWithoutExit(
           trade.symbol,

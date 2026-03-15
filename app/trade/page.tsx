@@ -18,9 +18,11 @@ export default function TradePage() {
   // Form states
   const [strategy, setStrategy] = useState('nifty');
   const [numberOfTrades, setNumberOfTrades] = useState(3);
+  const [stopLossNumberEnabled, setStopLossNumberEnabled] = useState(true);
   const [stopLossNumber, setStopLossNumber] = useState(15);
   const [stopLossPercentage, setStopLossPercentage] = useState(10);
   const [stopLossCandle, setStopLossCandle] = useState('closing');
+  const [targetPointsEnabled, setTargetPointsEnabled] = useState(true);
   const [targetPoints, setTargetPoints] = useState(20);
   const [minToHold, setMinToHold] = useState(8);
   const [trailing, setTrailing] = useState(15);
@@ -69,9 +71,11 @@ export default function TradePage() {
       const data = JSON.parse(saved);
       setStrategy(data.strategy || 'nifty');
       setNumberOfTrades(data.numberOfTrades || 3);
+      setStopLossNumberEnabled(Boolean(data.stopLossNumberEnabled ?? true));
       setStopLossNumber(data.stopLossNumber || 15);
       setStopLossPercentage(data.stopLossPercentage || 10);
       setStopLossCandle(data.stopLossCandle || 'closing');
+      setTargetPointsEnabled(Boolean(data.targetPointsEnabled ?? true));
       setTargetPoints(data.targetPoints || 20);
       setMinToHold(data.minToHold || 8);
       setTrailing(data.trailing || 15);
@@ -85,9 +89,12 @@ export default function TradePage() {
     } else {
       // Reset to defaults
       setStrategy('nifty');
+      setNumberOfTrades(3);
+      setStopLossNumberEnabled(true);
       setStopLossNumber(15);
       setStopLossPercentage(10);
       setStopLossCandle('closing');
+      setTargetPointsEnabled(true);
       setTargetPoints(20);
       setMinToHold(8);
       setTrailing(15);
@@ -106,9 +113,11 @@ export default function TradePage() {
     const formData = {
       strategy,
       numberOfTrades,
+      stopLossNumberEnabled,
       stopLossNumber,
       stopLossPercentage,
       stopLossCandle,
+      targetPointsEnabled,
       targetPoints,
       minToHold,
       trailing,
@@ -171,94 +180,152 @@ export default function TradePage() {
 
           {/* Stop Loss Strategy */}
           <div className="space-y-4">
-            <div className="text-base font-medium">Stop Loss Strategy</div>
+            <div className="text-base font-medium">Stop Loss Strategies</div>
             
             <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="stopLossNumber" defaultChecked className="h-4 w-4" />
-                <label htmlFor="stopLossNumber" className="text-sm">Based on number</label>
-                <Input 
-                  type="number" 
-                  value={stopLossNumber} 
-                  onChange={(e) => setStopLossNumber(Number(e.target.value) || 0)}
-                  className="w-20 h-8"
-                />
+              <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="stopLossNumberEnabled"
+                    checked={stopLossNumberEnabled}
+                    onChange={(e) => setStopLossNumberEnabled(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="stopLossNumberEnabled" className="text-sm font-medium">Based on number</label>
+                </div>
+
+                <div className="flex items-center space-x-2 pl-6">
+                  <label htmlFor="stopLossNumber" className={`text-sm ${stopLossNumberEnabled ? "" : "text-gray-400"}`}>Points</label>
+                  <Input 
+                    id="stopLossNumber"
+                    type="number" 
+                    value={stopLossNumber} 
+                    onChange={(e) => setStopLossNumber(Number(e.target.value) || 0)}
+                    className="w-20 h-8"
+                    disabled={!stopLossNumberEnabled}
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="stopLossPercentage" disabled className="h-4 w-4" />
-                <label htmlFor="stopLossPercentage" className="text-sm text-gray-400">Based on percentage %</label>
-                <Input 
-                  type="number" 
-                  value={stopLossPercentage} 
-                  onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)}
-                  className="w-20 h-8"
-                  disabled
-                />
+              <div className="rounded-md border border-dashed border-gray-200 p-3 space-y-3 opacity-60">
+                <div className="flex items-center space-x-2">
+                  <input type="checkbox" id="stopLossPercentage" disabled className="h-4 w-4" />
+                  <label htmlFor="stopLossPercentage" className="text-sm text-gray-400 font-medium">Based on percentage %</label>
+                </div>
+
+                <div className="flex items-center space-x-2 pl-6">
+                  <label htmlFor="stopLossPercentageValue" className="text-sm text-gray-400">Percentage</label>
+                  <Input 
+                    id="stopLossPercentageValue"
+                    type="number" 
+                    value={stopLossPercentage} 
+                    onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)}
+                    className="w-20 h-8"
+                    disabled
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="stopLossCandle" disabled className="h-4 w-4" />
-                <label htmlFor="stopLossCandle" className="text-sm text-gray-400">Based on previous candle</label>
-                <select 
-                  value={stopLossCandle} 
-                  onChange={(e) => setStopLossCandle(e.target.value)}
-                  className="w-24 h-8 px-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled-select"
-                  disabled
-                >
-                  <option value="closing">Closing</option>
-                  <option value="open">Open</option>
-                  <option value="high">High</option>
-                  <option value="low">Low</option>
-                </select>
+              <div className="rounded-md border border-dashed border-gray-200 p-3 space-y-3 opacity-60">
+                <div className="flex items-center space-x-2">
+                  <input type="checkbox" id="stopLossCandle" disabled className="h-4 w-4" />
+                  <label htmlFor="stopLossCandle" className="text-sm text-gray-400 font-medium">Based on previous candle</label>
+                </div>
+
+                <div className="flex items-center space-x-2 pl-6">
+                  <label htmlFor="stopLossCandleValue" className="text-sm text-gray-400">Candle</label>
+                  <select 
+                    id="stopLossCandleValue"
+                    value={stopLossCandle} 
+                    onChange={(e) => setStopLossCandle(e.target.value)}
+                    className="w-24 h-8 px-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled-select"
+                    disabled
+                  >
+                    <option value="closing">Closing</option>
+                    <option value="open">Open</option>
+                    <option value="high">High</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
               </div>
             </div>
             
-            <p className="text-xs text-gray-500">* Whichever first happens</p>
+            <p className="text-xs text-gray-500">If no stop loss strategy is checked, stop loss will not be applied for this trade.</p>
           </div>
 
           <Separator />
 
-          {/* Exit Strategy */}
+          {/* Target / Profit Strategy */}
           <div className="space-y-4">
-            <div className="text-base font-medium">Exit Strategy</div>
+            <div className="text-base font-medium">Target / Profit Strategies</div>
             
             <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="targetPoints" defaultChecked className="h-4 w-4" />
-                <label htmlFor="targetPoints" className="text-sm">Target Points</label>
-                <Input 
-                  type="number" 
-                  value={targetPoints} 
-                  onChange={(e) => setTargetPoints(Number(e.target.value) || 0)}
-                  className="w-20 h-8"
-                />
+              <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="targetPointsEnabled"
+                    checked={targetPointsEnabled}
+                    onChange={(e) => setTargetPointsEnabled(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="targetPointsEnabled" className="text-sm font-medium">Target Points</label>
+                </div>
+
+                <div className="flex items-center space-x-2 pl-6">
+                  <label htmlFor="targetPoints" className={`text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>Points</label>
+                  <Input 
+                    id="targetPoints"
+                    type="number" 
+                    value={targetPoints} 
+                    onChange={(e) => setTargetPoints(Number(e.target.value) || 0)}
+                    className="w-20 h-8"
+                    disabled={!targetPointsEnabled}
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="minToHold" disabled className="h-4 w-4" />
-                <label htmlFor="minToHold" className="text-sm text-gray-400">Minimum to hold</label>
-                <Input 
-                  type="number" 
-                  value={minToHold} 
-                  onChange={(e) => setMinToHold(Number(e.target.value) || 0)}
-                  className="w-20 h-8"
-                  disabled
-                />
+              <div className="rounded-md border border-dashed border-gray-200 p-3 space-y-3 opacity-60">
+                <div className="flex items-center space-x-2">
+                  <input type="checkbox" id="minToHold" disabled className="h-4 w-4" />
+                  <label htmlFor="minToHold" className="text-sm text-gray-400 font-medium">Minimum to hold</label>
+                </div>
+
+                <div className="flex items-center space-x-2 pl-6">
+                  <label htmlFor="minToHoldValue" className="text-sm text-gray-400">Minutes</label>
+                  <Input 
+                    id="minToHoldValue"
+                    type="number" 
+                    value={minToHold} 
+                    onChange={(e) => setMinToHold(Number(e.target.value) || 0)}
+                    className="w-20 h-8"
+                    disabled
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="trailing" disabled className="h-4 w-4" />
-                <label htmlFor="trailing" className="text-sm text-gray-400">Trailing after target</label>
-                <Input 
-                  type="number" 
-                  value={trailing} 
-                  onChange={(e) => setTrailing(Number(e.target.value) || 0)}
-                  className="w-20 h-8"
-                  disabled
-                />
+              <div className="rounded-md border border-dashed border-gray-200 p-3 space-y-3 opacity-60">
+                <div className="flex items-center space-x-2">
+                  <input type="checkbox" id="trailing" disabled className="h-4 w-4" />
+                  <label htmlFor="trailing" className="text-sm text-gray-400 font-medium">Trailing after target</label>
+                </div>
+
+                <div className="flex items-center space-x-2 pl-6">
+                  <label htmlFor="trailingValue" className="text-sm text-gray-400">Points</label>
+                  <Input 
+                    id="trailingValue"
+                    type="number" 
+                    value={trailing} 
+                    onChange={(e) => setTrailing(Number(e.target.value) || 0)}
+                    className="w-20 h-8"
+                    disabled
+                  />
+                </div>
               </div>
             </div>
+
+            <p className="text-xs text-gray-500">If no target/profit strategy is checked, target booking will not be applied for this trade.</p>
           </div>
 
           <Separator />
