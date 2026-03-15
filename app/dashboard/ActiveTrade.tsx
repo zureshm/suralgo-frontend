@@ -29,7 +29,7 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const [exitClicked, setExitClicked] = useState(false);
+  const [exitClicked, setExitClicked] = useState<Record<string, boolean>>({});
   const { removeTradeAndFreeSymbol, lastStrategyCandleTime } = useTradeStore();
 
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function ActiveTrade({
                     );
                   })()}
 
-                  {!exitClicked && (
+                  {!exitClicked[t.symbol] && t.status === "ACTIVE" && (
                     <button
                       className={`${styles.tradeAction} ${styles.dark}`}
                       type="button"
@@ -111,18 +111,23 @@ export default function ActiveTrade({
                           }).replace("am", "").replace("pm", "");
 
                         onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
-                        setExitClicked(true);
+                        setExitClicked((prev) => ({ ...prev, [t.symbol]: true }));
                       }}
                     >
                       EXIT
                     </button>
                   )}
-                  {exitClicked && (
+                  {(exitClicked[t.symbol] || t.status === "COMPLETED") && (
                     <button
                       className={`${styles.tradeAction} ${styles.danger}`}
                       type="button"
                       onClick={() => {
                         removeTradeAndFreeSymbol(t.symbol);
+                        setExitClicked((prev) => {
+                          const next = { ...prev };
+                          delete next[t.symbol];
+                          return next;
+                        });
                       }}
                     >
                       CLOSE

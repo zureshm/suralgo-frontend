@@ -31,6 +31,7 @@ export type ActiveTrade = {
   stopLossNumber: number;
   targetPoints: number;
   inPosition: boolean;
+  completedCycles: number;
   entryTime?: string;
   exitTime?: string;
   exitPrice?: string;
@@ -252,6 +253,7 @@ export function TradeStoreProvider({
       stopLossNumber: tradeToActivate.stopLossNumber,
       targetPoints: tradeToActivate.targetPoints,
       inPosition: true,
+      completedCycles: 0,
       entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
       exitTime: undefined,
       exitPrice: undefined,
@@ -294,13 +296,55 @@ export function TradeStoreProvider({
 
         // Accumulate total P/L
         const totalPnl = trade.pnl + cyclePnl;
+        const newCompletedCycles = trade.completedCycles + 1;
+
+        // Check if we've completed all required trades
+        if (newCompletedCycles >= trade.numberOfTrades) {
+          const finalLogs = [
+            ...trade.logs,
+            logLine,
+            `Trade P/L: ${cyclePnl.toFixed(2)}`,
+            `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
+          ];
+
+          // Add to history
+          setTradeHistory((historyPrev) => {
+            const historyEntry = {
+              id: `${trade.symbol}-${Date.now()}`,
+              symbol: trade.symbol,
+              pnl: totalPnl,
+              logs: finalLogs,
+              createdAt: new Date().toISOString(),
+            };
+            const nextHistory = [historyEntry, ...historyPrev];
+            localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
+            return nextHistory;
+          });
+
+          // DO NOT remove from active trades - keep it visible with COMPLETED status
+          // User must manually click CLOSE button to remove
+
+          return {
+            ...trade,
+            pnl: totalPnl,
+            inPosition: false,
+            completedCycles: newCompletedCycles,
+            logs: finalLogs,
+            status: "COMPLETED" as const,
+          };
+        }
 
         return {
           ...trade,
           pnl: totalPnl,
           inPosition: false,
-          logs: [...trade.logs, logLine, `Trade P/L: ${cyclePnl.toFixed(2)}`],
-          // Keep status ACTIVE for multiple cycles
+          completedCycles: newCompletedCycles,
+          logs: [
+            ...trade.logs,
+            logLine,
+            `Trade P/L: ${cyclePnl.toFixed(2)}`,
+            `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          ],
         };
       })
     );

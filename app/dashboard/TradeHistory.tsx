@@ -64,10 +64,10 @@ export default function TradeHistory() {
           {safeHistory.length === 0 ? (
             <div className={styles.empty}>No trade history yet</div>
           ) : (
-          currentTrades.map((item) => {
+          currentTrades.map((item, index) => {
             const pnlText = item.pnl >= 0 ? `+${item.pnl.toFixed(2)}` : item.pnl.toFixed(2);
             return (
-              <div key={item.id} className={styles.historyItem}>
+              <div key={`${item.id}-${index}`} className={styles.historyItem}>
                 <div className={styles.historyItemTop}>
                   <div className={styles.historySymbol}>{item.symbol}</div>
                   <div
