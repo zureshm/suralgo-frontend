@@ -38,6 +38,8 @@ export type ActiveTrade = {
   stopLossNumber: number;
   targetPointsEnabled: boolean;
   targetPoints: number;
+  minToHoldEnabled: boolean;
+  minToHold: number;
   inPosition: boolean;
   completedCycles: number;
   entryTime?: string;
@@ -332,6 +334,8 @@ export function TradeStoreProvider({
       stopLossNumber: tradeToActivate.stopLossNumber,
       targetPointsEnabled: tradeToActivate.targetPointsEnabled,
       targetPoints: tradeToActivate.targetPoints,
+      minToHoldEnabled: tradeToActivate.minToHoldEnabled,
+      minToHold: tradeToActivate.minToHold,
       inPosition: true,
       completedCycles: 0,
       entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,

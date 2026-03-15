@@ -172,6 +172,7 @@ export default function ActiveTrade({
               <div className={styles.tradeConfig}>
                 <div className="text-xs text-gray-500">
                   Trades: {t.numberOfTrades} | SL: {t.stopLossNumberEnabled ? t.stopLossNumber : "OFF"} | Target: {t.targetPointsEnabled ? t.targetPoints : "OFF"}
+                  {t.minToHoldEnabled && ` | Minimum Target: ${t.minToHold}`}
                 </div>
               </div>
             </div>
@@ -204,6 +205,7 @@ export default function ActiveTrade({
                 <div className={styles.tradeConfig}>
                   <div className="text-xs text-gray-500">
                     Trades: {t.numberOfTrades} | SL: {t.stopLossNumberEnabled ? t.stopLossNumber : "OFF"} | Target: {t.targetPointsEnabled ? t.targetPoints : "OFF"}
+                    {t.minToHoldEnabled && ` | Minimum Target: ${t.minToHold}`}
                   </div>
                 </div>
               </div>

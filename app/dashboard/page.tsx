@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [activeLtps, setActiveLtps] = useState<Record<string, number>>({});
   const triggeredPositions = useRef<Set<string>>(new Set());
   const armedPositions = useRef<Set<string>>(new Set());
+  const trailingArmedPositions = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setIsHydrated(true);
@@ -65,6 +66,7 @@ export default function DashboardPage() {
         const positionKey = `${trade.symbol}-${trade.entryPrice}`;
         triggeredPositions.current.delete(positionKey);
         armedPositions.current.delete(positionKey);
+        trailingArmedPositions.current.delete(positionKey);
         return;
       }
 
@@ -97,6 +99,34 @@ export default function DashboardPage() {
           hour: "2-digit",
           minute: "2-digit",
         }).replace("am", "").replace("pm", "");
+
+      // Trailing before target (Minimum Target) logic
+      if (trade.minToHoldEnabled && trade.minToHold > 0) {
+        const trailLevel = entry + trade.minToHold;
+        const activationLevel = trailLevel + 2; // activate trailing after trail level + 2 points
+
+        // Activate trailing once price reaches activation level
+        if (!trailingArmedPositions.current.has(positionKey)) {
+          if (ltp >= activationLevel) {
+            trailingArmedPositions.current.add(positionKey);
+          }
+        } else {
+          // Once trailing is armed, if price falls back to or below the trail level,
+          // lock in the minimum target and complete the cycle.
+          if (ltp <= trailLevel) {
+            triggeredPositions.current.add(positionKey);
+            trailingArmedPositions.current.delete(positionKey);
+            completeCycleWithoutExit(
+              trade.symbol,
+              String(ltp),
+              `MINIMUM TARGET hit for ₹${ltp} at ${currentTime}`
+            );
+            return;
+          }
+        }
+      } else {
+        trailingArmedPositions.current.delete(positionKey);
+      }
 
       // Check if target hit
       if (
