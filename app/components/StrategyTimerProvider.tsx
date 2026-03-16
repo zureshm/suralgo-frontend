@@ -10,6 +10,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     removeWaitingTrade,
     activateWaitingTrade,
     completeActiveTrade,
+    completeCycleWithoutExit,
     activeTrades,
     updateActiveTradeBuy,
     setLastStrategyCandleTime,
@@ -42,6 +43,52 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
       setLastStrategyCandleTime(strategySignal.lastCandleTime);
     }
 
+    // handle STOPLOSS signal
+    if (strategySignal.signal === "STOPLOSS") {
+      const signalKey =
+        strategySignal.signal + "-" + strategySignal.lastCandleTime;
+
+      if (signalKey === lastHandledSignalKey) return;
+
+      const active = activeTrades.find(
+        (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
+      );
+
+      if (!active || !active.inPosition) return;
+
+      completeCycleWithoutExit(
+        active.symbol,
+        String(latestClose ?? ""),
+        "STOPLOSS hit for ₹"+ String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
+      );
+
+      setLastHandledSignalKey(signalKey);
+      return;
+    }
+
+    // handle TARGET signal
+    if (strategySignal.signal === "TARGET") {
+      const signalKey =
+        strategySignal.signal + "-" + strategySignal.lastCandleTime;
+
+      if (signalKey === lastHandledSignalKey) return;
+
+      const active = activeTrades.find(
+        (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
+      );
+
+      if (!active || !active.inPosition) return;
+
+      completeCycleWithoutExit(
+        active.symbol,
+        String(latestClose ?? ""),
+        "TARGET hit for ₹"+ String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
+      );
+
+      setLastHandledSignalKey(signalKey);
+      return;
+    }
+
     // handle SELL signal
     if (strategySignal.signal === "SELL") {
       const signalKey =
@@ -53,7 +100,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
         (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
       );
 
-      if (!active) return;
+      if (!active || !active.inPosition) return;
 
       completeActiveTrade(
         active.symbol,
@@ -125,6 +172,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     activeTrades,
     activateWaitingTrade,
     completeActiveTrade,
+    completeCycleWithoutExit,
     updateActiveTradeBuy,
     setLastStrategyCandleTime,
   ]);

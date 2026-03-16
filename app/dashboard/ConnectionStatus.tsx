@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import styles from "./ConnectionStatus.module.scss";
+import { Network } from "lucide-react";
 
 interface ConnectionStatus {
   api: boolean;
@@ -66,29 +67,28 @@ export default function ConnectionStatus() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">CONNECTION STATUS</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+          <Network className="w-5 h-5" />
+          CONNECTION STATUS
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {connectionItems.map((item, index) => (
-          <div 
-            key={index}
-            className={styles.connectionRow}
-          >
-            <div className={styles.connectionInfo}>
-              <div className={styles.connectionName}>{item.name}</div>
-              <div className={styles.connectionEndpoint}>
-                {item.endpoint}
-              </div>
-            </div>
+      <CardContent>
+        <div className="flex items-center justify-between py-2">
+          {connectionItems.map((item, index) => (
             <div 
-              className={`${styles.statusIndicator} ${
-                item.connected ? styles.connected : styles.disconnected
-              }`}
+              key={index}
+              className="flex items-center gap-2"
             >
-              {item.connected ? "Connected" : "Disconnected"}
+              <div className="font-medium text-sm">{item.name}</div>
+              <div 
+                className={`w-3 h-3 rounded-full ${
+                  item.connected ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+                }`}
+                title={item.connected ? "Connected" : "Disconnected"}
+              />
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

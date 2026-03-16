@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
+import { History } from "lucide-react";
 import styles from "./TradeHistory.module.scss";
 
 export default function TradeHistory() {
@@ -37,37 +38,37 @@ export default function TradeHistory() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <div className="flex flex-col gap-3">
-          <CardTitle className="text-lg font-semibold">TRADE HISTORY</CardTitle>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              Total Trades: {safeHistory.length}
-            </span>
-            {safeHistory.length > 0 && (
-              <Badge variant="secondary" className="font-semibold">
-                {safeHistory.filter(item => item.pnl > 0).length} Wins / {safeHistory.filter(item => item.pnl < 0).length} Losses
-              </Badge>
-            )}
-            {totalPages > 1 && (
-              <span className="text-sm text-muted-foreground ml-auto">
-                Page {currentPage} of {totalPages}
-              </span>
-            )}
-          </div>
-        </div>
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+          <History className="w-5 h-5" />
+          TRADE HISTORY
+        </CardTitle>
       </CardHeader>
       
       <CardContent className="space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Total Trades: {safeHistory.length}
+          </span>
+          {safeHistory.length > 0 && (
+            <Badge variant="secondary" className="font-semibold">
+              {safeHistory.filter(item => item.pnl > 0).length} Wins / {safeHistory.filter(item => item.pnl < 0).length} Losses
+            </Badge>
+          )}
+          {totalPages > 1 && (
+            <span className="text-sm text-muted-foreground ml-auto">
+              Page {currentPage} of {totalPages}
+            </span>
+          )}
+        </div>
         <Separator />
         <div className="max-h-[380px] overflow-y-auto">
           {safeHistory.length === 0 ? (
             <div className={styles.empty}>No trade history yet</div>
           ) : (
-          currentTrades.map((item) => {
+          currentTrades.map((item, index) => {
             const pnlText = item.pnl >= 0 ? `+${item.pnl.toFixed(2)}` : item.pnl.toFixed(2);
             return (
-              <div key={item.id} className={styles.historyItem}>
+              <div key={`${item.id}-${index}`} className={styles.historyItem}>
                 <div className={styles.historyItemTop}>
                   <div className={styles.historySymbol}>{item.symbol}</div>
                   <div
@@ -81,12 +82,12 @@ export default function TradeHistory() {
 
                 <details>
                   <summary className={styles.historyDetails}>Details......</summary>
-                  <div className={styles.historyDetails}>
+                  <div className={styles.historyLogs}>
                     {item.logs.length === 0 ? (
-                      <div>No logs</div>
+                      <div className={styles.logLine}>No logs</div>
                     ) : (
                       item.logs.map((line, i) => (
-                        <div key={i}>
+                        <div key={i} className={styles.logLine}>
                           {line}
                         </div>
                       ))

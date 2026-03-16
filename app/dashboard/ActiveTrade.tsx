@@ -1,13 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Activity } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
+
+function TradeLogsConsole({ logs }: { logs: string[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  return (
+    <div className={styles.tradeLogs} ref={containerRef}>
+      {logs.map((line, i) => (
+        <div
+          key={i}
+          className={styles.logLine}
+          dangerouslySetInnerHTML={{
+            __html: line
+              .replace(
+                /₹ ?(\d+(?:\.\d+)?)/g,
+                `<span class="${styles.rsGold}">₹$1</span>`
+              )
+              .replace(
+                /at (\d{2}:\d{2})/g,
+                `at <span class="${styles.cyanTime}">$1</span>`
+              )
+              .replace(
+                /Trade P\/L: (-?\d+(?:\.\d+)?)/g,
+                (match, plValue) => {
+                  const isProfit = !plValue.startsWith("-");
+                  const className = isProfit ? styles.plProfit : styles.plLoss;
+                  return `<span class="${className}">Trade P/L: ${plValue}</span>`;
+                }
+              ),
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 type Props = {
   activeTrades: ActiveTradeType[];
@@ -29,7 +70,7 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const [exitClicked, setExitClicked] = useState(false);
+  const [exitClicked, setExitClicked] = useState<Record<string, boolean>>({});
   const { removeTradeAndFreeSymbol, lastStrategyCandleTime } = useTradeStore();
 
   useEffect(() => {
@@ -43,7 +84,10 @@ export default function ActiveTrade({
     <Card className="w-full">
       <CardHeader>
         <div className="flex flex-col gap-3">
-          <CardTitle className="text-lg font-semibold">ACTIVE TRADES</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <Activity className="w-5 h-5" />
+            ACTIVE TRADES
+          </CardTitle>
           
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
@@ -89,7 +133,7 @@ export default function ActiveTrade({
                     );
                   })()}
 
-                  {!exitClicked && (
+                  {!exitClicked[t.symbol] && t.status === "ACTIVE" && (
                     <button
                       className={`${styles.tradeAction} ${styles.dark}`}
                       type="button"
@@ -111,18 +155,23 @@ export default function ActiveTrade({
                           }).replace("am", "").replace("pm", "");
 
                         onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
-                        setExitClicked(true);
+                        setExitClicked((prev) => ({ ...prev, [t.symbol]: true }));
                       }}
                     >
                       EXIT
                     </button>
                   )}
-                  {exitClicked && (
+                  {(exitClicked[t.symbol] || t.status === "COMPLETED") && (
                     <button
                       className={`${styles.tradeAction} ${styles.danger}`}
                       type="button"
                       onClick={() => {
                         removeTradeAndFreeSymbol(t.symbol);
+                        setExitClicked((prev) => {
+                          const next = { ...prev };
+                          delete next[t.symbol];
+                          return next;
+                        });
                       }}
                     >
                       CLOSE
@@ -131,42 +180,13 @@ export default function ActiveTrade({
                 </div>
               </div>
 
-              {t.logs.length > 0 && (
-                <div className={styles.tradeLogs}>
-                  {t.logs.map((line, i) => (
-                    <div
-                      key={i}
-                      className={styles.logLine}
-                      dangerouslySetInnerHTML={{
-                        __html: line
-                          .replace(
-                            /₹ ?(\d+(?:\.\d+)?)/g,
-                            `<span class="${styles.rsGold}">₹$1</span>`
-                          )
-                          .replace(
-                            /at (\d{2}:\d{2})/g,
-                            `at <span class="${styles.cyanTime}">$1</span>`
-                          )
-                          .replace(
-                            /Trade P\/L: (-?\d+(?:\.\d+)?)/g,
-                            (match, plValue) => {
-                              const isProfit = !plValue.startsWith("-");
-                              const className = isProfit
-                                ? styles.plProfit
-                                : styles.plLoss;
-                              return `<span class="${className}">Trade P/L: ${plValue}</span>`;
-                            }
-                          ),
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+              {t.logs.length > 0 && <TradeLogsConsole logs={t.logs} />}
 
               {/* Trade Configuration */}
               <div className={styles.tradeConfig}>
                 <div className="text-xs text-gray-500">
-                  Trades: {t.numberOfTrades} | SL: {t.stopLossNumber} | Target: {t.targetPoints}
+                  Trades: {t.numberOfTrades} | SL: {t.stopLossNumberEnabled ? t.stopLossNumber : "OFF"} | Target: {t.targetPointsEnabled ? t.targetPoints : "OFF"}
+                  {t.minToHoldEnabled && ` | Minimum Target: ${t.minToHold}`}
                 </div>
               </div>
             </div>
@@ -198,7 +218,8 @@ export default function ActiveTrade({
                 {/* Trade Configuration for Waiting Trades */}
                 <div className={styles.tradeConfig}>
                   <div className="text-xs text-gray-500">
-                    Trades: {t.numberOfTrades} | SL: {t.stopLossNumber} | Target: {t.targetPoints}
+                    Trades: {t.numberOfTrades} | SL: {t.stopLossNumberEnabled ? t.stopLossNumber : "OFF"} | Target: {t.targetPointsEnabled ? t.targetPoints : "OFF"}
+                    {t.minToHoldEnabled && ` | Minimum Target: ${t.minToHold}`}
                   </div>
                 </div>
               </div>

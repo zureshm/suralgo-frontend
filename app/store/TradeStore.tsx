@@ -15,8 +15,14 @@ export type WaitingTrade = {
   lotSize: number;
   lotValue: number;
   numberOfTrades: number;
+  stopLossNumberEnabled: boolean;
   stopLossNumber: number;
+  targetPointsEnabled: boolean;
   targetPoints: number;
+  minToHoldEnabled: boolean;
+  minToHold: number;
+  trailingAfterTargetEnabled: boolean;
+  trailingAfterTarget: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -28,9 +34,14 @@ export type ActiveTrade = {
   lotSize: number;
   lotValue: number;
   numberOfTrades: number;
+  stopLossNumberEnabled: boolean;
   stopLossNumber: number;
+  targetPointsEnabled: boolean;
   targetPoints: number;
+  minToHoldEnabled: boolean;
+  minToHold: number;
   inPosition: boolean;
+  completedCycles: number;
   entryTime?: string;
   exitTime?: string;
   exitPrice?: string;
@@ -60,6 +71,8 @@ type TradeStoreValue = {
   activateWaitingTrade: (symbol: string, entryPrice: string, logLine: string) => void;
   // close an active trade when strategy gives SELL
   completeActiveTrade: (symbol: string, exitPrice: string, logLine: string) => void;
+  // complete a cycle without exiting (for stop loss/target hits)
+  completeCycleWithoutExit: (symbol: string, exitPrice: string, logLine: string) => void;
   // update active trade with new buy signal
   updateActiveTradeBuy: (symbol: string, entryPrice: string, logLine: string) => void;
   // remove active trade completely
@@ -102,8 +115,14 @@ export function TradeStoreProvider({
           lotSize: Number.isFinite(Number(t.lotSize)) && Number(t.lotSize) > 0 ? Number(t.lotSize) : 65,
           lotValue: Number.isFinite(Number(t.lotValue)) && Number(t.lotValue) > 0 ? Number(t.lotValue) : 1,
           numberOfTrades: Number.isFinite(Number(t.numberOfTrades)) && Number(t.numberOfTrades) > 0 ? Number(t.numberOfTrades) : 3,
+          stopLossNumberEnabled: Boolean(t.stopLossNumberEnabled ?? true),
           stopLossNumber: Number.isFinite(Number(t.stopLossNumber)) && Number(t.stopLossNumber) > 0 ? Number(t.stopLossNumber) : 15,
+          targetPointsEnabled: Boolean(t.targetPointsEnabled ?? true),
           targetPoints: Number.isFinite(Number(t.targetPoints)) && Number(t.targetPoints) > 0 ? Number(t.targetPoints) : 20,
+          minToHoldEnabled: Boolean(t.minToHoldEnabled ?? false),
+          minToHold: Number.isFinite(Number(t.minToHold)) && Number(t.minToHold) > 0 ? Number(t.minToHold) : 8,
+          trailingAfterTargetEnabled: Boolean(t.trailingAfterTargetEnabled ?? false),
+          trailingAfterTarget: Number.isFinite(Number(t.trailingAfterTarget)) && Number(t.trailingAfterTarget) > 0 ? Number(t.trailingAfterTarget) : 15,
         })) as WaitingTrade[];
       } catch {
         return [];
@@ -113,7 +132,41 @@ export function TradeStoreProvider({
   });
 
   // active trades that have been triggered by strategy
-  const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>([]);
+  const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("activeTrades");
+      if (!saved) return [];
+      try {
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
+
+        return parsed.map((t: any) => ({
+          symbol: String(t.symbol ?? ""),
+          entryPrice: String(t.entryPrice ?? ""),
+          pnl: Number(t.pnl ?? 0),
+          logs: Array.isArray(t.logs) ? t.logs.map(String) : [],
+          lotSize: Number.isFinite(Number(t.lotSize)) && Number(t.lotSize) > 0 ? Number(t.lotSize) : 65,
+          lotValue: Number.isFinite(Number(t.lotValue)) && Number(t.lotValue) > 0 ? Number(t.lotValue) : 1,
+          numberOfTrades: Number.isFinite(Number(t.numberOfTrades)) && Number(t.numberOfTrades) > 0 ? Number(t.numberOfTrades) : 3,
+          stopLossNumberEnabled: Boolean(t.stopLossNumberEnabled ?? true),
+          stopLossNumber: Number.isFinite(Number(t.stopLossNumber)) && Number(t.stopLossNumber) > 0 ? Number(t.stopLossNumber) : 15,
+          targetPointsEnabled: Boolean(t.targetPointsEnabled ?? true),
+          targetPoints: Number.isFinite(Number(t.targetPoints)) && Number(t.targetPoints) > 0 ? Number(t.targetPoints) : 20,
+          minToHoldEnabled: Boolean(t.minToHoldEnabled ?? false),
+          minToHold: Number.isFinite(Number(t.minToHold)) && Number(t.minToHold) > 0 ? Number(t.minToHold) : 8,
+          inPosition: Boolean(t.inPosition ?? false),
+          completedCycles: Number.isFinite(Number(t.completedCycles)) ? Number(t.completedCycles) : 0,
+          entryTime: t.entryTime ? String(t.entryTime) : undefined,
+          exitTime: t.exitTime ? String(t.exitTime) : undefined,
+          exitPrice: t.exitPrice ? String(t.exitPrice) : undefined,
+          status: t.status === "COMPLETED" ? "COMPLETED" : "ACTIVE",
+        })) as ActiveTrade[];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
 
   // strategy timing
   const [lastStrategyCandleTime, setLastStrategyCandleTime] = useState<string>("");
@@ -189,6 +242,16 @@ export function TradeStoreProvider({
             return 3;
           }
         })(),
+        stopLossNumberEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return true;
+            const data = JSON.parse(saved);
+            return Boolean(data.stopLossNumberEnabled ?? true);
+          } catch {
+            return true;
+          }
+        })(),
         stopLossNumber: (() => {
           try {
             const saved = localStorage.getItem("tradeForm_" + selection.symbol);
@@ -200,6 +263,16 @@ export function TradeStoreProvider({
             return 15;
           }
         })(),
+        targetPointsEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return true;
+            const data = JSON.parse(saved);
+            return Boolean(data.targetPointsEnabled ?? true);
+          } catch {
+            return true;
+          }
+        })(),
         targetPoints: (() => {
           try {
             const saved = localStorage.getItem("tradeForm_" + selection.symbol);
@@ -209,6 +282,48 @@ export function TradeStoreProvider({
             return Number.isFinite(v) && v > 0 ? v : 20;
           } catch {
             return 20;
+          }
+        })(),
+        minToHoldEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return false;
+            const data = JSON.parse(saved);
+            return Boolean(data.minToHoldEnabled ?? false);
+          } catch {
+            return false;
+          }
+        })(),
+        minToHold: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 8;
+            const data = JSON.parse(saved);
+            const v = Number(data.minToHold);
+            return Number.isFinite(v) && v > 0 ? v : 8;
+          } catch {
+            return 8;
+          }
+        })(),
+        trailingAfterTargetEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return false;
+            const data = JSON.parse(saved);
+            return Boolean(data.trailingAfterTargetEnabled ?? false);
+          } catch {
+            return false;
+          }
+        })(),
+        trailingAfterTarget: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 15;
+            const data = JSON.parse(saved);
+            const v = Number(data.trailingAfterTarget);
+            return Number.isFinite(v) && v > 0 ? v : 15;
+          } catch {
+            return 15;
           }
         })(),
       },
@@ -249,16 +364,25 @@ export function TradeStoreProvider({
       lotSize: tradeToActivate.lotSize,
       lotValue: tradeToActivate.lotValue,
       numberOfTrades: tradeToActivate.numberOfTrades,
+      stopLossNumberEnabled: tradeToActivate.stopLossNumberEnabled,
       stopLossNumber: tradeToActivate.stopLossNumber,
+      targetPointsEnabled: tradeToActivate.targetPointsEnabled,
       targetPoints: tradeToActivate.targetPoints,
+      minToHoldEnabled: tradeToActivate.minToHoldEnabled,
+      minToHold: tradeToActivate.minToHold,
       inPosition: true,
+      completedCycles: 0,
       entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
       exitTime: undefined,
       exitPrice: undefined,
       status: "ACTIVE",
     };
 
-    setActiveTrades((prev) => [...prev, newActiveTrade]);
+    setActiveTrades((prev) => {
+      const next = [...prev, newActiveTrade];
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
 
     setWaitingTrades((prev) => {
       const next = prev.filter((t) => t.symbol !== symbol);
@@ -273,8 +397,8 @@ export function TradeStoreProvider({
     exitPrice: string,
     logLine: string
   ) => {
-    setActiveTrades((prev) =>
-      prev.map((trade) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((trade) => {
         if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
           return trade;
         }
@@ -291,19 +415,112 @@ export function TradeStoreProvider({
 
         const qty = trade.lotSize * trade.lotValue;
         const cyclePnl = (exit - entry) * qty;
-
-        // Accumulate total P/L
         const totalPnl = trade.pnl + cyclePnl;
+        const newCompletedCycles = trade.completedCycles + 1;
+
+        if (newCompletedCycles >= trade.numberOfTrades) {
+          const finalLogs = [
+            ...trade.logs,
+            logLine,
+            `Trade P/L: ${cyclePnl.toFixed(2)}`,
+            `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
+          ];
+
+          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs);
+
+          return {
+            ...trade,
+            pnl: totalPnl,
+            inPosition: false,
+            completedCycles: newCompletedCycles,
+            exitPrice,
+            logs: finalLogs,
+            status: "COMPLETED" as const,
+          };
+        }
 
         return {
           ...trade,
           pnl: totalPnl,
           inPosition: false,
-          logs: [...trade.logs, logLine, `Trade P/L: ${cyclePnl.toFixed(2)}`],
-          // Keep status ACTIVE for multiple cycles
+          completedCycles: newCompletedCycles,
+          logs: [
+            ...trade.logs,
+            logLine,
+            `Trade P/L: ${cyclePnl.toFixed(2)}`,
+            `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          ],
         };
-      })
-    );
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // complete a cycle without exiting (for stop loss/target hits)
+  const completeCycleWithoutExit = (
+    symbol: string,
+    exitPrice: string,
+    logLine: string
+  ) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((trade) => {
+        if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
+          return trade;
+        }
+
+        const entry = Number(trade.entryPrice);
+        const exit = Number(exitPrice);
+
+        if (Number.isNaN(entry) || Number.isNaN(exit)) {
+          return {
+            ...trade,
+            logs: [...trade.logs, logLine, "Trade P/L: invalid price data"],
+          };
+        }
+
+        const qty = trade.lotSize * trade.lotValue;
+        const cyclePnl = (exit - entry) * qty;
+        const totalPnl = trade.pnl + cyclePnl;
+        const newCompletedCycles = trade.completedCycles + 1;
+
+        if (newCompletedCycles >= trade.numberOfTrades) {
+          const finalLogs = [
+            ...trade.logs,
+            logLine,
+            `Trade P/L: ${cyclePnl.toFixed(2)}`,
+            `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
+          ];
+
+          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs);
+
+          return {
+            ...trade,
+            pnl: totalPnl,
+            inPosition: false,
+            completedCycles: newCompletedCycles,
+            exitPrice,
+            logs: finalLogs,
+            status: "COMPLETED" as const,
+          };
+        }
+
+        return {
+          ...trade,
+          pnl: totalPnl,
+          inPosition: false,
+          completedCycles: newCompletedCycles,
+          logs: [
+            ...trade.logs,
+            logLine,
+            `Trade P/L: ${cyclePnl.toFixed(2)}`,
+            `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`,
+          ],
+        };
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   const updateActiveTradeBuy = (
@@ -311,8 +528,8 @@ export function TradeStoreProvider({
     entryPrice: string,
     logLine: string
   ) => {
-    setActiveTrades((prev) =>
-      prev.map((trade) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((trade) => {
         if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
           return trade;
         }
@@ -323,22 +540,27 @@ export function TradeStoreProvider({
           inPosition: true,
           logs: [...trade.logs, logLine],
         };
-      })
-    );
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   const removeActiveTrade = (symbol: string) => {
-    setActiveTrades((prev) => prev.filter((trade) => trade.symbol !== symbol));
+    setActiveTrades((prev) => {
+      const next = prev.filter((trade) => trade.symbol !== symbol);
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   const removeTradeAndFreeSymbol = (symbol: string) => {
-    // Remove trade from active trades
     removeActiveTrade(symbol);
-    
-    // Free the symbol: clear selection if it matches, and remove localStorage data
+
     if (selection?.symbol === symbol) {
       setSelection(null);
     }
+
     localStorage.removeItem("tradeForm_" + symbol);
   };
 
@@ -348,64 +570,80 @@ export function TradeStoreProvider({
     pnl: number,
     lastCandleTime: string
   ) => {
-    setActiveTrades((prev) =>
-      prev.map((trade) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((trade) => {
         if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
           return trade;
         }
 
-        // Log different messages based on whether we're in position or not
-        const exitLog = trade.inPosition 
+        const exitLog = trade.inPosition
           ? `SELL manually for ₹${exitPrice} at ${lastCandleTime}`
           : `EXIT  at ${lastCandleTime}`;
 
-        // Calculate current cycle P&L (entry vs exit only)
         const entry = Number(trade.entryPrice);
         const exit = Number(exitPrice);
         const qty = trade.lotSize * trade.lotValue;
         const currentCyclePnl = trade.inPosition && Number.isFinite(exit) && Number.isFinite(entry)
           ? (exit - entry) * qty
           : 0;
-        
+
         const pnlLog = `Trade P/L: ${currentCyclePnl.toFixed(2)}`;
         const finalLogs = [...trade.logs, exitLog, pnlLog];
 
-        // Add to history
-        setTradeHistory((historyPrev) => {
-          const historyEntry = {
-            id: `${trade.symbol}-${Date.now()}`,
-            symbol: trade.symbol,
-            pnl: pnl, // Use total accumulated P&L
-            logs: finalLogs,
-            createdAt: new Date().toISOString(),
-          };
-          const nextHistory = [historyEntry, ...historyPrev];
-          localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
-          return nextHistory;
-        });
+        appendTradeHistoryEntry(trade.symbol, pnl, finalLogs);
 
-        // Remove completed trade from active trades
         removeActiveTrade(symbol);
 
         return {
           ...trade,
           exitPrice,
           exitTime: lastCandleTime,
-          status: "COMPLETED",
+          status: "COMPLETED" as const,
           inPosition: false,
-          pnl: pnl, // Keep total accumulated P&L for trade state
+          pnl,
           logs: finalLogs,
         };
-      })
-    );
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const appendTradeHistoryEntry = (
+    symbol: string,
+    pnl: number,
+    logs: string[]
+  ) => {
+    setTradeHistory((historyPrev) => {
+      const latest = historyPrev[0];
+      const lastLog = logs[logs.length - 1] ?? "";
+      const latestLastLog = latest?.logs?.[latest.logs.length - 1] ?? "";
+
+      if (
+        latest &&
+        latest.symbol === symbol &&
+        latest.pnl === pnl &&
+        latest.logs.length === logs.length &&
+        latestLastLog === lastLog
+      ) {
+        return historyPrev;
+      }
+
+      const historyEntry = {
+        id: `${symbol}-${Date.now()}`,
+        symbol,
+        pnl,
+        logs,
+        createdAt: new Date().toISOString(),
+      };
+      const nextHistory = [historyEntry, ...historyPrev];
+      localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
+      return nextHistory;
+    });
   };
 
   const addTradeHistoryEntry = (entry: TradeHistoryItem) => {
-    setTradeHistory((prev) => {
-      const next = [entry, ...prev];
-      localStorage.setItem("tradeHistory", JSON.stringify(next));
-      return next;
-    });
+    appendTradeHistoryEntry(entry.symbol, entry.pnl, entry.logs);
   };
 
   const value = useMemo(
@@ -418,6 +656,7 @@ export function TradeStoreProvider({
       activeTrades,
       activateWaitingTrade,
       completeActiveTrade,
+      completeCycleWithoutExit,
       updateActiveTradeBuy,
       removeActiveTrade,
       logManualExit,
@@ -427,7 +666,7 @@ export function TradeStoreProvider({
       lastStrategyCandleTime,
       setLastStrategyCandleTime,
     }),
-    [selection, waitingTrades, activeTrades, tradeHistory, logManualExit, lastStrategyCandleTime]
+    [selection, waitingTrades, activeTrades, tradeHistory, lastStrategyCandleTime]
   );
 
   return (

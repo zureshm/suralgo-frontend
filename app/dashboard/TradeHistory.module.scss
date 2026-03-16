@@ -62,13 +62,29 @@
   color: #333;
 }
 
-.historyDetails > div {
-  margin-top: 12px;
-  padding: 12px;
+.historyLogs {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logLine {
+  padding: 8px 12px;
   background: #f8f9fa;
-  border-radius: 6px;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.4;
   font-family: monospace;
   white-space: pre-wrap;
+  color: #333;
+  
+  &:first-child {
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+  }
+  
+  &:last-child {
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+  }
 }
