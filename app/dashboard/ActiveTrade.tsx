@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,46 @@ import { Activity } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
+
+function TradeLogsConsole({ logs }: { logs: string[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  return (
+    <div className={styles.tradeLogs} ref={containerRef}>
+      {logs.map((line, i) => (
+        <div
+          key={i}
+          className={styles.logLine}
+          dangerouslySetInnerHTML={{
+            __html: line
+              .replace(
+                /₹ ?(\d+(?:\.\d+)?)/g,
+                `<span class="${styles.rsGold}">₹$1</span>`
+              )
+              .replace(
+                /at (\d{2}:\d{2})/g,
+                `at <span class="${styles.cyanTime}">$1</span>`
+              )
+              .replace(
+                /Trade P\/L: (-?\d+(?:\.\d+)?)/g,
+                (match, plValue) => {
+                  const isProfit = !plValue.startsWith("-");
+                  const className = isProfit ? styles.plProfit : styles.plLoss;
+                  return `<span class="${className}">Trade P/L: ${plValue}</span>`;
+                }
+              ),
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 type Props = {
   activeTrades: ActiveTradeType[];
@@ -140,37 +180,7 @@ export default function ActiveTrade({
                 </div>
               </div>
 
-              {t.logs.length > 0 && (
-                <div className={styles.tradeLogs}>
-                  {t.logs.map((line, i) => (
-                    <div
-                      key={i}
-                      className={styles.logLine}
-                      dangerouslySetInnerHTML={{
-                        __html: line
-                          .replace(
-                            /₹ ?(\d+(?:\.\d+)?)/g,
-                            `<span class="${styles.rsGold}">₹$1</span>`
-                          )
-                          .replace(
-                            /at (\d{2}:\d{2})/g,
-                            `at <span class="${styles.cyanTime}">$1</span>`
-                          )
-                          .replace(
-                            /Trade P\/L: (-?\d+(?:\.\d+)?)/g,
-                            (match, plValue) => {
-                              const isProfit = !plValue.startsWith("-");
-                              const className = isProfit
-                                ? styles.plProfit
-                                : styles.plLoss;
-                              return `<span class="${className}">Trade P/L: ${plValue}</span>`;
-                            }
-                          ),
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+              {t.logs.length > 0 && <TradeLogsConsole logs={t.logs} />}
 
               {/* Trade Configuration */}
               <div className={styles.tradeConfig}>

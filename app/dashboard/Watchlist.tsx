@@ -116,10 +116,24 @@ export default function Watchlist() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-          <ListPlus className="w-5 h-5" />
-          WATCHLIST
-        </CardTitle>
+        <div className="flex items-center justify-between mb-4">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <ListPlus className="w-5 h-5" />
+            WATCHLIST
+          </CardTitle>
+          
+          <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground uppercase">
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Ready
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Waiting
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500"></span> Running
+            </div>
+          </div>
+        </div>
         
         <div className="flex gap-2">
           <Input

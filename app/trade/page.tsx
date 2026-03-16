@@ -154,7 +154,7 @@ export default function TradePage() {
   };
 
   return (
-    <div className="min-h-screen p-4 bg-white w-full max-w-[420px] mx-auto">
+    <div className="min-h-screen p-4 bg-[#f1f5f9] w-full max-w-[420px] mx-auto">
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-lg font-bold">Trade Configuration</CardTitle>

@@ -132,7 +132,41 @@ export function TradeStoreProvider({
   });
 
   // active trades that have been triggered by strategy
-  const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>([]);
+  const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("activeTrades");
+      if (!saved) return [];
+      try {
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
+
+        return parsed.map((t: any) => ({
+          symbol: String(t.symbol ?? ""),
+          entryPrice: String(t.entryPrice ?? ""),
+          pnl: Number(t.pnl ?? 0),
+          logs: Array.isArray(t.logs) ? t.logs.map(String) : [],
+          lotSize: Number.isFinite(Number(t.lotSize)) && Number(t.lotSize) > 0 ? Number(t.lotSize) : 65,
+          lotValue: Number.isFinite(Number(t.lotValue)) && Number(t.lotValue) > 0 ? Number(t.lotValue) : 1,
+          numberOfTrades: Number.isFinite(Number(t.numberOfTrades)) && Number(t.numberOfTrades) > 0 ? Number(t.numberOfTrades) : 3,
+          stopLossNumberEnabled: Boolean(t.stopLossNumberEnabled ?? true),
+          stopLossNumber: Number.isFinite(Number(t.stopLossNumber)) && Number(t.stopLossNumber) > 0 ? Number(t.stopLossNumber) : 15,
+          targetPointsEnabled: Boolean(t.targetPointsEnabled ?? true),
+          targetPoints: Number.isFinite(Number(t.targetPoints)) && Number(t.targetPoints) > 0 ? Number(t.targetPoints) : 20,
+          minToHoldEnabled: Boolean(t.minToHoldEnabled ?? false),
+          minToHold: Number.isFinite(Number(t.minToHold)) && Number(t.minToHold) > 0 ? Number(t.minToHold) : 8,
+          inPosition: Boolean(t.inPosition ?? false),
+          completedCycles: Number.isFinite(Number(t.completedCycles)) ? Number(t.completedCycles) : 0,
+          entryTime: t.entryTime ? String(t.entryTime) : undefined,
+          exitTime: t.exitTime ? String(t.exitTime) : undefined,
+          exitPrice: t.exitPrice ? String(t.exitPrice) : undefined,
+          status: t.status === "COMPLETED" ? "COMPLETED" : "ACTIVE",
+        })) as ActiveTrade[];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
 
   // strategy timing
   const [lastStrategyCandleTime, setLastStrategyCandleTime] = useState<string>("");
@@ -344,7 +378,11 @@ export function TradeStoreProvider({
       status: "ACTIVE",
     };
 
-    setActiveTrades((prev) => [...prev, newActiveTrade]);
+    setActiveTrades((prev) => {
+      const next = [...prev, newActiveTrade];
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
 
     setWaitingTrades((prev) => {
       const next = prev.filter((t) => t.symbol !== symbol);
@@ -359,8 +397,8 @@ export function TradeStoreProvider({
     exitPrice: string,
     logLine: string
   ) => {
-    setActiveTrades((prev) =>
-      prev.map((trade) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((trade) => {
         if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
           return trade;
         }
@@ -413,8 +451,10 @@ export function TradeStoreProvider({
             `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
           ],
         };
-      })
-    );
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   // complete a cycle without exiting (for stop loss/target hits)
@@ -423,8 +463,8 @@ export function TradeStoreProvider({
     exitPrice: string,
     logLine: string
   ) => {
-    setActiveTrades((prev) =>
-      prev.map((trade) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((trade) => {
         if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
           return trade;
         }
@@ -477,8 +517,10 @@ export function TradeStoreProvider({
             `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`,
           ],
         };
-      })
-    );
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   const updateActiveTradeBuy = (
@@ -486,8 +528,8 @@ export function TradeStoreProvider({
     entryPrice: string,
     logLine: string
   ) => {
-    setActiveTrades((prev) =>
-      prev.map((trade) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((trade) => {
         if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
           return trade;
         }
@@ -498,12 +540,18 @@ export function TradeStoreProvider({
           inPosition: true,
           logs: [...trade.logs, logLine],
         };
-      })
-    );
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   const removeActiveTrade = (symbol: string) => {
-    setActiveTrades((prev) => prev.filter((trade) => trade.symbol !== symbol));
+    setActiveTrades((prev) => {
+      const next = prev.filter((trade) => trade.symbol !== symbol);
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   const removeTradeAndFreeSymbol = (symbol: string) => {
@@ -522,8 +570,8 @@ export function TradeStoreProvider({
     pnl: number,
     lastCandleTime: string
   ) => {
-    setActiveTrades((prev) =>
-      prev.map((trade) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((trade) => {
         if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
           return trade;
         }
@@ -555,8 +603,10 @@ export function TradeStoreProvider({
           pnl,
           logs: finalLogs,
         };
-      })
-    );
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   const appendTradeHistoryEntry = (

@@ -82,12 +82,12 @@ export default function TradeHistory() {
 
                 <details>
                   <summary className={styles.historyDetails}>Details......</summary>
-                  <div className={styles.historyDetails}>
+                  <div className={styles.historyLogs}>
                     {item.logs.length === 0 ? (
-                      <div>No logs</div>
+                      <div className={styles.logLine}>No logs</div>
                     ) : (
                       item.logs.map((line, i) => (
-                        <div key={i}>
+                        <div key={i} className={styles.logLine}>
                           {line}
                         </div>
                       ))
