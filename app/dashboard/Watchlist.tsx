@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListPlus } from "lucide-react";
+import styles from "./Watchlist.module.scss";
 
 export default function Watchlist() {
   const [searchText, setSearchText] = useState("");
@@ -22,6 +23,7 @@ export default function Watchlist() {
     setSelection,
     waitingTrades,
     activeTrades,
+    lastStrategyCandleTime,
   } = useTradeStore();
 
   const {
@@ -47,30 +49,34 @@ export default function Watchlist() {
 
     return (
       <div key={row.symbol} className="flex items-center justify-between py-2 border-b last:border-b-0">
-        <button
-          className={`px-3 py-1 rounded text-sm font-medium ${buttonClass}`}
-          type="button"
-          onClick={isRunning ? undefined : () => {
-            setSelection({
-              symbol: row.symbol,
-              price: String(row.ltp ?? ""),
-            });
-            router.push("/trade");
-          }}
-          style={isRunning ? { pointerEvents: "none" } : {}}
-        >
-          {row.symbol}
-        </button>
+        <div className="w-[200px] flex-shrink-0">
+          <button
+            className={`w-full px-3 py-1 rounded text-sm font-medium truncate text-left ${buttonClass}`}
+            type="button"
+            onClick={isRunning ? undefined : () => {
+              setSelection({
+                symbol: row.symbol,
+                price: String(row.ltp ?? ""),
+              });
+              router.push("/trade");
+            }}
+            style={isRunning ? { pointerEvents: "none" } : {}}
+          >
+            {row.symbol}
+          </button>
+        </div>
 
-        <div className="font-mono text-sm">{row.ltp ?? "-"}</div>
+        <div className="font-mono text-sm flex-1 text-right pr-6">{row.ltp ?? "-"}</div>
 
-        <button
-          className="text-red-500 hover:text-red-700 text-sm"
-          type="button"
-          onClick={() => removeFromWatchlist(row.symbol)}
-        >
-          🗑️
-        </button>
+        <div className="w-8 flex-shrink-0 flex justify-end">
+          <button
+            className="text-red-500 hover:text-red-700 text-sm"
+            type="button"
+            onClick={() => removeFromWatchlist(row.symbol)}
+          >
+            🗑️
+          </button>
+        </div>
       </div>
     );
   });
@@ -180,10 +186,15 @@ export default function Watchlist() {
       
       <CardContent>
         <div className="space-y-1">
-          <div className="grid grid-cols-3 gap-4 pb-2 border-b">
-            <div className="text-sm font-medium">SYMBOL</div>
-            <div className="text-sm font-medium text-right">LTP</div>
-            <div className="w-8"></div>
+          <div className="flex items-center justify-between pb-2 border-b">
+            <div className="text-sm font-medium w-[200px] flex-shrink-0">SYMBOL</div>
+            <div className="text-sm font-medium flex-1 text-center flex items-center justify-center gap-2">
+              LTP
+              {lastStrategyCandleTime && (
+                <span className={styles.timeBadge}>@ {lastStrategyCandleTime}</span>
+              )}
+            </div>
+            <div className="w-8 flex-shrink-0" />
           </div>
 
           <div className="max-h-64 overflow-y-auto">
