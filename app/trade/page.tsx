@@ -14,11 +14,11 @@ export default function TradePage() {
   const router = useRouter();
   const { selection, addWaitingTradeFromSelection, waitingTrades, activeTrades } = useTradeStore();
   const [currentPrice, setCurrentPrice] = useState<string | null>(null);
-  const [lotValue, setLotValue] = useState(5);
+  const [lotValue, setLotValue] = useState(1);
 
   // Form states
   const [strategy, setStrategy] = useState('nifty');
-  const [numberOfTrades, setNumberOfTrades] = useState(3);
+  const [numberOfTrades, setNumberOfTrades] = useState(5);
   const [stopLossNumberEnabled, setStopLossNumberEnabled] = useState(true);
   const [stopLossNumber, setStopLossNumber] = useState(15);
   const [stopLossPercentageEnabled, setStopLossPercentageEnabled] = useState(false);
@@ -82,7 +82,7 @@ export default function TradePage() {
     if (saved) {
       const data = JSON.parse(saved);
       setStrategy(data.strategy || 'nifty');
-      setNumberOfTrades(data.numberOfTrades || 3);
+      setNumberOfTrades(data.numberOfTrades || 5);
       setStopLossNumberEnabled(Boolean(data.stopLossNumberEnabled ?? true));
       setStopLossNumber(data.stopLossNumber || 15);
       setStopLossPercentageEnabled(Boolean(data.stopLossPercentageEnabled ?? false));
@@ -99,11 +99,11 @@ export default function TradePage() {
       setTimeToAmpm(data.timeToAmpm || 'pm');
       setPriceFrom(data.priceFrom || 180);
       setPriceTo(data.priceTo || 220);
-      setLotValue(data.lotValue || 5);
+      setLotValue(data.lotValue || 1);
     } else {
       // Reset to defaults
       setStrategy('nifty');
-      setNumberOfTrades(3);
+      setNumberOfTrades(5);
       setStopLossNumberEnabled(true);
       setStopLossNumber(15);
       setStopLossPercentageEnabled(false);
@@ -120,7 +120,7 @@ export default function TradePage() {
       setTimeToAmpm('pm');
       setPriceFrom(180);
       setPriceTo(220);
-      setLotValue(5);
+      setLotValue(1);
     }
   }, [selection?.symbol]);
 
