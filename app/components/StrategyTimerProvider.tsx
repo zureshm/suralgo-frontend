@@ -38,9 +38,24 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
       strategySignal.close ??
       strategySignal.candles?.[strategySignal.candles.length - 1]?.close;
 
+    const signalSymbol = strategySignal.symbol;
+    const activeForSymbol = activeTrades.find(
+      (t) => t.symbol === signalSymbol && t.status === "ACTIVE"
+    );
+    const hasWaitingTrade = waitingTrades.some(
+      (t) => t.symbol === signalSymbol
+    );
+    const waitingForBuy =
+      (!activeForSymbol || !activeForSymbol.inPosition) &&
+      (hasWaitingTrade || Boolean(activeForSymbol));
+    const waitingForSell = Boolean(activeForSymbol && activeForSymbol.inPosition);
+
     // Update the strategy candle time for manual exits
-    if (strategySignal.lastCandleTime) {
-      setLastStrategyCandleTime(strategySignal.lastCandleTime);
+    const candleTime =
+      strategySignal.lastCandleTime ||
+      strategySignal.candles?.[strategySignal.candles.length - 1]?.time;
+    if (candleTime) {
+      setLastStrategyCandleTime(candleTime);
     }
 
     // handle STOPLOSS signal
@@ -50,9 +65,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
 
       if (signalKey === lastHandledSignalKey) return;
 
-      const active = activeTrades.find(
-        (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
-      );
+      const active = activeForSymbol;
 
       if (!active || !active.inPosition) return;
 
@@ -73,9 +86,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
 
       if (signalKey === lastHandledSignalKey) return;
 
-      const active = activeTrades.find(
-        (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
-      );
+      const active = activeForSymbol;
 
       if (!active || !active.inPosition) return;
 
@@ -95,10 +106,9 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
         strategySignal.signal + "-" + strategySignal.lastCandleTime;
 
       if (signalKey === lastHandledSignalKey) return;
+      if (waitingForBuy) return;
 
-      const active = activeTrades.find(
-        (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
-      );
+      const active = activeForSymbol;
 
       if (!active || !active.inPosition) return;
 
@@ -119,9 +129,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
 
       if (signalKey === lastHandledSignalKey) return;
 
-      const active = activeTrades.find(
-        (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
-      );
+      const active = activeForSymbol;
 
       if (active) {
         // Could add WAIT logging here if needed
@@ -137,6 +145,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
         strategySignal.signal + "-" + strategySignal.lastCandleTime;
 
       if (signalKey === lastHandledSignalKey) return;
+      if (waitingForSell) return;
 
       const matchingTrade = waitingTrades.find(
         (t) => t.symbol === strategySignal.symbol
@@ -149,9 +158,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
           "BUY triggered for ₹ " + String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
         );
       } else {
-        const active = activeTrades.find(
-          (t) => t.symbol === strategySignal.symbol && t.status === "ACTIVE"
-        );
+        const active = activeForSymbol;
 
         // Only allow additional BUY if not already in position
         if (active && !active.inPosition) {
