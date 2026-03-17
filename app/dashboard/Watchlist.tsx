@@ -189,9 +189,9 @@ export default function Watchlist() {
           <div className="flex items-center justify-between pb-2 border-b">
             <div className="text-sm font-medium w-[200px] flex-shrink-0">SYMBOL</div>
             <div className="text-sm font-medium flex-1 text-center flex items-center justify-center gap-2">
-              LTP
+              LTP&nbsp;at
               {lastStrategyCandleTime && (
-                <span className={styles.timeBadge}>@ {lastStrategyCandleTime}</span>
+                <span className={styles.timeBadge}> {lastStrategyCandleTime}</span>
               )}
             </div>
             <div className="w-8 flex-shrink-0" />
