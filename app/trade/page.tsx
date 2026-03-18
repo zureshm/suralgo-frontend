@@ -25,6 +25,7 @@ export default function TradePage() {
   const [stopLossPercentage, setStopLossPercentage] = useState(10);
   const [targetPointsEnabled, setTargetPointsEnabled] = useState(true);
   const [targetPoints, setTargetPoints] = useState(20);
+  const [waitStrategyEnabled, setWaitStrategyEnabled] = useState(false);
   const [minToHoldEnabled, setMinToHoldEnabled] = useState(false);
   const [minToHold, setMinToHold] = useState(8);
   const [isMinToHoldInfoOpen, setIsMinToHoldInfoOpen] = useState(false);
@@ -89,6 +90,7 @@ export default function TradePage() {
       setStopLossPercentage(data.stopLossPercentage || 10);
       setTargetPointsEnabled(Boolean(data.targetPointsEnabled ?? true));
       setTargetPoints(data.targetPoints || 20);
+      setWaitStrategyEnabled(Boolean(data.waitStrategyEnabled ?? false));
       setMinToHoldEnabled(Boolean(data.minToHoldEnabled ?? false));
       setMinToHold(data.minToHold || 8);
       setTrailingAfterTargetEnabled(Boolean(data.trailingAfterTargetEnabled ?? false));
@@ -110,6 +112,7 @@ export default function TradePage() {
       setStopLossPercentage(10);
       setTargetPointsEnabled(true);
       setTargetPoints(20);
+      setWaitStrategyEnabled(false);
       setMinToHoldEnabled(false);
       setMinToHold(8);
       setTrailingAfterTargetEnabled(false);
@@ -137,6 +140,7 @@ export default function TradePage() {
       targetPoints,
       minToHoldEnabled,
       minToHold,
+      waitStrategyEnabled,
       trailingAfterTargetEnabled,
       trailingAfterTarget,
       timeFrom,
@@ -256,6 +260,27 @@ export default function TradePage() {
             </div>
 
             <p className="text-xs text-gray-500">If no stop loss strategy is checked, stop loss will not be applied for this trade.</p>
+          </div>
+
+          <Separator />
+
+          {/* Wait Strategy */}
+          <div className="space-y-2">
+            <div className="text-base font-medium">Wait Strategy</div>
+            <div className="rounded-md border border-gray-200 p-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="waitStrategyEnabled"
+                  checked={waitStrategyEnabled}
+                  onChange={(e) => setWaitStrategyEnabled(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="waitStrategyEnabled" className="text-sm font-medium">
+                  Wait when candle size ≥ stoploss size
+                </label>
+              </div>
+            </div>
           </div>
 
           <Separator />

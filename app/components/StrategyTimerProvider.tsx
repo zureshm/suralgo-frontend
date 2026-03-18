@@ -14,6 +14,8 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     activeTrades,
     updateActiveTradeBuy,
     setLastStrategyCandleTime,
+    addLogToWaitingTrade,
+    addLogToActiveTrade,
   } = useTradeStore();
   const [strategySignal, setStrategySignal] = useState<any>(null);
   const [lastHandledSignalKey, setLastHandledSignalKey] = useState("");
@@ -162,6 +164,31 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
         (t) => t.symbol === strategySignal.symbol
       );
 
+      // Candle size check for Wait Strategy (buyOverride)
+      const candles = strategySignal.candles;
+      const prevCandle = Array.isArray(candles) && candles.length > 0
+        ? candles[candles.length - 1]
+        : null;
+      const candleSize = prevCandle
+        ? Math.abs(Number(prevCandle.close) - Number(prevCandle.open))
+        : 0;
+
+      const overrideValue = matchingTrade?.buyOverride ?? activeForSymbol?.buyOverride;
+
+      if (overrideValue != null && overrideValue > 0 && candleSize >= overrideValue) {
+        const ignoredLog =
+          `BUY ignored – candle size ${candleSize.toFixed(2)} >= buyOverride ${overrideValue} at ${strategySignal.lastCandleTime}`;
+
+        if (matchingTrade) {
+          addLogToWaitingTrade(matchingTrade.symbol, ignoredLog);
+        } else if (activeForSymbol && !activeForSymbol.inPosition) {
+          addLogToActiveTrade(activeForSymbol.symbol, ignoredLog);
+        }
+
+        setLastHandledSignalKey(signalKey);
+        return;
+      }
+
       if (matchingTrade) {
         activateWaitingTrade(
           matchingTrade.symbol,
@@ -193,6 +220,8 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     completeCycleWithoutExit,
     updateActiveTradeBuy,
     setLastStrategyCandleTime,
+    addLogToWaitingTrade,
+    addLogToActiveTrade,
   ]);
 
   return <>{children}</>;

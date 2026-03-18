@@ -23,6 +23,7 @@ export type WaitingTrade = {
   minToHold: number;
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
+  buyOverride?: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -46,6 +47,7 @@ export type ActiveTrade = {
   exitTime?: string;
   exitPrice?: string;
   status: "ACTIVE" | "COMPLETED";
+  buyOverride?: number;
 };
 
 export type TradeHistoryItem = {
@@ -81,6 +83,10 @@ type TradeStoreValue = {
   logManualExit: (symbol: string, exitPrice: string, pnl: number, lastCandleTime: string) => void;
   // remove trade and free symbol
   removeTradeAndFreeSymbol: (symbol: string) => void;
+  // append a log line to a waiting trade
+  addLogToWaitingTrade: (symbol: string, log: string) => void;
+  // append a log line to an active trade
+  addLogToActiveTrade: (symbol: string, log: string) => void;
 
   tradeHistory: TradeHistoryItem[];
   addTradeHistoryEntry: (entry: TradeHistoryItem) => void;
@@ -124,6 +130,7 @@ export function TradeStoreProvider({
           minToHold: Number.isFinite(Number(t.minToHold)) && Number(t.minToHold) > 0 ? Number(t.minToHold) : 8,
           trailingAfterTargetEnabled: Boolean(t.trailingAfterTargetEnabled ?? false),
           trailingAfterTarget: Number.isFinite(Number(t.trailingAfterTarget)) && Number(t.trailingAfterTarget) > 0 ? Number(t.trailingAfterTarget) : 15,
+          buyOverride: Number.isFinite(Number(t.buyOverride)) ? Number(t.buyOverride) : undefined,
         })) as WaitingTrade[];
       } catch {
         return [];
@@ -161,6 +168,7 @@ export function TradeStoreProvider({
           exitTime: t.exitTime ? String(t.exitTime) : undefined,
           exitPrice: t.exitPrice ? String(t.exitPrice) : undefined,
           status: t.status === "COMPLETED" ? "COMPLETED" : "ACTIVE",
+          buyOverride: Number.isFinite(Number(t.buyOverride)) ? Number(t.buyOverride) : undefined,
         })) as ActiveTrade[];
       } catch {
         return [];
@@ -327,6 +335,18 @@ export function TradeStoreProvider({
             return 15;
           }
         })(),
+        buyOverride: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return undefined;
+            const data = JSON.parse(saved);
+            if (!data.waitStrategyEnabled) return undefined;
+            const v = Number(data.stopLossNumber);
+            return Number.isFinite(v) && v > 0 ? v : undefined;
+          } catch {
+            return undefined;
+          }
+        })(),
       },
       ...waitingTrades,
     ];
@@ -345,6 +365,16 @@ export function TradeStoreProvider({
     setWaitingTrades(newWaitingTrades);
     localStorage.setItem("waitingTrades", JSON.stringify(newWaitingTrades));
     localStorage.removeItem("tradeForm_" + symbol);
+  };
+
+  const addLogToWaitingTrade = (symbol: string, log: string) => {
+    setWaitingTrades((prev) => {
+      const next = prev.map((t) =>
+        t.symbol === symbol ? { ...t, logs: [...t.logs, log] } : t
+      );
+      localStorage.setItem("waitingTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   // move a waiting trade to active after strategy signal
@@ -373,6 +403,7 @@ export function TradeStoreProvider({
       minToHold: tradeToActivate.minToHold,
       inPosition: true,
       completedCycles: 0,
+      buyOverride: tradeToActivate.buyOverride,
       entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
       exitTime: undefined,
       exitPrice: undefined,
@@ -565,6 +596,18 @@ export function TradeStoreProvider({
     localStorage.removeItem("tradeForm_" + symbol);
   };
 
+  const addLogToActiveTrade = (symbol: string, log: string) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((t) =>
+        t.symbol === symbol && t.status === "ACTIVE"
+          ? { ...t, logs: [...t.logs, log] }
+          : t
+      );
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const logManualExit = (
     symbol: string,
     exitPrice: string,
@@ -661,6 +704,7 @@ export function TradeStoreProvider({
       waitingTrades,
       addWaitingTradeFromSelection,
       removeWaitingTrade,
+      addLogToWaitingTrade,
       activeTrades,
       activateWaitingTrade,
       completeActiveTrade,
@@ -669,6 +713,7 @@ export function TradeStoreProvider({
       removeActiveTrade,
       logManualExit,
       removeTradeAndFreeSymbol,
+      addLogToActiveTrade,
       tradeHistory,
       addTradeHistoryEntry,
       clearTradeHistory,
