@@ -300,7 +300,7 @@ export default function TradePage() {
                       onChange={(e) => setMinToHoldEnabled(e.target.checked)}
                       className="h-4 w-4"
                     />
-                    <label htmlFor="minToHoldEnabled" className="text-sm font-medium">Trailing before target</label>
+                    <label htmlFor="minToHoldEnabled" className="text-sm font-medium">Minimum target</label>
                   </div>
 
                   <div className="relative">
