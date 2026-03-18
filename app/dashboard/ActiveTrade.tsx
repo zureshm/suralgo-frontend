@@ -71,7 +71,7 @@ export default function ActiveTrade({
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [exitClicked, setExitClicked] = useState<Record<string, boolean>>({});
-  const { removeTradeAndFreeSymbol, lastStrategyCandleTime } = useTradeStore();
+  const { removeTradeAndFreeSymbol, getLastStrategyCandleTime } = useTradeStore();
 
   useEffect(() => {
     setMounted(true);
@@ -148,7 +148,7 @@ export default function ActiveTrade({
                         const livePnl = t.pnl + unrealized;
 
                         const lastCandleTime =
-                          lastStrategyCandleTime ||
+                          getLastStrategyCandleTime() ||
                           new Date().toLocaleTimeString("en-IN", {
                             hour: "2-digit",
                             minute: "2-digit",

@@ -24,17 +24,6 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     const fetchStrategySignal = async () => {
       const data = await getStrategySignal();
-      if (data) {
-        console.log("Strategy engine payload", {
-          symbol: data.symbol,
-          signal: data.signal,
-          lastCandleTime: data.lastCandleTime,
-          close: data.close,
-          candles: data.candles,
-        });
-      } else {
-        console.log("Strategy engine returned empty payload");
-      }
       setStrategySignal(data);
     };
 

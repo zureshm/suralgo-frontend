@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useCallback, useMemo, useRef, useState } from "react";
 
 type TradeSelection = {
   symbol: string;
@@ -93,7 +93,7 @@ type TradeStoreValue = {
   clearTradeHistory: () => void;
 
   // strategy timing
-  lastStrategyCandleTime: string;
+  getLastStrategyCandleTime: () => string;
   setLastStrategyCandleTime: (time: string) => void;
 };
 
@@ -177,8 +177,12 @@ export function TradeStoreProvider({
     return [];
   });
 
-  // strategy timing
-  const [lastStrategyCandleTime, setLastStrategyCandleTime] = useState<string>("");
+  // strategy timing (ref to avoid re-render cascade every second)
+  const lastStrategyCandleTimeRef = useRef<string>("");
+  const getLastStrategyCandleTime = useCallback(() => lastStrategyCandleTimeRef.current, []);
+  const setLastStrategyCandleTime = useCallback((time: string) => {
+    lastStrategyCandleTimeRef.current = time;
+  }, []);
 
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>(() => {
     if (typeof window !== "undefined") {
@@ -717,10 +721,10 @@ export function TradeStoreProvider({
       tradeHistory,
       addTradeHistoryEntry,
       clearTradeHistory,
-      lastStrategyCandleTime,
+      getLastStrategyCandleTime,
       setLastStrategyCandleTime,
     }),
-    [selection, waitingTrades, activeTrades, tradeHistory, lastStrategyCandleTime]
+    [selection, waitingTrades, activeTrades, tradeHistory]
   );
 
   return (

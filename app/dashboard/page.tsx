@@ -30,7 +30,7 @@ export default function DashboardPage() {
     addTradeHistoryEntry,
     logManualExit,
     completeCycleWithoutExit,
-    lastStrategyCandleTime,
+    getLastStrategyCandleTime,
   } = useTradeStore();
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export default function DashboardPage() {
       const priceDiff = ltp - entry;
 
       const currentTime =
-        lastStrategyCandleTime ||
+        getLastStrategyCandleTime() ||
         new Date().toLocaleTimeString("en-IN", {
           hour: "2-digit",
           minute: "2-digit",
@@ -158,7 +158,7 @@ export default function DashboardPage() {
         return;
       }
     });
-  }, [activeLtps, activeTrades, completeCycleWithoutExit, lastStrategyCandleTime]);
+  }, [activeLtps, activeTrades, completeCycleWithoutExit]);
 
   return (
     <div className={styles.page}>
