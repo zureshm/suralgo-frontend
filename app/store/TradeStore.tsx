@@ -84,6 +84,7 @@ type TradeStoreValue = {
 
   tradeHistory: TradeHistoryItem[];
   addTradeHistoryEntry: (entry: TradeHistoryItem) => void;
+  clearTradeHistory: () => void;
 
   // strategy timing
   lastStrategyCandleTime: string;
@@ -609,6 +610,13 @@ export function TradeStoreProvider({
     });
   };
 
+  const clearTradeHistory = () => {
+    setTradeHistory([]);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("tradeHistory");
+    }
+  };
+
   const appendTradeHistoryEntry = (
     symbol: string,
     pnl: number,
@@ -663,6 +671,7 @@ export function TradeStoreProvider({
       removeTradeAndFreeSymbol,
       tradeHistory,
       addTradeHistoryEntry,
+      clearTradeHistory,
       lastStrategyCandleTime,
       setLastStrategyCandleTime,
     }),

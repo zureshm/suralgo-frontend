@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
-import { History } from "lucide-react";
+import { History, Trash2 } from "lucide-react";
 import styles from "./TradeHistory.module.scss";
 
 export default function TradeHistory() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const { tradeHistory } = useTradeStore();
+  const { tradeHistory, clearTradeHistory } = useTradeStore();
   const [currentPage, setCurrentPage] = useState(1);
   
   const tradesPerPage = 10;
@@ -38,10 +38,26 @@ export default function TradeHistory() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-          <History className="w-5 h-5" />
-          TRADE HISTORY
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <History className="w-5 h-5" />
+            TRADE HISTORY
+          </CardTitle>
+          {safeHistory.length > 0 && (
+            <button
+              type="button"
+              aria-label="Clear trade history"
+              className="text-red-500 hover:text-red-600 transition-colors"
+              onClick={() => {
+                if (window.confirm("Clear all trade history?")) {
+                  clearTradeHistory();
+                }
+              }}
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </CardHeader>
       
       <CardContent className="space-y-3">
