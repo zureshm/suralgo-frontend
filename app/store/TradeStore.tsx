@@ -890,12 +890,17 @@ export function TradeStoreProvider({
       const lastLog = logs[logs.length - 1] ?? "";
       const latestLastLog = latest?.logs?.[latest.logs.length - 1] ?? "";
 
+      const now = Date.now();
+      const latestCreatedAt = latest?.createdAt ? new Date(latest.createdAt).getTime() : 0;
+      const timeDiffMs = now - latestCreatedAt;
+
       if (
         latest &&
         latest.symbol === symbol &&
         latest.pnl === pnl &&
         latest.logs.length === logs.length &&
-        latestLastLog === lastLog
+        latestLastLog === lastLog &&
+        timeDiffMs < 2000
       ) {
         return historyPrev;
       }
