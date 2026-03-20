@@ -70,6 +70,70 @@ export type TradeHistoryItem = {
   pnl: number;
   logs: string[];
   createdAt: string;
+  config?: {
+    numberOfTrades: number;
+    stopLossNumber?: number;
+    stopLossNumberEnabled: boolean;
+    targetPoints?: number;
+    targetPointsEnabled: boolean;
+    trailingAfterTarget?: number;
+    trailingAfterTargetEnabled: boolean;
+    minToHold?: number;
+    minToHoldEnabled: boolean;
+  };
+};
+
+type TradeConfigSnapshotSource = {
+  numberOfTrades: number;
+  stopLossNumberEnabled: boolean;
+  stopLossNumber: number;
+  targetPointsEnabled: boolean;
+  targetPoints: number;
+  trailingAfterTargetEnabled: boolean;
+  trailingAfterTarget: number;
+  minToHoldEnabled: boolean;
+  minToHold: number;
+};
+
+const buildTradeConfigSnapshot = (
+  trade: TradeConfigSnapshotSource
+): TradeHistoryItem["config"] => ({
+  numberOfTrades: trade.numberOfTrades,
+  stopLossNumberEnabled: Boolean(trade.stopLossNumberEnabled),
+  stopLossNumber: trade.stopLossNumberEnabled ? trade.stopLossNumber : undefined,
+  targetPointsEnabled: Boolean(trade.targetPointsEnabled),
+  targetPoints: trade.targetPointsEnabled ? trade.targetPoints : undefined,
+  trailingAfterTargetEnabled: Boolean(trade.trailingAfterTargetEnabled),
+  trailingAfterTarget: trade.trailingAfterTargetEnabled ? trade.trailingAfterTarget : undefined,
+  minToHoldEnabled: Boolean(trade.minToHoldEnabled),
+  minToHold: trade.minToHoldEnabled ? trade.minToHold : undefined,
+});
+
+const sanitizeHistoryConfig = (raw: any): TradeHistoryItem["config"] | undefined => {
+  if (!raw || typeof raw !== "object") return undefined;
+
+  const toNumber = (value: any): number | undefined => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const numberOfTrades = toNumber(raw.numberOfTrades) ?? 0;
+  const stopLossNumberEnabled = Boolean(raw.stopLossNumberEnabled);
+  const targetPointsEnabled = Boolean(raw.targetPointsEnabled);
+  const trailingAfterTargetEnabled = Boolean(raw.trailingAfterTargetEnabled);
+  const minToHoldEnabled = Boolean(raw.minToHoldEnabled);
+
+  return {
+    numberOfTrades,
+    stopLossNumberEnabled,
+    stopLossNumber: stopLossNumberEnabled ? toNumber(raw.stopLossNumber) : undefined,
+    targetPointsEnabled,
+    targetPoints: targetPointsEnabled ? toNumber(raw.targetPoints) : undefined,
+    trailingAfterTargetEnabled,
+    trailingAfterTarget: trailingAfterTargetEnabled ? toNumber(raw.trailingAfterTarget) : undefined,
+    minToHoldEnabled,
+    minToHold: minToHoldEnabled ? toNumber(raw.minToHold) : undefined,
+  };
 };
 
 type TradeStoreValue = {
@@ -107,6 +171,7 @@ type TradeStoreValue = {
 
   tradeHistory: TradeHistoryItem[];
   addTradeHistoryEntry: (entry: TradeHistoryItem) => void;
+  removeTradeHistoryEntry: (id: string) => void;
   clearTradeHistory: () => void;
 
   // strategy timing
@@ -230,6 +295,7 @@ export function TradeStoreProvider({
             pnl: Number(t.pnl ?? 0),
             logs: Array.isArray(t.logs) ? t.logs.map(String) : [],
             createdAt: String(t.createdAt ?? ""),
+            config: sanitizeHistoryConfig(t.config),
           }))
           .filter((t: TradeHistoryItem) => Boolean(t.id) && Boolean(t.symbol));
       } catch {
@@ -552,7 +618,7 @@ export function TradeStoreProvider({
             `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
           ];
 
-          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs);
+          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs, buildTradeConfigSnapshot(trade));
 
           return {
             ...trade,
@@ -622,7 +688,7 @@ export function TradeStoreProvider({
             `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
           ];
 
-          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs);
+          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs, buildTradeConfigSnapshot(trade));
 
           return {
             ...trade,
@@ -779,7 +845,7 @@ export function TradeStoreProvider({
         const pnlLog = `Trade P/L: ${currentCyclePnl.toFixed(2)}`;
         const finalLogs = [...trade.logs, exitLog, pnlLog];
 
-        appendTradeHistoryEntry(trade.symbol, pnl, finalLogs);
+        appendTradeHistoryEntry(trade.symbol, pnl, finalLogs, buildTradeConfigSnapshot(trade));
 
         removeActiveTrade(symbol);
 
@@ -805,10 +871,19 @@ export function TradeStoreProvider({
     }
   };
 
+  const removeTradeHistoryEntry = (id: string) => {
+    setTradeHistory((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      localStorage.setItem("tradeHistory", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const appendTradeHistoryEntry = (
     symbol: string,
     pnl: number,
-    logs: string[]
+    logs: string[],
+    config?: TradeHistoryItem["config"]
   ) => {
     setTradeHistory((historyPrev) => {
       const latest = historyPrev[0];
@@ -825,12 +900,13 @@ export function TradeStoreProvider({
         return historyPrev;
       }
 
-      const historyEntry = {
+      const historyEntry: TradeHistoryItem = {
         id: `${symbol}-${Date.now()}`,
         symbol,
         pnl,
         logs,
         createdAt: new Date().toISOString(),
+        config,
       };
       const nextHistory = [historyEntry, ...historyPrev];
       localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
@@ -839,7 +915,7 @@ export function TradeStoreProvider({
   };
 
   const addTradeHistoryEntry = (entry: TradeHistoryItem) => {
-    appendTradeHistoryEntry(entry.symbol, entry.pnl, entry.logs);
+    appendTradeHistoryEntry(entry.symbol, entry.pnl, entry.logs, entry.config);
   };
 
   const value = useMemo(
@@ -863,6 +939,7 @@ export function TradeStoreProvider({
       updateTrailingHighWatermark,
       tradeHistory,
       addTradeHistoryEntry,
+      removeTradeHistoryEntry,
       clearTradeHistory,
       getLastStrategyCandleTime,
       setLastStrategyCandleTime,

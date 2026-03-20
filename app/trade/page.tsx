@@ -373,7 +373,7 @@ export default function TradePage() {
                       className="h-4 w-4"
                     />
                     <label htmlFor="trailingAfterTargetEnabled" className="text-sm font-medium">
-                      Trailing after target
+                      Trailing SL
                     </label>
                   </div>
 
@@ -382,7 +382,7 @@ export default function TradePage() {
                       type="button"
                       className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
                       onClick={() => setIsTrailingAfterInfoOpen((prev) => !prev)}
-                      aria-label="Trailing after target info"
+                      aria-label="Trailing SL info"
                     >
                       <HelpCircle className="h-3.5 w-3.5" />
                     </button>
@@ -396,7 +396,7 @@ export default function TradePage() {
                           lineHeight: "18px",
                         }}
                       >
-                        Once your primary target is hit, this keeps following price by the number of points you set. If price reverses by that amount, profits are locked automatically.
+                        Once your primary target is hit, this trailing stop-loss keeps following price by the number of points you set. If price reverses by that amount, profits are locked automatically.
                       </div>
                     )}
                   </div>
