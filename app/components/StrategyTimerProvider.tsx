@@ -39,6 +39,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     const latestClose =
       strategySignal.close ??
       strategySignal.candles?.[strategySignal.candles.length - 1]?.close;
+    const latestCloseNumber = Number(latestClose ?? NaN);
 
     const signalSymbol = strategySignal.symbol;
     const activeForSymbol = activeTrades.find(
@@ -91,6 +92,15 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
       const active = activeForSymbol;
 
       if (!active || !active.inPosition) return;
+
+      // If trailing-after-target is enabled, skip — dashboard LTP monitor handles it
+      if (
+        active.trailingAfterTargetEnabled &&
+        active.trailingAfterTarget > 0
+      ) {
+        setLastHandledSignalKey(signalKey);
+        return;
+      }
 
       completeCycleWithoutExit(
         active.symbol,
@@ -161,6 +171,40 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
       const candleSize = prevCandle
         ? Math.abs(Number(prevCandle.close) - Number(prevCandle.open))
         : 0;
+
+      // --- Time range check — log skip to custom console, do NOT block ---
+      const tradeForRange = matchingTrade ?? (activeForSymbol && !activeForSymbol.inPosition ? activeForSymbol : null);
+      if (tradeForRange && tradeForRange.rangeEnabled) {
+        const toMinutes12h = (timeStr: string, ampm: string): number => {
+          const match = String(timeStr).match(/(\d{1,2}):(\d{2})/);
+          if (!match) return -1;
+          let h = Number(match[1]);
+          const m = Number(match[2]);
+          if (ampm === "pm" && h < 12) h += 12;
+          if (ampm === "am" && h === 12) h = 0;
+          return h * 60 + m;
+        };
+        const parseCandleTime = (raw: string): number => {
+          const match = String(raw).match(/(\d{1,2}):(\d{2})/);
+          if (!match) return -1;
+          return Number(match[1]) * 60 + Number(match[2]);
+        };
+
+        const rangeStart = toMinutes12h(tradeForRange.timeFrom, tradeForRange.timeFromAmpm);
+        const rangeEnd = toMinutes12h(tradeForRange.timeTo, tradeForRange.timeToAmpm);
+        const candleMinutes = parseCandleTime(strategySignal.lastCandleTime ?? "");
+
+        if (candleMinutes >= 0 && (candleMinutes < rangeStart || candleMinutes > rangeEnd)) {
+          const skippedLog = `BUY skipped – outside time range (${tradeForRange.timeFrom} ${tradeForRange.timeFromAmpm} – ${tradeForRange.timeTo} ${tradeForRange.timeToAmpm}) for ₹${latestClose ?? ""} at ${strategySignal.lastCandleTime}`;
+          if (matchingTrade) {
+            addLogToWaitingTrade(matchingTrade.symbol, skippedLog);
+          } else if (activeForSymbol && !activeForSymbol.inPosition) {
+            addLogToActiveTrade(activeForSymbol.symbol, skippedLog);
+          }
+          setLastHandledSignalKey(signalKey);
+          return;
+        }
+      }
 
       const overrideValue = matchingTrade?.buyOverride ?? activeForSymbol?.buyOverride;
 

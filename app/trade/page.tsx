@@ -32,12 +32,11 @@ export default function TradePage() {
   const [trailingAfterTargetEnabled, setTrailingAfterTargetEnabled] = useState(false);
   const [trailingAfterTarget, setTrailingAfterTarget] = useState(15);
   const [isTrailingAfterInfoOpen, setIsTrailingAfterInfoOpen] = useState(false);
-  const [timeFrom, setTimeFrom] = useState('10:15');
+  const [rangeEnabled, setRangeEnabled] = useState(false);
+  const [timeFrom, setTimeFrom] = useState('10:00');
   const [timeFromAmpm, setTimeFromAmpm] = useState('am');
   const [timeTo, setTimeTo] = useState('02:45');
   const [timeToAmpm, setTimeToAmpm] = useState('pm');
-  const [priceFrom, setPriceFrom] = useState(180);
-  const [priceTo, setPriceTo] = useState(220);
 
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
   const isAlreadyActive = selection && activeTrades.some((trade) => trade.symbol === selection.symbol && trade.status === "ACTIVE");
@@ -95,12 +94,11 @@ export default function TradePage() {
       setMinToHold(data.minToHold || 8);
       setTrailingAfterTargetEnabled(Boolean(data.trailingAfterTargetEnabled ?? false));
       setTrailingAfterTarget(data.trailingAfterTarget || 15);
-      setTimeFrom(data.timeFrom || '10:15');
+      setRangeEnabled(Boolean(data.rangeEnabled ?? false));
+      setTimeFrom(data.timeFrom || '10:00');
       setTimeFromAmpm(data.timeFromAmpm || 'am');
       setTimeTo(data.timeTo || '02:45');
       setTimeToAmpm(data.timeToAmpm || 'pm');
-      setPriceFrom(data.priceFrom || 180);
-      setPriceTo(data.priceTo || 220);
       setLotValue(data.lotValue || 1);
     } else {
       // Reset to defaults
@@ -117,12 +115,11 @@ export default function TradePage() {
       setMinToHold(8);
       setTrailingAfterTargetEnabled(false);
       setTrailingAfterTarget(15);
-      setTimeFrom('10:15');
+      setRangeEnabled(false);
+      setTimeFrom('10:00');
       setTimeFromAmpm('am');
       setTimeTo('02:45');
       setTimeToAmpm('pm');
-      setPriceFrom(180);
-      setPriceTo(220);
       setLotValue(1);
     }
   }, [selection?.symbol]);
@@ -143,12 +140,11 @@ export default function TradePage() {
       waitStrategyEnabled,
       trailingAfterTargetEnabled,
       trailingAfterTarget,
+      rangeEnabled,
       timeFrom,
       timeFromAmpm,
       timeTo,
       timeToAmpm,
-      priceFrom,
-      priceTo,
       symbol: selection.symbol,
       lotValue,
       lotSize,
@@ -338,7 +334,15 @@ export default function TradePage() {
                       <HelpCircle className="h-3.5 w-3.5" />
                     </button>
                     {isMinToHoldInfoOpen && (
-                      <div className="absolute right-0 mt-2 w-56 rounded-md bg-gray-900 p-2 text-xs text-white shadow-lg">
+                      <div
+                        className="absolute right-0 mt-2 w-56 rounded-md p-2 text-white shadow-lg"
+                        style={{
+                          zIndex: 9,
+                          background: "rgba(0, 0, 0, 0.8)",
+                          fontSize: "11px",
+                          lineHeight: "18px",
+                        }}
+                      >
                         Example: buy at 200 with trailing target 8. Once price hits 208 (trail level) plus 2 more points, we drag the stop loss up to 208 so even if it rallies to 219 and drops back, we still capture those 8 points.
                       </div>
                     )}
@@ -358,21 +362,60 @@ export default function TradePage() {
                 </div>
               </div>
 
-              <div className="rounded-md border border-dashed border-gray-200 p-3 space-y-3 opacity-60">
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="trailingAfterTargetEnabled" disabled className="h-4 w-4" />
-                  <label htmlFor="trailingAfterTargetEnabled" className="text-sm text-gray-400 font-medium">Trailing after target</label>
+              <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="trailingAfterTargetEnabled"
+                      checked={trailingAfterTargetEnabled}
+                      onChange={(e) => setTrailingAfterTargetEnabled(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="trailingAfterTargetEnabled" className="text-sm font-medium">
+                      Trailing after target
+                    </label>
+                  </div>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                      onClick={() => setIsTrailingAfterInfoOpen((prev) => !prev)}
+                      aria-label="Trailing after target info"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                    </button>
+                    {isTrailingAfterInfoOpen && (
+                      <div
+                        className="absolute right-0 mt-2 w-60 rounded-md p-2 text-white shadow-lg"
+                        style={{
+                          zIndex: 9,
+                          background: "rgba(0, 0, 0, 0.8)",
+                          fontSize: "11px",
+                          lineHeight: "18px",
+                        }}
+                      >
+                        Once your primary target is hit, this keeps following price by the number of points you set. If price reverses by that amount, profits are locked automatically.
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center space-x-2 pl-6">
-                  <label htmlFor="trailingAfterTargetValue" className="text-sm text-gray-400">Points</label>
-                  <Input 
+                  <label
+                    htmlFor="trailingAfterTargetValue"
+                    className={`text-sm ${trailingAfterTargetEnabled ? "" : "text-gray-400"}`}
+                  >
+                    Points
+                  </label>
+                  <Input
                     id="trailingAfterTargetValue"
-                    type="number" 
-                    value={trailingAfterTarget} 
+                    type="number"
+                    value={trailingAfterTarget}
                     onChange={(e) => setTrailingAfterTarget(Number(e.target.value) || 0)}
                     className="w-20 h-8"
-                    disabled
+                    disabled={!trailingAfterTargetEnabled}
                   />
                 </div>
               </div>
@@ -385,64 +428,54 @@ export default function TradePage() {
 
           {/* Range */}
           <div className="space-y-4">
-            <div className="text-base font-medium">Range</div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={rangeEnabled}
+                onChange={(e) => setRangeEnabled(e.target.checked)}
+                className="accent-blue-600 w-4 h-4"
+              />
+              <span className="text-base font-medium">Range</span>
+            </div>
             
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <label className="text-sm text-gray-400 w-12">Time:</label>
+                <label className="text-sm w-12">Time:</label>
                 <Input 
                   type="text" 
                   value={timeFrom} 
                   onChange={(e) => setTimeFrom(e.target.value)}
                   className="w-16 h-8 text-sm"
-                  disabled
+                  disabled={!rangeEnabled}
                 />
                 <select 
                   value={timeFromAmpm} 
                   onChange={(e) => setTimeFromAmpm(e.target.value)}
-                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm disabled-select"
-                  disabled
+                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                  disabled={!rangeEnabled}
                 >
                   <option value="am">AM</option>
                   <option value="pm">PM</option>
                 </select>
-                <label className="text-sm text-gray-400 w-8">To</label>
+                <label className="text-sm w-8">To</label>
                 <Input 
                   type="text" 
                   value={timeTo} 
                   onChange={(e) => setTimeTo(e.target.value)}
                   className="w-16 h-8 text-sm"
-                  disabled
+                  disabled={!rangeEnabled}
                 />
                 <select 
                   value={timeToAmpm} 
                   onChange={(e) => setTimeToAmpm(e.target.value)}
-                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm disabled-select"
-                  disabled
+                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                  disabled={!rangeEnabled}
                 >
                   <option value="am">AM</option>
                   <option value="pm">PM</option>
                 </select>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <label className="text-sm text-gray-400 w-12">Price:</label>
-                <Input 
-                  type="number" 
-                  value={priceFrom} 
-                  onChange={(e) => setPriceFrom(Number(e.target.value) || 0)}
-                  className="w-20 h-8 text-sm"
-                  disabled
-                />
-                <label className="text-sm text-gray-400 w-8">To</label>
-                <Input 
-                  type="number" 
-                  value={priceTo} 
-                  onChange={(e) => setPriceTo(Number(e.target.value) || 0)}
-                  className="w-20 h-8 text-sm"
-                  disabled
-                />
-              </div>
             </div>
           </div>
 
