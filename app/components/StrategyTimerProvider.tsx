@@ -62,6 +62,32 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
       setLastStrategyCandleTime(candleTime);
     }
 
+    const toMinutes = (timeStr?: string): number => {
+      if (!timeStr) return -1;
+      const match = String(timeStr).match(/(\d{1,2}):(\d{2})/);
+      if (!match) return -1;
+      const hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      return hours * 60 + minutes;
+    };
+
+    const AUTO_SELL_CUTOFF_MINUTES = 15 * 60 + 5; // 3:05 PM
+    const candleMinutes = toMinutes(strategySignal.lastCandleTime);
+
+    if (
+      candleMinutes >= AUTO_SELL_CUTOFF_MINUTES &&
+      activeForSymbol &&
+      activeForSymbol.inPosition
+    ) {
+      completeActiveTrade(
+        activeForSymbol.symbol,
+        String(latestClose ?? ""),
+        `AUTO SELL triggered post 03:05 pm cut-off at ₹${String(latestClose ?? "")} (${strategySignal.lastCandleTime})`
+      );
+      updateLastSellCandleTime(activeForSymbol.symbol, strategySignal.lastCandleTime ?? "15:05");
+      return;
+    }
+
     // handle STOPLOSS signal
     if (strategySignal.signal === "STOPLOSS") {
       const signalKey =

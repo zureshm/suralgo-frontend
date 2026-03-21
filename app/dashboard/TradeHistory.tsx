@@ -83,10 +83,16 @@ export default function TradeHistory() {
           ) : (
           currentTrades.map((item, index) => {
             const pnlText = item.pnl >= 0 ? `+${item.pnl.toFixed(2)}` : item.pnl.toFixed(2);
-            const sellCount = item.logs.filter(log => log.toUpperCase().includes("SELL")).length;
-            const tradesDisplay = item.config 
-              ? `Trades: ${sellCount} of ${item.config.numberOfTrades}` 
-              : `Trades: ${sellCount}`;
+            const completedCycles = item.logs.reduce((count, log) => {
+              const normalized = log.trim().toUpperCase();
+              if (normalized.startsWith("CYCLE") && normalized.includes("COMPLETED")) {
+                return count + 1;
+              }
+              return count;
+            }, 0);
+            const tradesDisplay = item.config
+              ? `Trades: ${completedCycles} of ${item.config.numberOfTrades}`
+              : `Trades: ${completedCycles}`;
             
             return (
               <div key={`${item.id}-${index}`} className={styles.historyItem}>
