@@ -26,6 +26,8 @@ export default function TradePage() {
   const [targetPointsEnabled, setTargetPointsEnabled] = useState(true);
   const [targetPoints, setTargetPoints] = useState(20);
   const [waitStrategyEnabled, setWaitStrategyEnabled] = useState(false);
+  const [waitAfterSellEnabled, setWaitAfterSellEnabled] = useState(true);
+  const [waitAfterSellCandles, setWaitAfterSellCandles] = useState(8);
   const [minToHoldEnabled, setMinToHoldEnabled] = useState(false);
   const [minToHold, setMinToHold] = useState(8);
   const [isMinToHoldInfoOpen, setIsMinToHoldInfoOpen] = useState(false);
@@ -90,6 +92,8 @@ export default function TradePage() {
       setTargetPointsEnabled(Boolean(data.targetPointsEnabled ?? true));
       setTargetPoints(data.targetPoints || 20);
       setWaitStrategyEnabled(Boolean(data.waitStrategyEnabled ?? false));
+      setWaitAfterSellEnabled(Boolean(data.waitAfterSellEnabled ?? true));
+      setWaitAfterSellCandles(data.waitAfterSellCandles || 8);
       setMinToHoldEnabled(Boolean(data.minToHoldEnabled ?? false));
       setMinToHold(data.minToHold || 8);
       setTrailingAfterTargetEnabled(Boolean(data.trailingAfterTargetEnabled ?? false));
@@ -111,6 +115,8 @@ export default function TradePage() {
       setTargetPointsEnabled(true);
       setTargetPoints(20);
       setWaitStrategyEnabled(false);
+      setWaitAfterSellEnabled(true);
+      setWaitAfterSellCandles(8);
       setMinToHoldEnabled(false);
       setMinToHold(8);
       setTrailingAfterTargetEnabled(false);
@@ -138,6 +144,8 @@ export default function TradePage() {
       minToHoldEnabled,
       minToHold,
       waitStrategyEnabled,
+      waitAfterSellEnabled,
+      waitAfterSellCandles,
       trailingAfterTargetEnabled,
       trailingAfterTarget,
       rangeEnabled,
@@ -263,7 +271,7 @@ export default function TradePage() {
           {/* Wait Strategy */}
           <div className="space-y-2">
             <div className="text-base font-medium">Wait Strategy</div>
-            <div className="rounded-md border border-gray-200 p-3">
+            <div className="rounded-md border border-gray-200 p-3 space-y-3">
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -275,6 +283,29 @@ export default function TradePage() {
                 <label htmlFor="waitStrategyEnabled" className="text-sm font-medium">
                   Wait when candle size ≥ stoploss size
                 </label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="waitAfterSellEnabled"
+                  checked={waitAfterSellEnabled}
+                  onChange={(e) => setWaitAfterSellEnabled(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="waitAfterSellEnabled" className="text-sm font-medium flex-1">
+                  After SELL wait
+                </label>
+                {waitAfterSellEnabled && (
+                  <input
+                    type="number"
+                    value={waitAfterSellCandles}
+                    onChange={(e) => setWaitAfterSellCandles(Number(e.target.value))}
+                    className="w-16 h-8 px-2 border border-gray-300 rounded-md text-sm"
+                    min="1"
+                  />
+                )}
+                {waitAfterSellEnabled && <span className="text-sm">candles</span>}
               </div>
             </div>
           </div>

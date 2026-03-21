@@ -16,6 +16,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     setLastStrategyCandleTime,
     addLogToWaitingTrade,
     addLogToActiveTrade,
+    updateLastSellCandleTime,
   } = useTradeStore();
   const [strategySignal, setStrategySignal] = useState<any>(null);
   const [lastHandledSignalKey, setLastHandledSignalKey] = useState("");
@@ -130,6 +131,9 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
         "SELL triggered for ₹"+ String(latestClose ?? "") + " at " + strategySignal.lastCandleTime
       );
 
+      // Update lastSellCandleTime for wait-after-sell strategy
+      updateLastSellCandleTime(active.symbol, strategySignal.lastCandleTime);
+
       setLastHandledSignalKey(signalKey);
       return;
     }
@@ -206,6 +210,33 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
         }
       }
 
+      // Wait-after-SELL check: skip BUY if not enough candles have passed
+      const tradeForWaitCheck = matchingTrade ?? (activeForSymbol && !activeForSymbol.inPosition ? activeForSymbol : null);
+      if (tradeForWaitCheck && tradeForWaitCheck.waitAfterSellEnabled && activeForSymbol?.lastSellCandleTime) {
+        const parseCandleTimeForComparison = (raw: string): number => {
+          const match = String(raw).match(/(\d{1,2}):(\d{2})/);
+          if (!match) return -1;
+          return Number(match[1]) * 60 + Number(match[2]);
+        };
+
+        const lastSellMinutes = parseCandleTimeForComparison(activeForSymbol.lastSellCandleTime);
+        const currentCandleMinutes = parseCandleTimeForComparison(strategySignal.lastCandleTime ?? "");
+        
+        if (lastSellMinutes >= 0 && currentCandleMinutes >= 0) {
+          const candlesPassed = currentCandleMinutes - lastSellMinutes;
+          if (candlesPassed < tradeForWaitCheck.waitAfterSellCandles) {
+            const waitLog = `BUY skipped – waiting ${tradeForWaitCheck.waitAfterSellCandles} candles after SELL (${candlesPassed} passed) at ${strategySignal.lastCandleTime}`;
+            if (matchingTrade) {
+              addLogToWaitingTrade(matchingTrade.symbol, waitLog);
+            } else if (activeForSymbol && !activeForSymbol.inPosition) {
+              addLogToActiveTrade(activeForSymbol.symbol, waitLog);
+            }
+            setLastHandledSignalKey(signalKey);
+            return;
+          }
+        }
+      }
+
       const overrideValue = matchingTrade?.buyOverride ?? activeForSymbol?.buyOverride;
 
       if (overrideValue != null && overrideValue > 0 && candleSize >= overrideValue) {
@@ -255,6 +286,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
     setLastStrategyCandleTime,
     addLogToWaitingTrade,
     addLogToActiveTrade,
+    updateLastSellCandleTime,
   ]);
 
   return <>{children}</>;

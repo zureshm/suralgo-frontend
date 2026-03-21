@@ -83,6 +83,11 @@ export default function TradeHistory() {
           ) : (
           currentTrades.map((item, index) => {
             const pnlText = item.pnl >= 0 ? `+${item.pnl.toFixed(2)}` : item.pnl.toFixed(2);
+            const sellCount = item.logs.filter(log => log.toUpperCase().includes("SELL")).length;
+            const tradesDisplay = item.config 
+              ? `Trades: ${sellCount} of ${item.config.numberOfTrades}` 
+              : `Trades: ${sellCount}`;
+            
             return (
               <div key={`${item.id}-${index}`} className={styles.historyItem}>
                 <div className={styles.historyItemTop}>
@@ -108,7 +113,7 @@ export default function TradeHistory() {
 
                 {item.config && (
                   <div style={{ fontSize: "10px", color: "#888", lineHeight: 1.4, padding: "2px 0" }}>
-                    {`Trades: ${item.config.numberOfTrades}`}
+                    {tradesDisplay}
                     {item.config.stopLossNumberEnabled && item.config.stopLossNumber != null ? ` | SL: ${item.config.stopLossNumber}` : ""}
                     {item.config.targetPointsEnabled && item.config.targetPoints != null ? ` | Target: ${item.config.targetPoints}` : ""}
                     {item.config.trailingAfterTargetEnabled && item.config.trailingAfterTarget != null ? ` | TSL: ${item.config.trailingAfterTarget}` : ""}
