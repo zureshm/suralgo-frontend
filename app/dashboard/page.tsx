@@ -26,11 +26,11 @@ export default function DashboardPage() {
     waitingTrades,
     removeWaitingTrade,
     activeTrades,
-    removeActiveTrade,
-    addTradeHistoryEntry,
     logManualExit,
     completeCycleWithoutExit,
-    lastStrategyCandleTime,
+    getLastStrategyCandleTime,
+    activateTrailingAfterTarget,
+    updateTrailingHighWatermark,
   } = useTradeStore();
 
   useEffect(() => {
@@ -94,11 +94,17 @@ export default function DashboardPage() {
       const priceDiff = ltp - entry;
 
       const currentTime =
-        lastStrategyCandleTime ||
+        getLastStrategyCandleTime() ||
         new Date().toLocaleTimeString("en-IN", {
           hour: "2-digit",
           minute: "2-digit",
         }).replace("am", "").replace("pm", "");
+
+      const trailingEnabled =
+        trade.targetPointsEnabled &&
+        trade.targetPoints > 0 &&
+        trade.trailingAfterTargetEnabled &&
+        trade.trailingAfterTarget > 0;
 
       // Trailing before target (Minimum Target) logic
       if (trade.minToHoldEnabled && trade.minToHold > 0) {
@@ -128,12 +134,42 @@ export default function DashboardPage() {
         trailingArmedPositions.current.delete(positionKey);
       }
 
+      if (trailingEnabled && trade.trailingTrailActive) {
+        if (
+          typeof trade.trailingHighWatermark !== "number" ||
+          ltp > trade.trailingHighWatermark
+        ) {
+          updateTrailingHighWatermark(trade.symbol, ltp);
+        }
+
+        const highMark = trade.trailingHighWatermark ?? ltp;
+        const drop = highMark - ltp;
+
+        if (drop >= trade.trailingAfterTarget) {
+          triggeredPositions.current.add(positionKey);
+          completeCycleWithoutExit(
+            trade.symbol,
+            String(ltp),
+            `Trailing target hit for ₹${ltp} at ${currentTime}`
+          );
+          return;
+        }
+      }
+
       // Check if target hit
       if (
         trade.targetPointsEnabled &&
         trade.targetPoints > 0 &&
         priceDiff >= trade.targetPoints
       ) {
+        if (trailingEnabled) {
+          if (!trade.trailingTrailActive) {
+            activateTrailingAfterTarget(trade.symbol, ltp, currentTime);
+          }
+          // Either just armed or already armed — trailing block above handles exit
+          return;
+        }
+
         triggeredPositions.current.add(positionKey);
         completeCycleWithoutExit(
           trade.symbol,
@@ -158,7 +194,7 @@ export default function DashboardPage() {
         return;
       }
     });
-  }, [activeLtps, activeTrades, completeCycleWithoutExit, lastStrategyCandleTime]);
+  }, [activeLtps, activeTrades, completeCycleWithoutExit]);
 
   return (
     <div className={styles.page}>

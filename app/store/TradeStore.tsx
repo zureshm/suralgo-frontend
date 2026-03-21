@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useCallback, useMemo, useRef, useState } from "react";
 
 type TradeSelection = {
   symbol: string;
@@ -23,6 +23,14 @@ export type WaitingTrade = {
   minToHold: number;
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
+  rangeEnabled: boolean;
+  timeFrom: string;
+  timeFromAmpm: string;
+  timeTo: string;
+  timeToAmpm: string;
+  buyOverride?: number;
+  waitAfterSellEnabled: boolean;
+  waitAfterSellCandles: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -40,12 +48,25 @@ export type ActiveTrade = {
   targetPoints: number;
   minToHoldEnabled: boolean;
   minToHold: number;
+  trailingAfterTargetEnabled: boolean;
+  trailingAfterTarget: number;
+  trailingTrailActive: boolean;
+  trailingHighWatermark?: number;
+  rangeEnabled: boolean;
+  timeFrom: string;
+  timeFromAmpm: string;
+  timeTo: string;
+  timeToAmpm: string;
   inPosition: boolean;
   completedCycles: number;
   entryTime?: string;
   exitTime?: string;
   exitPrice?: string;
   status: "ACTIVE" | "COMPLETED";
+  buyOverride?: number;
+  waitAfterSellEnabled: boolean;
+  waitAfterSellCandles: number;
+  lastSellCandleTime?: string;
 };
 
 export type TradeHistoryItem = {
@@ -54,6 +75,70 @@ export type TradeHistoryItem = {
   pnl: number;
   logs: string[];
   createdAt: string;
+  config?: {
+    numberOfTrades: number;
+    stopLossNumber?: number;
+    stopLossNumberEnabled: boolean;
+    targetPoints?: number;
+    targetPointsEnabled: boolean;
+    trailingAfterTarget?: number;
+    trailingAfterTargetEnabled: boolean;
+    minToHold?: number;
+    minToHoldEnabled: boolean;
+  };
+};
+
+type TradeConfigSnapshotSource = {
+  numberOfTrades: number;
+  stopLossNumberEnabled: boolean;
+  stopLossNumber: number;
+  targetPointsEnabled: boolean;
+  targetPoints: number;
+  trailingAfterTargetEnabled: boolean;
+  trailingAfterTarget: number;
+  minToHoldEnabled: boolean;
+  minToHold: number;
+};
+
+const buildTradeConfigSnapshot = (
+  trade: TradeConfigSnapshotSource
+): TradeHistoryItem["config"] => ({
+  numberOfTrades: trade.numberOfTrades,
+  stopLossNumberEnabled: Boolean(trade.stopLossNumberEnabled),
+  stopLossNumber: trade.stopLossNumberEnabled ? trade.stopLossNumber : undefined,
+  targetPointsEnabled: Boolean(trade.targetPointsEnabled),
+  targetPoints: trade.targetPointsEnabled ? trade.targetPoints : undefined,
+  trailingAfterTargetEnabled: Boolean(trade.trailingAfterTargetEnabled),
+  trailingAfterTarget: trade.trailingAfterTargetEnabled ? trade.trailingAfterTarget : undefined,
+  minToHoldEnabled: Boolean(trade.minToHoldEnabled),
+  minToHold: trade.minToHoldEnabled ? trade.minToHold : undefined,
+});
+
+const sanitizeHistoryConfig = (raw: any): TradeHistoryItem["config"] | undefined => {
+  if (!raw || typeof raw !== "object") return undefined;
+
+  const toNumber = (value: any): number | undefined => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const numberOfTrades = toNumber(raw.numberOfTrades) ?? 0;
+  const stopLossNumberEnabled = Boolean(raw.stopLossNumberEnabled);
+  const targetPointsEnabled = Boolean(raw.targetPointsEnabled);
+  const trailingAfterTargetEnabled = Boolean(raw.trailingAfterTargetEnabled);
+  const minToHoldEnabled = Boolean(raw.minToHoldEnabled);
+
+  return {
+    numberOfTrades,
+    stopLossNumberEnabled,
+    stopLossNumber: stopLossNumberEnabled ? toNumber(raw.stopLossNumber) : undefined,
+    targetPointsEnabled,
+    targetPoints: targetPointsEnabled ? toNumber(raw.targetPoints) : undefined,
+    trailingAfterTargetEnabled,
+    trailingAfterTarget: trailingAfterTargetEnabled ? toNumber(raw.trailingAfterTarget) : undefined,
+    minToHoldEnabled,
+    minToHold: minToHoldEnabled ? toNumber(raw.minToHold) : undefined,
+  };
 };
 
 type TradeStoreValue = {
@@ -81,12 +166,23 @@ type TradeStoreValue = {
   logManualExit: (symbol: string, exitPrice: string, pnl: number, lastCandleTime: string) => void;
   // remove trade and free symbol
   removeTradeAndFreeSymbol: (symbol: string) => void;
+  // append a log line to a waiting trade
+  addLogToWaitingTrade: (symbol: string, log: string) => void;
+  // append a log line to an active trade
+  addLogToActiveTrade: (symbol: string, log: string) => void;
+  // trailing-after-target helpers
+  activateTrailingAfterTarget: (symbol: string, price: number, timeLabel: string) => void;
+  updateTrailingHighWatermark: (symbol: string, price: number) => void;
+  // wait-after-sell helper
+  updateLastSellCandleTime: (symbol: string, candleTime: string) => void;
 
   tradeHistory: TradeHistoryItem[];
   addTradeHistoryEntry: (entry: TradeHistoryItem) => void;
+  removeTradeHistoryEntry: (id: string) => void;
+  clearTradeHistory: () => void;
 
   // strategy timing
-  lastStrategyCandleTime: string;
+  getLastStrategyCandleTime: () => string;
   setLastStrategyCandleTime: (time: string) => void;
 };
 
@@ -123,6 +219,14 @@ export function TradeStoreProvider({
           minToHold: Number.isFinite(Number(t.minToHold)) && Number(t.minToHold) > 0 ? Number(t.minToHold) : 8,
           trailingAfterTargetEnabled: Boolean(t.trailingAfterTargetEnabled ?? false),
           trailingAfterTarget: Number.isFinite(Number(t.trailingAfterTarget)) && Number(t.trailingAfterTarget) > 0 ? Number(t.trailingAfterTarget) : 15,
+          rangeEnabled: Boolean(t.rangeEnabled ?? false),
+          timeFrom: String(t.timeFrom ?? "10:00"),
+          timeFromAmpm: String(t.timeFromAmpm ?? "am"),
+          timeTo: String(t.timeTo ?? "02:45"),
+          timeToAmpm: String(t.timeToAmpm ?? "pm"),
+          buyOverride: Number.isFinite(Number(t.buyOverride)) ? Number(t.buyOverride) : undefined,
+          waitAfterSellEnabled: Boolean(t.waitAfterSellEnabled ?? true),
+          waitAfterSellCandles: Number.isFinite(Number(t.waitAfterSellCandles)) && Number(t.waitAfterSellCandles) > 0 ? Number(t.waitAfterSellCandles) : 8,
         })) as WaitingTrade[];
       } catch {
         return [];
@@ -154,12 +258,25 @@ export function TradeStoreProvider({
           targetPoints: Number.isFinite(Number(t.targetPoints)) && Number(t.targetPoints) > 0 ? Number(t.targetPoints) : 20,
           minToHoldEnabled: Boolean(t.minToHoldEnabled ?? false),
           minToHold: Number.isFinite(Number(t.minToHold)) && Number(t.minToHold) > 0 ? Number(t.minToHold) : 8,
+          trailingAfterTargetEnabled: Boolean(t.trailingAfterTargetEnabled ?? false),
+          trailingAfterTarget: Number.isFinite(Number(t.trailingAfterTarget)) && Number(t.trailingAfterTarget) > 0 ? Number(t.trailingAfterTarget) : 15,
+          trailingTrailActive: Boolean(t.trailingTrailActive ?? false),
+          trailingHighWatermark: Number.isFinite(Number(t.trailingHighWatermark)) ? Number(t.trailingHighWatermark) : undefined,
+          rangeEnabled: Boolean(t.rangeEnabled ?? false),
+          timeFrom: String(t.timeFrom ?? "10:00"),
+          timeFromAmpm: String(t.timeFromAmpm ?? "am"),
+          timeTo: String(t.timeTo ?? "02:45"),
+          timeToAmpm: String(t.timeToAmpm ?? "pm"),
           inPosition: Boolean(t.inPosition ?? false),
           completedCycles: Number.isFinite(Number(t.completedCycles)) ? Number(t.completedCycles) : 0,
           entryTime: t.entryTime ? String(t.entryTime) : undefined,
           exitTime: t.exitTime ? String(t.exitTime) : undefined,
           exitPrice: t.exitPrice ? String(t.exitPrice) : undefined,
           status: t.status === "COMPLETED" ? "COMPLETED" : "ACTIVE",
+          buyOverride: Number.isFinite(Number(t.buyOverride)) ? Number(t.buyOverride) : undefined,
+          waitAfterSellEnabled: Boolean(t.waitAfterSellEnabled ?? true),
+          waitAfterSellCandles: Number.isFinite(Number(t.waitAfterSellCandles)) && Number(t.waitAfterSellCandles) > 0 ? Number(t.waitAfterSellCandles) : 8,
+          lastSellCandleTime: t.lastSellCandleTime ? String(t.lastSellCandleTime) : undefined,
         })) as ActiveTrade[];
       } catch {
         return [];
@@ -168,8 +285,12 @@ export function TradeStoreProvider({
     return [];
   });
 
-  // strategy timing
-  const [lastStrategyCandleTime, setLastStrategyCandleTime] = useState<string>("");
+  // strategy timing (ref to avoid re-render cascade every second)
+  const lastStrategyCandleTimeRef = useRef<string>("");
+  const getLastStrategyCandleTime = useCallback(() => lastStrategyCandleTimeRef.current, []);
+  const setLastStrategyCandleTime = useCallback((time: string) => {
+    lastStrategyCandleTimeRef.current = time;
+  }, []);
 
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>(() => {
     if (typeof window !== "undefined") {
@@ -186,6 +307,7 @@ export function TradeStoreProvider({
             pnl: Number(t.pnl ?? 0),
             logs: Array.isArray(t.logs) ? t.logs.map(String) : [],
             createdAt: String(t.createdAt ?? ""),
+            config: sanitizeHistoryConfig(t.config),
           }))
           .filter((t: TradeHistoryItem) => Boolean(t.id) && Boolean(t.symbol));
       } catch {
@@ -326,6 +448,89 @@ export function TradeStoreProvider({
             return 15;
           }
         })(),
+        rangeEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return false;
+            const data = JSON.parse(saved);
+            return Boolean(data.rangeEnabled ?? false);
+          } catch {
+            return false;
+          }
+        })(),
+        timeFrom: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return "10:00";
+            const data = JSON.parse(saved);
+            return String(data.timeFrom ?? "10:00");
+          } catch {
+            return "10:00";
+          }
+        })(),
+        timeFromAmpm: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return "am";
+            const data = JSON.parse(saved);
+            return String(data.timeFromAmpm ?? "am");
+          } catch {
+            return "am";
+          }
+        })(),
+        timeTo: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return "02:45";
+            const data = JSON.parse(saved);
+            return String(data.timeTo ?? "02:45");
+          } catch {
+            return "02:45";
+          }
+        })(),
+        timeToAmpm: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return "pm";
+            const data = JSON.parse(saved);
+            return String(data.timeToAmpm ?? "pm");
+          } catch {
+            return "pm";
+          }
+        })(),
+        buyOverride: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return undefined;
+            const data = JSON.parse(saved);
+            if (!data.waitStrategyEnabled) return undefined;
+            const v = Number(data.stopLossNumber);
+            return Number.isFinite(v) && v > 0 ? v : undefined;
+          } catch {
+            return undefined;
+          }
+        })(),
+        waitAfterSellEnabled: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return true;
+            const data = JSON.parse(saved);
+            return Boolean(data.waitAfterSellEnabled ?? true);
+          } catch {
+            return true;
+          }
+        })(),
+        waitAfterSellCandles: (() => {
+          try {
+            const saved = localStorage.getItem("tradeForm_" + selection.symbol);
+            if (!saved) return 8;
+            const data = JSON.parse(saved);
+            const v = Number(data.waitAfterSellCandles);
+            return Number.isFinite(v) && v > 0 ? v : 8;
+          } catch {
+            return 8;
+          }
+        })(),
       },
       ...waitingTrades,
     ];
@@ -344,6 +549,16 @@ export function TradeStoreProvider({
     setWaitingTrades(newWaitingTrades);
     localStorage.setItem("waitingTrades", JSON.stringify(newWaitingTrades));
     localStorage.removeItem("tradeForm_" + symbol);
+  };
+
+  const addLogToWaitingTrade = (symbol: string, log: string) => {
+    setWaitingTrades((prev) => {
+      const next = prev.map((t) =>
+        t.symbol === symbol ? { ...t, logs: [...t.logs, log] } : t
+      );
+      localStorage.setItem("waitingTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   // move a waiting trade to active after strategy signal
@@ -370,12 +585,25 @@ export function TradeStoreProvider({
       targetPoints: tradeToActivate.targetPoints,
       minToHoldEnabled: tradeToActivate.minToHoldEnabled,
       minToHold: tradeToActivate.minToHold,
+      trailingAfterTargetEnabled: tradeToActivate.trailingAfterTargetEnabled,
+      trailingAfterTarget: tradeToActivate.trailingAfterTarget,
+      trailingTrailActive: false,
+      trailingHighWatermark: undefined,
+      rangeEnabled: tradeToActivate.rangeEnabled,
+      timeFrom: tradeToActivate.timeFrom,
+      timeFromAmpm: tradeToActivate.timeFromAmpm,
+      timeTo: tradeToActivate.timeTo,
+      timeToAmpm: tradeToActivate.timeToAmpm,
       inPosition: true,
       completedCycles: 0,
+      buyOverride: tradeToActivate.buyOverride,
       entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
       exitTime: undefined,
       exitPrice: undefined,
       status: "ACTIVE",
+      waitAfterSellEnabled: tradeToActivate.waitAfterSellEnabled,
+      waitAfterSellCandles: tradeToActivate.waitAfterSellCandles,
+      lastSellCandleTime: undefined,
     };
 
     setActiveTrades((prev) => {
@@ -426,7 +654,7 @@ export function TradeStoreProvider({
             `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
           ];
 
-          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs);
+          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs, buildTradeConfigSnapshot(trade));
 
           return {
             ...trade,
@@ -436,6 +664,8 @@ export function TradeStoreProvider({
             exitPrice,
             logs: finalLogs,
             status: "COMPLETED" as const,
+            trailingTrailActive: false,
+            trailingHighWatermark: undefined,
           };
         }
 
@@ -450,6 +680,8 @@ export function TradeStoreProvider({
             `Trade P/L: ${cyclePnl.toFixed(2)}`,
             `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
           ],
+          trailingTrailActive: false,
+          trailingHighWatermark: undefined,
         };
       });
       localStorage.setItem("activeTrades", JSON.stringify(next));
@@ -492,7 +724,7 @@ export function TradeStoreProvider({
             `Completed ${newCompletedCycles}/${trade.numberOfTrades} trades - Auto-exiting`,
           ];
 
-          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs);
+          appendTradeHistoryEntry(trade.symbol, totalPnl, finalLogs, buildTradeConfigSnapshot(trade));
 
           return {
             ...trade,
@@ -502,6 +734,8 @@ export function TradeStoreProvider({
             exitPrice,
             logs: finalLogs,
             status: "COMPLETED" as const,
+            trailingTrailActive: false,
+            trailingHighWatermark: undefined,
           };
         }
 
@@ -516,6 +750,8 @@ export function TradeStoreProvider({
             `Trade P/L: ${cyclePnl.toFixed(2)}`,
             `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`,
           ],
+          trailingTrailActive: false,
+          trailingHighWatermark: undefined,
         };
       });
       localStorage.setItem("activeTrades", JSON.stringify(next));
@@ -539,6 +775,8 @@ export function TradeStoreProvider({
           entryPrice,
           inPosition: true,
           logs: [...trade.logs, logLine],
+          trailingTrailActive: false,
+          trailingHighWatermark: undefined,
         };
       });
       localStorage.setItem("activeTrades", JSON.stringify(next));
@@ -562,6 +800,74 @@ export function TradeStoreProvider({
     }
 
     localStorage.removeItem("tradeForm_" + symbol);
+  };
+
+  const addLogToActiveTrade = (symbol: string, log: string) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((t) =>
+        t.symbol === symbol && t.status === "ACTIVE"
+          ? { ...t, logs: [...t.logs, log] }
+          : t
+      );
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const activateTrailingAfterTarget = (
+    symbol: string,
+    price: number,
+    timeLabel: string
+  ) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((t) => {
+        if (t.symbol !== symbol || t.status !== "ACTIVE") return t;
+
+        return {
+          ...t,
+          trailingTrailActive: true,
+          trailingHighWatermark: price,
+          logs: [
+            ...t.logs,
+            `Trailing target armed at ₹${price.toFixed(2)} on ${timeLabel}`,
+          ],
+        };
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const updateTrailingHighWatermark = (symbol: string, price: number) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((t) => {
+        if (t.symbol !== symbol || t.status !== "ACTIVE") return t;
+        if (!t.trailingTrailActive) return t;
+        if (t.trailingHighWatermark && price <= t.trailingHighWatermark) return t;
+
+        return {
+          ...t,
+          trailingHighWatermark: price,
+        };
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const updateLastSellCandleTime = (symbol: string, candleTime: string) => {
+    setActiveTrades((prev) => {
+      const next = prev.map((t) => {
+        if (t.symbol !== symbol || t.status !== "ACTIVE") return t;
+
+        return {
+          ...t,
+          lastSellCandleTime: candleTime,
+        };
+      });
+      localStorage.setItem("activeTrades", JSON.stringify(next));
+      return next;
+    });
   };
 
   const logManualExit = (
@@ -590,7 +896,7 @@ export function TradeStoreProvider({
         const pnlLog = `Trade P/L: ${currentCyclePnl.toFixed(2)}`;
         const finalLogs = [...trade.logs, exitLog, pnlLog];
 
-        appendTradeHistoryEntry(trade.symbol, pnl, finalLogs);
+        appendTradeHistoryEntry(trade.symbol, pnl, finalLogs, buildTradeConfigSnapshot(trade));
 
         removeActiveTrade(symbol);
 
@@ -609,32 +915,54 @@ export function TradeStoreProvider({
     });
   };
 
+  const clearTradeHistory = () => {
+    setTradeHistory([]);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("tradeHistory");
+    }
+  };
+
+  const removeTradeHistoryEntry = (id: string) => {
+    setTradeHistory((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      localStorage.setItem("tradeHistory", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const appendTradeHistoryEntry = (
     symbol: string,
     pnl: number,
-    logs: string[]
+    logs: string[],
+    config?: TradeHistoryItem["config"]
   ) => {
     setTradeHistory((historyPrev) => {
       const latest = historyPrev[0];
       const lastLog = logs[logs.length - 1] ?? "";
       const latestLastLog = latest?.logs?.[latest.logs.length - 1] ?? "";
 
+      const now = Date.now();
+      const latestCreatedAt = latest?.createdAt ? new Date(latest.createdAt).getTime() : 0;
+      const timeDiffMs = now - latestCreatedAt;
+
       if (
         latest &&
         latest.symbol === symbol &&
         latest.pnl === pnl &&
         latest.logs.length === logs.length &&
-        latestLastLog === lastLog
+        latestLastLog === lastLog &&
+        timeDiffMs < 2000
       ) {
         return historyPrev;
       }
 
-      const historyEntry = {
+      const historyEntry: TradeHistoryItem = {
         id: `${symbol}-${Date.now()}`,
         symbol,
         pnl,
         logs,
         createdAt: new Date().toISOString(),
+        config,
       };
       const nextHistory = [historyEntry, ...historyPrev];
       localStorage.setItem("tradeHistory", JSON.stringify(nextHistory));
@@ -643,7 +971,7 @@ export function TradeStoreProvider({
   };
 
   const addTradeHistoryEntry = (entry: TradeHistoryItem) => {
-    appendTradeHistoryEntry(entry.symbol, entry.pnl, entry.logs);
+    appendTradeHistoryEntry(entry.symbol, entry.pnl, entry.logs, entry.config);
   };
 
   const value = useMemo(
@@ -653,6 +981,7 @@ export function TradeStoreProvider({
       waitingTrades,
       addWaitingTradeFromSelection,
       removeWaitingTrade,
+      addLogToWaitingTrade,
       activeTrades,
       activateWaitingTrade,
       completeActiveTrade,
@@ -661,12 +990,18 @@ export function TradeStoreProvider({
       removeActiveTrade,
       logManualExit,
       removeTradeAndFreeSymbol,
+      addLogToActiveTrade,
+      activateTrailingAfterTarget,
+      updateTrailingHighWatermark,
+      updateLastSellCandleTime,
       tradeHistory,
       addTradeHistoryEntry,
-      lastStrategyCandleTime,
+      removeTradeHistoryEntry,
+      clearTradeHistory,
+      getLastStrategyCandleTime,
       setLastStrategyCandleTime,
     }),
-    [selection, waitingTrades, activeTrades, tradeHistory, lastStrategyCandleTime]
+    [selection, waitingTrades, activeTrades, tradeHistory]
   );
 
   return (

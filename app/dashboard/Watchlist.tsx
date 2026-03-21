@@ -23,7 +23,7 @@ export default function Watchlist() {
     setSelection,
     waitingTrades,
     activeTrades,
-    lastStrategyCandleTime,
+    getLastStrategyCandleTime,
   } = useTradeStore();
 
   const {
@@ -190,8 +190,8 @@ export default function Watchlist() {
             <div className="text-sm font-medium w-[200px] flex-shrink-0">SYMBOL</div>
             <div className="text-sm font-medium flex-1 text-center flex items-center justify-center gap-2">
               LTP&nbsp;at
-              {lastStrategyCandleTime && (
-                <span className={styles.timeBadge}> {lastStrategyCandleTime}</span>
+              {getLastStrategyCandleTime() && (
+                <span className={styles.timeBadge}> {getLastStrategyCandleTime()}</span>
               )}
             </div>
             <div className="w-8 flex-shrink-0" />

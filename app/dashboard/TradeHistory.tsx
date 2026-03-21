@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
-import { History } from "lucide-react";
+import { History, Trash2, XCircle } from "lucide-react";
 import styles from "./TradeHistory.module.scss";
 
 export default function TradeHistory() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const { tradeHistory } = useTradeStore();
+  const { tradeHistory, clearTradeHistory, removeTradeHistoryEntry } = useTradeStore();
   const [currentPage, setCurrentPage] = useState(1);
   
   const tradesPerPage = 10;
@@ -38,10 +38,26 @@ export default function TradeHistory() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-          <History className="w-5 h-5" />
-          TRADE HISTORY
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <History className="w-5 h-5" />
+            TRADE HISTORY
+          </CardTitle>
+          {safeHistory.length > 0 && (
+            <button
+              type="button"
+              aria-label="Clear trade history"
+              className="text-red-500 hover:text-red-600 transition-colors"
+              onClick={() => {
+                if (window.confirm("Clear all trade history?")) {
+                  clearTradeHistory();
+                }
+              }}
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </CardHeader>
       
       <CardContent className="space-y-3">
@@ -67,18 +83,49 @@ export default function TradeHistory() {
           ) : (
           currentTrades.map((item, index) => {
             const pnlText = item.pnl >= 0 ? `+${item.pnl.toFixed(2)}` : item.pnl.toFixed(2);
+            const completedCycles = item.logs.reduce((count, log) => {
+              const normalized = log.trim().toUpperCase();
+              if (normalized.startsWith("CYCLE") && normalized.includes("COMPLETED")) {
+                return count + 1;
+              }
+              return count;
+            }, 0);
+            const tradesDisplay = item.config
+              ? `Trades: ${completedCycles} of ${item.config.numberOfTrades}`
+              : `Trades: ${completedCycles}`;
+            
             return (
               <div key={`${item.id}-${index}`} className={styles.historyItem}>
                 <div className={styles.historyItemTop}>
                   <div className={styles.historySymbol}>{item.symbol}</div>
-                  <div
-                    className={`${styles.historyPnl} ${
-                      item.pnl >= 0 ? styles.historyPositive : styles.historyNegative
-                    }`}
-                  >
-                    {pnlText}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`${styles.historyPnl} ${
+                        item.pnl >= 0 ? styles.historyPositive : styles.historyNegative
+                      }`}
+                    >
+                      {pnlText}
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Delete this trade history entry"
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                      onClick={() => removeTradeHistoryEntry(item.id)}
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
+
+                {item.config && (
+                  <div style={{ fontSize: "10px", color: "#888", lineHeight: 1.4, padding: "2px 0" }}>
+                    {tradesDisplay}
+                    {item.config.stopLossNumberEnabled && item.config.stopLossNumber != null ? ` | SL: ${item.config.stopLossNumber}` : ""}
+                    {item.config.targetPointsEnabled && item.config.targetPoints != null ? ` | Target: ${item.config.targetPoints}` : ""}
+                    {item.config.trailingAfterTargetEnabled && item.config.trailingAfterTarget != null ? ` | TSL: ${item.config.trailingAfterTarget}` : ""}
+                    {item.config.minToHoldEnabled && item.config.minToHold != null ? ` | Min Target: ${item.config.minToHold}` : ""}
+                  </div>
+                )}
 
                 <details>
                   <summary className={styles.historyDetails}>Details......</summary>
