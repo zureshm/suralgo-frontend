@@ -89,6 +89,17 @@ export default function TradeHistory() {
               if (normalized.startsWith("CYCLE") && normalized.includes("COMPLETED")) {
                 return count + 1;
               }
+              // Count auto-exiting as cycle completion
+              if (normalized.startsWith("COMPLETED") && normalized.includes("TRADES") && normalized.includes("AUTO-EXITING")) {
+                const match = normalized.match(/COMPLETED\s+(\d+)\/(\d+)\s+TRADES/);
+                if (match) {
+                  return parseInt(match[1]); // Return the actual completed count from the message
+                }
+              }
+              // Count manual exiting as cycle completion
+              if (normalized.startsWith("SELL MANUALLY") || normalized.includes("EXIT")) {
+                return count + 1;
+              }
               return count;
             }, 0);
             const tradesDisplay = item.config

@@ -3,61 +3,7 @@
   "activeTrades": [],
   "tradeHistory": [
     {
-      "id": "NIFTY 10MAR26 24600 CE-1774172459353",
-      "symbol": "NIFTY 10MAR26 24600 CE",
-      "pnl": 2749.500000000001,
-      "logs": [
-        "Strategy initialized - waiting for signals",
-        "BUY skipped – outside time range (10:00 am – 02:45 pm) for ₹185.5 at 09:43",
-        "BUY triggered for ₹ 197.7 at 10:17",
-        "SELL triggered for ₹188.35 at 10:25",
-        "Trade P/L: -607.75",
-        "Cycle 1/2 completed",
-        "BUY triggered for ₹ 162.9 at 11:44",
-        "SELL triggered for ₹214.55 at 12:38",
-        "Trade P/L: 3357.25",
-        "Completed 2/2 trades - Auto-exiting"
-      ],
-      "createdAt": "2026-03-22T09:40:59.353Z",
-      "config": {
-        "numberOfTrades": 2,
-        "stopLossNumberEnabled": true,
-        "stopLossNumber": 15,
-        "targetPointsEnabled": true,
-        "targetPoints": 20,
-        "trailingAfterTargetEnabled": false,
-        "minToHoldEnabled": false
-      }
-    },
-    {
-      "id": "NIFTY 10MAR26 24600 CE-1774172071446",
-      "symbol": "NIFTY 10MAR26 24600 CE",
-      "pnl": 2749.500000000001,
-      "logs": [
-        "Strategy initialized - waiting for signals",
-        "BUY skipped – outside time range (10:00 am – 02:45 pm) for ₹178.65 at 09:42",
-        "BUY triggered for ₹ 197.7 at 10:17",
-        "SELL triggered for ₹188.35 at 10:25",
-        "Trade P/L: -607.75",
-        "Cycle 1/2 completed",
-        "BUY triggered for ₹ 162.9 at 11:44",
-        "SELL triggered for ₹214.55 at 12:38",
-        "Trade P/L: 3357.25",
-        "Completed 2/2 trades - Auto-exiting"
-      ],
-      "createdAt": "2026-03-22T09:34:31.446Z",
-      "config": {
-        "numberOfTrades": 2,
-        "stopLossNumberEnabled": true,
-        "stopLossNumber": 15,
-        "targetPointsEnabled": true,
-        "targetPoints": 20,
-        "trailingAfterTargetEnabled": false,
-        "minToHoldEnabled": false
-      }
-    },
-    {
-      "id": "NIFTY 10MAR26 24600 CE-1774171806589",
+      "id": "NIFTY 10MAR26 24600 CE-1774177442614",
       "symbol": "NIFTY 10MAR26 24600 CE",
       "pnl": 2749.500000000001,
       "logs": [
@@ -72,19 +18,50 @@
         "Trade P/L: 3357.25",
         "Completed 2/2 trades - Auto-exiting"
       ],
-      "createdAt": "2026-03-22T09:30:06.589Z",
+      "createdAt": "2026-03-22T11:04:02.614Z",
       "config": {
         "numberOfTrades": 2,
         "stopLossNumberEnabled": true,
         "stopLossNumber": 15,
-        "targetPointsEnabled": true,
-        "targetPoints": 20,
+        "targetPointsEnabled": false,
         "trailingAfterTargetEnabled": false,
         "minToHoldEnabled": false
       }
     },
     {
-      "id": "NIFTY 10MAR26 24600 CE-1774171370567",
+      "id": "NIFTY 10MAR26 24600 CE-1774177079401",
+      "symbol": "NIFTY 10MAR26 24600 CE",
+      "pnl": 8030.750000000001,
+      "logs": [
+        "Strategy initialized - waiting for signals",
+        "BUY skipped – outside time range (10:00 am – 02:45 pm) for ₹192.05 at 09:53",
+        "BUY triggered for ₹ 197.7 at 10:17",
+        "SELL triggered for ₹188.35 at 10:25",
+        "Trade P/L: -607.75",
+        "Cycle 1/8 completed",
+        "BUY triggered for ₹ 162.9 at 11:44",
+        "SELL triggered for ₹214.55 at 12:38",
+        "Trade P/L: 3357.25",
+        "Cycle 2/8 completed",
+        "BUY triggered for ₹ 193 at 13:45",
+        "SELL manually for ₹274.25 at 14:49",
+        "Trade P/L: 5281.25"
+      ],
+      "createdAt": "2026-03-22T10:57:59.401Z",
+      "config": {
+        "numberOfTrades": 8,
+        "stopLossNumberEnabled": true,
+        "stopLossNumber": 21.45,
+        "targetPointsEnabled": true,
+        "targetPoints": 40,
+        "trailingAfterTargetEnabled": true,
+        "trailingAfterTarget": 15,
+        "minToHoldEnabled": true,
+        "minToHold": 8
+      }
+    },
+    {
+      "id": "NIFTY 10MAR26 24600 CE-1774174649815",
       "symbol": "NIFTY 10MAR26 24600 CE",
       "pnl": 2749.500000000001,
       "logs": [
@@ -99,190 +76,9 @@
         "Trade P/L: 3357.25",
         "Completed 2/2 trades - Auto-exiting"
       ],
-      "createdAt": "2026-03-22T09:22:50.567Z",
+      "createdAt": "2026-03-22T10:17:29.815Z",
       "config": {
         "numberOfTrades": 2,
-        "stopLossNumberEnabled": true,
-        "stopLossNumber": 15,
-        "targetPointsEnabled": true,
-        "targetPoints": 20,
-        "trailingAfterTargetEnabled": false,
-        "minToHoldEnabled": false
-      }
-    },
-    {
-      "id": "NIFTY 10MAR26 24600 CE-1774170094129",
-      "symbol": "NIFTY 10MAR26 24600 CE",
-      "pnl": -871.0000000000005,
-      "logs": [
-        "Strategy initialized - waiting for signals",
-        "BUY triggered for ₹ 192.05 at 09:53",
-        "SELL triggered for ₹188 at 10:14",
-        "Trade P/L: -263.25",
-        "Cycle 1/2 completed",
-        "BUY triggered for ₹ 197.7 at 10:17",
-        "SELL triggered for ₹188.35 at 10:25",
-        "Trade P/L: -607.75",
-        "Completed 2/2 trades - Auto-exiting"
-      ],
-      "createdAt": "2026-03-22T09:01:34.129Z",
-      "config": {
-        "numberOfTrades": 2,
-        "stopLossNumberEnabled": true,
-        "stopLossNumber": 15,
-        "targetPointsEnabled": true,
-        "targetPoints": 20,
-        "trailingAfterTargetEnabled": false,
-        "minToHoldEnabled": false
-      }
-    },
-    {
-      "id": "NIFTY 10MAR26 24600 CE-1774169070531",
-      "symbol": "NIFTY 10MAR26 24600 CE",
-      "pnl": 3093.9999999999995,
-      "logs": [
-        "Strategy initialized - waiting for signals",
-        "BUY triggered for ₹ 192.05 at 09:53",
-        "SELL triggered for ₹188 at 10:14",
-        "Trade P/L: -263.25",
-        "Cycle 1/2 completed",
-        "BUY skipped – waiting 8 candles after SELL (3 passed) at 10:17",
-        "BUY triggered for ₹ 162.9 at 11:44",
-        "SELL triggered for ₹214.55 at 12:38",
-        "Trade P/L: 3357.25",
-        "Completed 2/2 trades - Auto-exiting"
-      ],
-      "createdAt": "2026-03-22T08:44:30.531Z",
-      "config": {
-        "numberOfTrades": 2,
-        "stopLossNumberEnabled": true,
-        "stopLossNumber": 15,
-        "targetPointsEnabled": true,
-        "targetPoints": 20,
-        "trailingAfterTargetEnabled": false,
-        "minToHoldEnabled": false
-      }
-    },
-    {
-      "id": "NIFTY 10MAR26 24600 CE-1774168812142",
-      "symbol": "NIFTY 10MAR26 24600 CE",
-      "pnl": 8046.999999999998,
-      "logs": [
-        "Strategy initialized - waiting for signals",
-        "BUY triggered for ₹ 192.05 at 09:53",
-        "SELL triggered for ₹188 at 10:14",
-        "Trade P/L: -263.25",
-        "Cycle 1/5 completed",
-        "BUY skipped – waiting 8 candles after SELL (3 passed) at 10:17",
-        "BUY triggered for ₹ 162.9 at 11:44",
-        "SELL triggered for ₹214.55 at 12:38",
-        "Trade P/L: 3357.25",
-        "Cycle 2/5 completed",
-        "BUY triggered for ₹ 193 at 13:45",
-        "SELL manually for ₹269.2 at 14:50",
-        "Trade P/L: 4953.00"
-      ],
-      "createdAt": "2026-03-22T08:40:12.142Z",
-      "config": {
-        "numberOfTrades": 5,
-        "stopLossNumberEnabled": true,
-        "stopLossNumber": 15,
-        "targetPointsEnabled": true,
-        "targetPoints": 20,
-        "trailingAfterTargetEnabled": false,
-        "minToHoldEnabled": false
-      }
-    },
-    {
-      "id": "NIFTY 10MAR26 24600 CE-1774168462685",
-      "symbol": "NIFTY 10MAR26 24600 CE",
-      "pnl": 2847.000000000001,
-      "logs": [
-        "Strategy initialized - waiting for signals",
-        "BUY triggered for ₹ 191.6 at 09:44",
-        "SELL triggered for ₹188 at 10:14",
-        "Trade P/L: -234.00",
-        "Cycle 1/5 completed",
-        "BUY skipped – waiting 8 candles after SELL (3 passed) at 10:17",
-        "BUY triggered for ₹ 162.9 at 11:44",
-        "TARGET hit for ₹188.05 at 11:57",
-        "Trade P/L: 1634.75",
-        "Cycle 2/5 completed (SL/Target hit - waiting for next signal)",
-        "BUY triggered for ₹ 193 at 13:45",
-        "TARGET hit for ₹215.25 at 14:22",
-        "Trade P/L: 1446.25",
-        "Cycle 3/5 completed (SL/Target hit - waiting for next signal)",
-        "EXIT  at 15:29",
-        "Trade P/L: 0.00"
-      ],
-      "createdAt": "2026-03-22T08:34:22.685Z",
-      "config": {
-        "numberOfTrades": 5,
-        "stopLossNumberEnabled": true,
-        "stopLossNumber": 15,
-        "targetPointsEnabled": true,
-        "targetPoints": 20,
-        "trailingAfterTargetEnabled": false,
-        "minToHoldEnabled": false
-      }
-    },
-    {
-      "id": "NIFTY 10MAR26 24600 CE-1774162083159",
-      "symbol": "NIFTY 10MAR26 24600 CE",
-      "pnl": 5138.250000000001,
-      "logs": [
-        "Strategy initialized - waiting for signals",
-        "BUY triggered for ₹ 189 at 09:56",
-        "SELL triggered for ₹188 at 10:14",
-        "Trade P/L: -65.00",
-        "Cycle 1/5 completed",
-        "BUY skipped – waiting 8 candles after SELL (3 passed) at 10:17",
-        "BUY triggered for ₹ 162.9 at 11:44",
-        "SELL triggered for ₹214.55 at 12:38",
-        "Trade P/L: 3357.25",
-        "Cycle 2/5 completed",
-        "BUY triggered for ₹ 193 at 13:45",
-        "SELL triggered for ₹221.4 at 15:02",
-        "Trade P/L: 1846.00",
-        "Cycle 3/5 completed",
-        "EXIT  at 15:29",
-        "Trade P/L: 0.00"
-      ],
-      "createdAt": "2026-03-22T06:48:03.159Z",
-      "config": {
-        "numberOfTrades": 5,
-        "stopLossNumberEnabled": true,
-        "stopLossNumber": 15,
-        "targetPointsEnabled": true,
-        "targetPoints": 20,
-        "trailingAfterTargetEnabled": false,
-        "minToHoldEnabled": false
-      }
-    },
-    {
-      "id": "NIFTY 10MAR26 24600 CE-1774159837666",
-      "symbol": "NIFTY 10MAR26 24600 CE",
-      "pnl": 2401.750000000001,
-      "logs": [
-        "Strategy initialized - waiting for signals",
-        "BUY triggered for ₹ 193.35 at 09:46",
-        "SELL triggered for ₹188 at 10:14",
-        "Trade P/L: -347.75",
-        "Cycle 1/5 completed",
-        "BUY triggered for ₹ 197.7 at 10:17",
-        "SELL triggered for ₹188.35 at 10:25",
-        "Trade P/L: -607.75",
-        "Cycle 2/5 completed",
-        "BUY triggered for ₹ 162.9 at 11:44",
-        "SELL triggered for ₹214.55 at 12:38",
-        "Trade P/L: 3357.25",
-        "Cycle 3/5 completed",
-        "EXIT  at 13:37",
-        "Trade P/L: 0.00"
-      ],
-      "createdAt": "2026-03-22T06:10:37.666Z",
-      "config": {
-        "numberOfTrades": 5,
         "stopLossNumberEnabled": true,
         "stopLossNumber": 15,
         "targetPointsEnabled": false,
@@ -291,6 +87,6 @@
       }
     }
   ],
-  "lastStrategyCandleTime": "15:29",
-  "lastHandledSignalKey": "WAIT-15:29"
+  "lastStrategyCandleTime": "13:57",
+  "lastHandledSignalKey": "WAIT-13:57"
 }
