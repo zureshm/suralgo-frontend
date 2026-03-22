@@ -12,11 +12,14 @@ import { useTradeStore } from "../store/TradeStore";
 
 function TradeLogsConsole({ logs }: { logs: string[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const prevLogsLengthRef = useRef(logs.length);
 
   useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    const container = containerRef.current;
+    if (container && logs.length > prevLogsLengthRef.current) {
+      container.scrollTop = container.scrollHeight;
     }
+    prevLogsLengthRef.current = logs.length;
   }, [logs]);
 
   return (
