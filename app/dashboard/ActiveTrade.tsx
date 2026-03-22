@@ -154,6 +154,13 @@ export default function ActiveTrade({
                             minute: "2-digit",
                           }).replace("am", "").replace("pm", "");
 
+                        // Notify server-side engine of manual exit
+                        fetch(`/api/trades/${encodeURIComponent(t.symbol)}/exit`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ exitPrice: String(ltp ?? ""), lastCandleTime }),
+                        }).catch(() => {});
+
                         onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
                         setExitClicked((prev) => ({ ...prev, [t.symbol]: true }));
                       }}
@@ -166,6 +173,7 @@ export default function ActiveTrade({
                       className={`${styles.tradeAction} ${styles.danger}`}
                       type="button"
                       onClick={() => {
+                        fetch(`/api/trades/${encodeURIComponent(t.symbol)}/remove`, { method: "POST" }).catch(() => {});
                         removeTradeAndFreeSymbol(t.symbol);
                         setExitClicked((prev) => {
                           const next = { ...prev };
@@ -208,7 +216,10 @@ export default function ActiveTrade({
                     <button
                       className={`${styles.tradeAction} ${styles.danger}`}
                       type="button"
-                      onClick={() => onCancelWaiting(t.symbol)}
+                      onClick={() => {
+                        fetch(`/api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                        onCancelWaiting(t.symbol);
+                      }}
                     >
                       CANCEL
                     </button>

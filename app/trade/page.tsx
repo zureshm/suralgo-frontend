@@ -547,9 +547,41 @@ export default function TradePage() {
             <div className="flex space-x-3">
               <Button
                 onClick={() => {
-                  if (!isButtonDisabled) {
+                  if (!isButtonDisabled && selection?.symbol) {
                     saveForm();
                     addWaitingTradeFromSelection();
+
+                    // POST to server-side trade engine so it picks up the trade
+                    fetch("/api/trades", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        symbol: selection.symbol,
+                        price: price,
+                        stateText: "...WAITING",
+                        logs: ["Strategy initialized - waiting for signals"],
+                        lotSize,
+                        lotValue,
+                        numberOfTrades,
+                        stopLossNumberEnabled: stopLossNumberEnabled || stopLossPercentageEnabled,
+                        stopLossNumber,
+                        targetPointsEnabled,
+                        targetPoints,
+                        minToHoldEnabled,
+                        minToHold,
+                        trailingAfterTargetEnabled,
+                        trailingAfterTarget,
+                        rangeEnabled,
+                        timeFrom,
+                        timeFromAmpm,
+                        timeTo,
+                        timeToAmpm,
+                        buyOverride: waitStrategyEnabled ? (stopLossNumber || undefined) : undefined,
+                        waitAfterSellEnabled,
+                        waitAfterSellCandles,
+                      }),
+                    }).catch(() => {});
+
                     router.push("/dashboard");
                   }
                 }}
