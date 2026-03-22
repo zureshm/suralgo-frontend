@@ -589,6 +589,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>) {
 // ─── Main tick: called every 1 second by the server-side setInterval ───
 
 async function tick() {
+  if (!engineRunning) {
+    console.log("[trade-engine] Tick called but engine not running, skipping");
+    return;
+  }
+  
   try {
     // 1. Fetch strategy signal from port 4000
     let signal = null;
@@ -700,7 +705,10 @@ export function removeHistoryEntry(id: string) {
 }
 
 export function ensureEngineRunning() {
-  if (engineRunning) return;
+  if (engineRunning) {
+    console.log("[trade-engine] Engine already running, skipping duplicate start");
+    return;
+  }
   engineRunning = true;
   console.log("[trade-engine] Starting server-side timer loop");
   intervalId = setInterval(tick, 1000);
@@ -715,6 +723,9 @@ export function stopEngine() {
   console.log("[trade-engine] Stopped server-side timer loop");
 }
 
-// Load persisted state and auto-start the engine when this module is first imported on the server
+// Load persisted state when this module is first imported on the server
 loadState();
-ensureEngineRunning();
+
+// Auto-start the engine only once when module loads
+// Don't auto-start here to prevent duplicate timers during development hot-reloads
+// Engine will be started on first API call instead
