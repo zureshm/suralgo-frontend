@@ -280,6 +280,33 @@ function persistState() {
 
 
 
+// ─── State Cleanup ───
+
+function cleanupStaleState() {
+  const validPositionKeys = new Set();
+  
+  // Collect valid position keys from current active trades
+  for (const trade of activeTrades) {
+    if (trade.status === "ACTIVE" && trade.inPosition) {
+      const positionKey = `${trade.symbol}-${trade.entryPrice}`;
+      validPositionKeys.add(positionKey);
+    }
+  }
+  
+  // Remove invalid keys from all tracking Sets
+  for (const key of armedPositions) {
+    if (!validPositionKeys.has(key)) armedPositions.delete(key);
+  }
+  
+  for (const key of triggeredPositions) {
+    if (!validPositionKeys.has(key)) triggeredPositions.delete(key);
+  }
+  
+  for (const key of trailingArmedPositions) {
+    if (!validPositionKeys.has(key)) trailingArmedPositions.delete(key);
+  }
+}
+
 // ─── Helpers ───
 
 
@@ -1290,6 +1317,9 @@ export function addWaitingTrade(trade: WaitingTrade) {
   // Don't add duplicate
 
   if (waitingTrades.some((t) => t.symbol === trade.symbol)) return;
+
+  // Clean up stale state before adding new trade
+  cleanupStaleState();
 
   waitingTrades = [trade, ...waitingTrades];
 
