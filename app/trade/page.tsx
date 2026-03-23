@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { STRATEGY_DEFAULTS } from "../../config/strategyDefaults";
 
 export default function TradePage() {
   const router = useRouter();
@@ -16,8 +17,39 @@ export default function TradePage() {
   const [currentPrice, setCurrentPrice] = useState<string | null>(null);
   const [lotValue, setLotValue] = useState(1);
 
-  // Form states
-  const [strategy, setStrategy] = useState('nifty');
+  // Apply strategy defaults
+  const applyStrategyDefaults = (strategyKey: string) => {
+    const defaults = STRATEGY_DEFAULTS[strategyKey as keyof typeof STRATEGY_DEFAULTS];
+    if (!defaults) return;
+
+    setNumberOfTrades(defaults.numberOfTrades);
+    setStopLossNumberEnabled(defaults.stopLossNumberEnabled);
+    setStopLossNumber(defaults.stopLossNumber);
+    setStopLossPercentageEnabled(defaults.stopLossPercentageEnabled);
+    setStopLossPercentage(defaults.stopLossPercentage);
+    setTargetPointsEnabled(defaults.targetPointsEnabled);
+    setTargetPoints(defaults.targetPoints);
+    setWaitStrategyEnabled(defaults.waitStrategyEnabled);
+    setWaitAfterSellEnabled(defaults.waitAfterSellEnabled);
+    setWaitAfterSellCandles(defaults.waitAfterSellCandles);
+    setMinToHoldEnabled(defaults.minToHoldEnabled);
+    setMinToHold(defaults.minToHold);
+    setTrailingAfterTargetEnabled(defaults.trailingAfterTargetEnabled);
+    setTrailingAfterTarget(defaults.trailingAfterTarget);
+    setRangeEnabled(defaults.rangeEnabled);
+    setTimeFrom(defaults.timeFrom);
+    setTimeFromAmpm(defaults.timeFromAmpm);
+    setTimeTo(defaults.timeTo);
+    setTimeToAmpm(defaults.timeToAmpm);
+    setLotValue(defaults.lotValue);
+  };
+
+  // Handle strategy change
+  const handleStrategyChange = (newStrategy: string) => {
+    setStrategy(newStrategy);
+    applyStrategyDefaults(newStrategy);
+  };
+  const [strategy, setStrategy] = useState('default');
   const [numberOfTrades, setNumberOfTrades] = useState(5);
   const [stopLossNumberEnabled, setStopLossNumberEnabled] = useState(true);
   const [stopLossNumber, setStopLossNumber] = useState(15);
@@ -34,7 +66,7 @@ export default function TradePage() {
   const [trailingAfterTargetEnabled, setTrailingAfterTargetEnabled] = useState(false);
   const [trailingAfterTarget, setTrailingAfterTarget] = useState(15);
   const [isTrailingAfterInfoOpen, setIsTrailingAfterInfoOpen] = useState(false);
-  const [rangeEnabled, setRangeEnabled] = useState(false);
+  const [rangeEnabled, setRangeEnabled] = useState(true);
   const [timeFrom, setTimeFrom] = useState('10:00');
   const [timeFromAmpm, setTimeFromAmpm] = useState('am');
   const [timeTo, setTimeTo] = useState('02:45');
@@ -121,7 +153,7 @@ export default function TradePage() {
       setMinToHold(8);
       setTrailingAfterTargetEnabled(false);
       setTrailingAfterTarget(15);
-      setRangeEnabled(false);
+      setRangeEnabled(true);
       setTimeFrom('10:00');
       setTimeFromAmpm('am');
       setTimeTo('02:45');
@@ -129,6 +161,11 @@ export default function TradePage() {
       setLotValue(1);
     }
   }, [selection?.symbol]);
+
+  // Apply default strategy on mount
+  useEffect(() => {
+    applyStrategyDefaults('default');
+  }, []);
 
   const saveForm = () => {
     if (!selection?.symbol) return;
@@ -171,15 +208,18 @@ export default function TradePage() {
           
           {/* Strategy Selection */}
           <div className="space-y-2">
-            <label htmlFor="strategy" className="text-sm font-medium">Strategy</label>
+            <label htmlFor="strategy" className="text-sm font-medium">Strategy Presets</label>
             <select 
               id="strategy"
               value={strategy} 
-              onChange={(e) => setStrategy(e.target.value)}
+              onChange={(e) => handleStrategyChange(e.target.value)}
               className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="nifty">NIFTY CE STRATEGY</option>
-              <option value="banknifty">BANKNIFTY CE STRATEGY</option>
+              <option value="default">Default</option>
+              <option value="allclear">All Clear</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
             </select>
           </div>
 
@@ -293,19 +333,17 @@ export default function TradePage() {
                   onChange={(e) => setWaitAfterSellEnabled(e.target.checked)}
                   className="h-4 w-4"
                 />
-                <label htmlFor="waitAfterSellEnabled" className="text-sm font-medium flex-1">
-                  After SELL wait
-                </label>
-                {waitAfterSellEnabled && (
-                  <input
-                    type="number"
-                    value={waitAfterSellCandles}
-                    onChange={(e) => setWaitAfterSellCandles(Number(e.target.value))}
-                    className="w-16 h-8 px-2 border border-gray-300 rounded-md text-sm"
-                    min="1"
-                  />
-                )}
-                {waitAfterSellEnabled && <span className="text-sm">candles</span>}
+                <label htmlFor="waitAfterSellEnabled" className="text-sm font-medium">After a SELL wait for</label>
+                <input
+                  type="number"
+                  value={waitAfterSellCandles}
+                  onChange={(e) => setWaitAfterSellCandles(Number(e.target.value))}
+                  className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2"
+                  min="1"
+                  max="99"
+                  disabled={!waitAfterSellEnabled}
+                />
+                <span className="text-sm ml-2">candles</span>
               </div>
             </div>
           </div>
