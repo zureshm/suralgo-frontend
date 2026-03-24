@@ -50,6 +50,7 @@ export default function TradeHistory() {
               className="text-red-500 hover:text-red-600 transition-colors"
               onClick={() => {
                 if (window.confirm("Clear all trade history?")) {
+                  fetch("/api/trades/history/clear", { method: "POST" }).catch(() => {});
                   clearTradeHistory();
                 }
               }}
@@ -88,6 +89,17 @@ export default function TradeHistory() {
               if (normalized.startsWith("CYCLE") && normalized.includes("COMPLETED")) {
                 return count + 1;
               }
+              // Count auto-exiting as cycle completion
+              if (normalized.startsWith("COMPLETED") && normalized.includes("TRADES") && normalized.includes("AUTO-EXITING")) {
+                const match = normalized.match(/COMPLETED\s+(\d+)\/(\d+)\s+TRADES/);
+                if (match) {
+                  return parseInt(match[1]); // Return the actual completed count from the message
+                }
+              }
+              // Count manual exiting as cycle completion
+              if (normalized.startsWith("SELL MANUALLY") || normalized.includes("EXIT")) {
+                return count + 1;
+              }
               return count;
             }, 0);
             const tradesDisplay = item.config
@@ -110,7 +122,10 @@ export default function TradeHistory() {
                       type="button"
                       aria-label="Delete this trade history entry"
                       className="text-gray-400 hover:text-red-500 transition-colors"
-                      onClick={() => removeTradeHistoryEntry(item.id)}
+                      onClick={() => {
+                        fetch(`/api/trades/history/${encodeURIComponent(item.id)}/remove`, { method: "POST" }).catch(() => {});
+                        removeTradeHistoryEntry(item.id);
+                      }}
                     >
                       <XCircle className="w-4 h-4" />
                     </button>
