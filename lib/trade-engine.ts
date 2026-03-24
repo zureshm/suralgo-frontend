@@ -9,8 +9,10 @@
 
 
 import fs from "fs";
-
 import path from "path";
+
+const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
+const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
 
 
 
@@ -1220,7 +1222,7 @@ async function tick() {
 
     try {
 
-      const res = await fetch("http://localhost:4000/evaluate");
+      const res = await fetch(`${STRATEGY_URL}/evaluate`);
 
       signal = await res.json();
 
@@ -1248,7 +1250,7 @@ async function tick() {
 
         const list = symbols.join(",");
 
-        const res = await fetch(`http://localhost:2000/prices?symbols=${list}`);
+        const res = await fetch(`${API_URL}/prices?symbols=${list}`);
 
         const prices = await res.json();
 

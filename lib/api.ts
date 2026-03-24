@@ -1,4 +1,5 @@
-const BASE_URL = "http://localhost:2000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
+const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
 
 export async function getWatchlist() {
   try {
@@ -40,7 +41,7 @@ export async function searchSymbols(query: string) {
 
 export async function getStrategySignal() {
   try {
-    const res = await fetch("http://localhost:4000/evaluate");
+    const res = await fetch(`${STRATEGY_URL}/evaluate`);
 
     const data = await res.json();
 

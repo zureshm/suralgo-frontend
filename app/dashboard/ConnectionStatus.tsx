@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import styles from "./ConnectionStatus.module.scss";
 import { Network } from "lucide-react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
+const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
+
 interface ConnectionStatus {
   api: boolean;
   strategy: boolean;
@@ -25,17 +28,17 @@ export default function ConnectionStatus() {
 
   useEffect(() => {
     const checkConnections = async () => {
-      // Check API connection (localhost:2000)
+      // Check API connection
       try {
-        const apiResponse = await fetch("http://localhost:2000/watchlist");
+        const apiResponse = await fetch(`${API_URL}/watchlist`);
         setConnections(prev => ({ ...prev, api: apiResponse.ok }));
       } catch {
         setConnections(prev => ({ ...prev, api: false }));
       }
 
-      // Check Strategy connection (localhost:4000)
+      // Check Strategy connection
       try {
-        const strategyResponse = await fetch("http://localhost:4000/evaluate");
+        const strategyResponse = await fetch(`${STRATEGY_URL}/evaluate`);
         setConnections(prev => ({ ...prev, strategy: strategyResponse.ok }));
       } catch {
         setConnections(prev => ({ ...prev, strategy: false }));
@@ -54,12 +57,12 @@ export default function ConnectionStatus() {
   const connectionItems: ConnectionItem[] = [
     {
       name: "API Server",
-      endpoint: "localhost:2000",
+      endpoint: new URL(API_URL).host,
       connected: connections.api
     },
     {
       name: "Strategy Engine",
-      endpoint: "localhost:4000",
+      endpoint: new URL(STRATEGY_URL).host,
       connected: connections.strategy
     }
   ];
