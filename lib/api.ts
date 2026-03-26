@@ -50,3 +50,16 @@ export async function getStrategySignal() {
     return null;
   }
 }
+
+export async function getStrategyEvaluation(symbol: string) {
+  const response = await fetch(
+    `http://localhost:4000/evaluate?symbol=${encodeURIComponent(symbol)}`
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch strategy evaluation");
+  }
+
+  return response.json();
+}
+

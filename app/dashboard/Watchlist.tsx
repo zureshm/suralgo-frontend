@@ -106,11 +106,10 @@ export default function Watchlist() {
 
     const timer = setTimeout(async () => {
       try {
+        // Use backend symbols directly (no filtering)
+        // IMPORTANT: backend already gives correct format for trading
         const data: WatchlistItem[] = await searchSymbols(text);
-        const filtered = data.filter((item) =>
-          item.symbol.toLowerCase().includes(text.toLowerCase())
-        );
-        setSuggestions(filtered.slice(0, 8));
+        setSuggestions(data.slice(0, 8));
       } catch {
         setSuggestions([]);
       }
@@ -152,12 +151,15 @@ export default function Watchlist() {
           <Button
             type="button"
             onClick={() => {
-              if (suggestions.length > 0) {
-                addToWatchlist(suggestions[0]);
-                setSearchText("");
-                setSuggestions([]);
-              }
-            }}
+                if (suggestions.length > 0) {
+                  // Add the exact backend symbol object to watchlist
+                  // IMPORTANT: do not rebuild symbol string manually
+                  addToWatchlist(suggestions[0]);
+                  console.log("Added to watchlist:", suggestions[0]);
+                  setSearchText("");
+                  setSuggestions([]);
+                }
+              }}
             disabled={suggestions.length === 0}
           >
             ADD
@@ -172,7 +174,9 @@ export default function Watchlist() {
                 type="button"
                 className="w-full text-left px-2 py-1 text-sm hover:bg-muted rounded"
                 onClick={() => {
+                  // Add exact backend symbol from suggestion click
                   addToWatchlist(item);
+                  console.log("Added to watchlist from suggestion:", item);
                   setSearchText("");
                   setSuggestions([]);
                 }}
