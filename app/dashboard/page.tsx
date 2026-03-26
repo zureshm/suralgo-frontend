@@ -42,9 +42,15 @@ useEffect(() => {
 
     for (const trade of waitingTrades) {
       try {
+        // Debug exact symbol match between waiting trade and strategy response
         const data = await getStrategyEvaluation(trade.symbol);
         next[trade.symbol] = data;
-        console.log("Strategy:", trade.symbol, data.signal);
+        console.log("Strategy check:", {
+          requestedSymbol: trade.symbol,
+          responseSymbol: data.symbol,
+          signal: data.signal,
+          engineStatus: data.engineStatus,
+        });
       } catch (error) {
         console.error("Strategy fetch failed for:", trade.symbol, error);
       }

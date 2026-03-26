@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { searchSymbols } from "@/lib/api";
+import { searchSymbols, getMarketTime } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useTradeStore } from "../store/TradeStore";
 import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
@@ -15,6 +15,8 @@ import styles from "./Watchlist.module.scss";
 export default function Watchlist() {
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState<WatchlistItem[]>([]);
+  // Store live market time from backend
+  const [marketTime, setMarketTime] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
   const router = useRouter();
@@ -36,6 +38,24 @@ export default function Watchlist() {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  // Poll live market time from backend
+useEffect(() => {
+  const fetchMarketTime = async () => {
+    try {
+      const data = await getMarketTime();
+      setMarketTime(data.marketTime || null);
+    } catch {
+      setMarketTime(null);
+    }
+  };
+
+  fetchMarketTime();
+
+  const interval = setInterval(fetchMarketTime, 1000);
+
+  return () => clearInterval(interval);
+}, []);
 
   const watchlistItems = watchlist.map((row) => {
     const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);
@@ -194,8 +214,10 @@ export default function Watchlist() {
             <div className="text-sm font-medium w-[200px] flex-shrink-0">SYMBOL</div>
             <div className="text-sm font-medium flex-1 text-center flex items-center justify-center gap-2">
               LTP&nbsp;at
-              {getLastStrategyCandleTime() && (
-                <span className={styles.timeBadge}> {getLastStrategyCandleTime()}</span>
+              {marketTime && (
+                <span className={styles.timeBadge}>
+                    {marketTime ? marketTime.split(" ")[1] : "--:--"}
+                </span>
               )}
             </div>
             <div className="w-8 flex-shrink-0" />
