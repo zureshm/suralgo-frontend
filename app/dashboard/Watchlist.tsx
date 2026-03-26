@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { searchSymbols, getMarketTime } from "@/lib/api";
+import { searchSymbols, getMarketTime, setWatchlistSymbols } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useTradeStore } from "../store/TradeStore";
 import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
@@ -40,22 +40,37 @@ export default function Watchlist() {
   }, []);
 
   // Poll live market time from backend
-useEffect(() => {
-  const fetchMarketTime = async () => {
-    try {
-      const data = await getMarketTime();
-      setMarketTime(data.marketTime || null);
-    } catch {
-      setMarketTime(null);
-    }
-  };
+  useEffect(() => {
+    const fetchMarketTime = async () => {
+      try {
+        const data = await getMarketTime();
+        setMarketTime(data.marketTime || null);
+      } catch {
+        setMarketTime(null);
+      }
+    };
 
-  fetchMarketTime();
+    fetchMarketTime();
 
-  const interval = setInterval(fetchMarketTime, 1000);
+    const interval = setInterval(fetchMarketTime, 1000);
 
-  return () => clearInterval(interval);
-}, []);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync full watchlist symbols to backend whenever watchlist changes
+  // Backend uses this list for multi-symbol LTP subscription
+  useEffect(() => {
+    const syncWatchlistSymbols = async () => {
+      try {
+        const symbols = watchlist.map((item) => item.symbol);
+        await setWatchlistSymbols(symbols);
+      } catch (error) {
+        console.error("Failed to sync watchlist symbols");
+      }
+    };
+
+    syncWatchlistSymbols();
+  }, [watchlist]);
 
   const watchlistItems = watchlist.map((row) => {
     const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);
@@ -146,7 +161,7 @@ useEffect(() => {
             <ListPlus className="w-5 h-5" />
             WATCHLIST
           </CardTitle>
-          
+
           <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground uppercase">
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-blue-500"></span> Ready
@@ -159,7 +174,7 @@ useEffect(() => {
             </div>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           <Input
             placeholder="Search symbol"
@@ -167,19 +182,19 @@ useEffect(() => {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
             className="flex-1"
           />
-          
+
           <Button
             type="button"
             onClick={() => {
-                if (suggestions.length > 0) {
-                  // Add the exact backend symbol object to watchlist
-                  // IMPORTANT: do not rebuild symbol string manually
-                  addToWatchlist(suggestions[0]);
-                  console.log("Added to watchlist:", suggestions[0]);
-                  setSearchText("");
-                  setSuggestions([]);
-                }
-              }}
+              if (suggestions.length > 0) {
+                // Add the exact backend symbol object to watchlist
+                // IMPORTANT: do not rebuild symbol string manually
+                addToWatchlist(suggestions[0]);
+                console.log("Added to watchlist:", suggestions[0]);
+                setSearchText("");
+                setSuggestions([]);
+              }
+            }}
             disabled={suggestions.length === 0}
           >
             ADD
@@ -207,7 +222,7 @@ useEffect(() => {
           </div>
         )}
       </CardHeader>
-      
+
       <CardContent>
         <div className="space-y-1">
           <div className="flex items-center justify-between pb-2 border-b">
@@ -216,7 +231,7 @@ useEffect(() => {
               LTP&nbsp;at
               {marketTime && (
                 <span className={styles.timeBadge}>
-                    {marketTime ? marketTime.split(" ")[1] : "--:--"}
+                  {marketTime ? marketTime.split(" ")[1] : "--:--"}
                 </span>
               )}
             </div>

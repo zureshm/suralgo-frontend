@@ -38,7 +38,6 @@ export async function searchSymbols(query: string) {
 }
 
 // fetch latest strategy evaluation (BUY / SELL / WAIT) from strategy engine
-
 export async function getStrategySignal() {
   try {
     const res = await fetch(`${STRATEGY_URL}/evaluate`);
@@ -65,9 +64,7 @@ export async function getStrategyEvaluation(symbol: string) {
 
 // Fetch market time from angel feed
 export async function getMarketTime() {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/market-time`
-  );
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/market-time`);
 
   if (!res.ok) {
     throw new Error("Failed to fetch market time");
@@ -78,19 +75,37 @@ export async function getMarketTime() {
 
 // Tell angel-feed backend which symbol is currently active
 export async function setActiveSymbol(symbol: string) {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/active-symbol`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ symbol }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to set active symbol");
+  }
+
+  return res.json();
+}
+
+// Tell angel-feed backend the full current watchlist symbols
+// Backend will use this list for multi-symbol LTP subscription
+export async function setWatchlistSymbols(symbols: string[]) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/active-symbol`,
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/watchlist-symbols`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ symbol }),
+      body: JSON.stringify({ symbols }),
     }
   );
 
   if (!res.ok) {
-    throw new Error("Failed to set active symbol");
+    throw new Error("Failed to update watchlist symbols");
   }
 
   return res.json();
