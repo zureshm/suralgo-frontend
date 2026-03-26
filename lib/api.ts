@@ -50,3 +50,48 @@ export async function getStrategySignal() {
     return null;
   }
 }
+
+export async function getStrategyEvaluation(symbol: string) {
+  const response = await fetch(
+    `http://localhost:4000/evaluate?symbol=${encodeURIComponent(symbol)}`
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch strategy evaluation");
+  }
+
+  return response.json();
+}
+
+// Fetch market time from angel feed
+export async function getMarketTime() {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/market-time`
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch market time");
+  }
+
+  return res.json();
+}
+
+// Tell angel-feed backend which symbol is currently active
+export async function setActiveSymbol(symbol: string) {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/active-symbol`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ symbol }),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to set active symbol");
+  }
+
+  return res.json();
+}
