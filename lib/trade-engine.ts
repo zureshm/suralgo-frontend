@@ -246,7 +246,13 @@ function loadState() {
 
 
 
+let persistInFlight = false;
+
 function persistState() {
+
+  if (persistInFlight) return;
+
+  persistInFlight = true;
 
   try {
 
@@ -258,7 +264,7 @@ function persistState() {
 
     }
 
-    fs.writeFileSync(DB_PATH, JSON.stringify({
+    const data = JSON.stringify({
 
       waitingTrades,
 
@@ -270,9 +276,19 @@ function persistState() {
 
       lastHandledSignalKey,
 
-    }, null, 2), "utf-8");
+    }, null, 2);
+
+    fs.writeFile(DB_PATH, data, "utf-8", (err) => {
+
+      persistInFlight = false;
+
+      if (err) console.error("[trade-engine] Failed to persist state:", err);
+
+    });
 
   } catch (e) {
+
+    persistInFlight = false;
 
     console.error("[trade-engine] Failed to persist state:", e);
 
