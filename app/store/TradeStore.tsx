@@ -652,7 +652,13 @@ export function TradeStoreProvider({
     tradeHistory: TradeHistoryItem[];
     lastStrategyCandleTime: string;
   }) => {
-    setWaitingTrades(state.waitingTrades);
+    // waitingTrades is frontend-owned — server only overrides it via BUY activation.
+    // When server activates a trade, it removes it from server waitingTrades and adds
+    // to activeTrades. We detect that here: if a symbol is in our frontend waitingTrades
+    // but now appears in server activeTrades, remove it from frontend waitingTrades.
+    setWaitingTrades((prev) =>
+      prev.filter((w) => !state.activeTrades.some((a) => a.symbol === w.symbol))
+    );
     setActiveTrades(state.activeTrades);
     setTradeHistory(state.tradeHistory);
     if (state.lastStrategyCandleTime) {
