@@ -1104,6 +1104,32 @@ function handleLtpMonitoring(ltpMap: Record<string, number>) {
 
   for (const trade of activeTrades) {
 
+    if (trade.status !== "ACTIVE") continue;
+
+    const ltp = ltpMap[trade.symbol];
+    if (!Number.isFinite(ltp)) continue;
+
+    const currentTime = lastStrategyCandleTime || new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }).replace("am", "").replace("pm", "");
+
+    // ── Max Profit / Max Loss check (runs even when NOT in position) ──
+    // This is the overall trade-level guard — takes priority over per-cycle SL/target.
+    if (trade.maxProfitLossEnabled) {
+      const qty = trade.lotSize * trade.lotValue;
+      const entry = Number(trade.entryPrice);
+      const currentCyclePnl = (trade.inPosition && Number.isFinite(entry)) ? (ltp - entry) * qty : 0;
+      const totalPnl = trade.pnl + currentCyclePnl;
+
+      if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
+        forceExitTrade(trade.symbol, String(ltp), totalPnl, `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) at ${currentTime}`);
+        continue;
+      }
+
+      if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
+        forceExitTrade(trade.symbol, String(ltp), totalPnl, `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) at ${currentTime}`);
+        continue;
+      }
+    }
+
     if (!trade.inPosition) {
 
       const positionKey = `${trade.symbol}-${trade.entryPrice}`;
@@ -1118,15 +1144,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>) {
 
     }
 
-    if (trade.status !== "ACTIVE") continue;
 
-
-
-    const ltp = ltpMap[trade.symbol];
 
     const entry = Number(trade.entryPrice);
 
-    if (!Number.isFinite(ltp) || !Number.isFinite(entry)) continue;
+    if (!Number.isFinite(entry)) continue;
 
 
 
@@ -1147,8 +1169,6 @@ function handleLtpMonitoring(ltpMap: Record<string, number>) {
 
 
     const priceDiff = ltp - entry;
-
-    const currentTime = lastStrategyCandleTime || new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }).replace("am", "").replace("pm", "");
 
 
 
@@ -1258,25 +1278,6 @@ function handleLtpMonitoring(ltpMap: Record<string, number>) {
 
     }
 
-    // Max Profit / Max Loss exit (SL/TG Range to Leave)
-    // When hit, fully exit the trade (move to history) — don't just complete a cycle.
-    if (trade.maxProfitLossEnabled) {
-      const qty = trade.lotSize * trade.lotValue;
-      const currentCyclePnl = priceDiff * qty;
-      const totalPnl = trade.pnl + currentCyclePnl;
-
-      if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
-        triggeredPositions.add(positionKey);
-        forceExitTrade(trade.symbol, String(ltp), totalPnl, `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) at ${currentTime}`);
-        continue;
-      }
-
-      if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
-        triggeredPositions.add(positionKey);
-        forceExitTrade(trade.symbol, String(ltp), totalPnl, `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) at ${currentTime}`);
-        continue;
-      }
-    }
 
   }
 
