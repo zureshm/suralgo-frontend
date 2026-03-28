@@ -79,11 +79,19 @@ useEffect(() => {
     }
 
    if (strategyData.signal === "BUY") {
+  const entryPrice = String(strategyData.close ?? trade.price);
+  const logLine = `BUY triggered for ₹${entryPrice} at ${strategyData.lastCandleTime || "unknown time"}`;
   activateWaitingTrade(
     trade.symbol,
-    String(trade.price),
-    `BUY triggered by strategy at ${strategyData.lastCandleTime || "unknown time"}`
+    entryPrice,
+    logLine,
   );
+  // Tell server to also activate so syncFromServer doesn't wipe it
+  fetch(`/api/trades/${encodeURIComponent(trade.symbol)}/activate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ entryPrice, logLine }),
+  }).catch(() => {});
 }
   }
 }, [strategyBySymbol, waitingTrades, activateWaitingTrade]);

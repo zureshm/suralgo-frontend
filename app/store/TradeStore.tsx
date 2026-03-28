@@ -207,6 +207,9 @@ export function TradeStoreProvider({
   const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>([]);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
 
+  // Track whether we've done the initial sync from server
+  const initialSyncDone = useRef(false);
+
   // strategy timing (ref to avoid re-render cascade every second)
   const lastStrategyCandleTimeRef = useRef<string>("");
   const getLastStrategyCandleTime = useCallback(() => lastStrategyCandleTimeRef.current, []);
@@ -652,14 +655,28 @@ export function TradeStoreProvider({
     tradeHistory: TradeHistoryItem[];
     lastStrategyCandleTime: string;
   }) => {
-    // waitingTrades is frontend-owned — server only overrides it via BUY activation.
-    // When server activates a trade, it removes it from server waitingTrades and adds
-    // to activeTrades. We detect that here: if a symbol is in our frontend waitingTrades
-    // but now appears in server activeTrades, remove it from frontend waitingTrades.
-    setWaitingTrades((prev) =>
-      prev.filter((w) => !state.activeTrades.some((a) => a.symbol === w.symbol))
-    );
-    setActiveTrades(state.activeTrades);
+    // On first sync (page load/refresh), populate waitingTrades from server.
+    // After that, waitingTrades is frontend-owned — only remove trades that
+    // the server has activated.
+    if (!initialSyncDone.current) {
+      initialSyncDone.current = true;
+      setWaitingTrades(state.waitingTrades);
+    } else {
+      setWaitingTrades((prev) =>
+        prev.filter((w) => !state.activeTrades.some((a) => a.symbol === w.symbol))
+      );
+    }
+    // Merge: use server trades as base, but keep frontend-only trades that server
+    // doesn't know about yet (e.g. just activated, POST hasn't reached server)
+    setActiveTrades((prev) => {
+      const merged = [...state.activeTrades];
+      for (const local of prev) {
+        if (!merged.some((s) => s.symbol === local.symbol)) {
+          merged.push(local);
+        }
+      }
+      return merged;
+    });
     setTradeHistory(state.tradeHistory);
     if (state.lastStrategyCandleTime) {
       lastStrategyCandleTimeRef.current = state.lastStrategyCandleTime;

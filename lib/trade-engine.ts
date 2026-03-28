@@ -1232,24 +1232,25 @@ async function tick() {
   
   try {
 
-    // 1. Fetch strategy signal from port 4000
+    // 1. Fetch strategy signals from port 4000 for each relevant symbol
+    //    - waiting trades (need BUY to activate)
+    //    - active trades not in position (need BUY to re-enter after SELL/SL/Target)
 
-    let signal = null;
+    const symbolsToQuery = new Set<string>();
+    for (const t of waitingTrades) symbolsToQuery.add(t.symbol);
+    for (const t of activeTrades) {
+      if (t.status === "ACTIVE" && !t.inPosition) symbolsToQuery.add(t.symbol);
+      if (t.status === "ACTIVE" && t.inPosition) symbolsToQuery.add(t.symbol);
+    }
 
-    try {
-
-      const res = await fetch(`${STRATEGY_URL}/evaluate`);
-
-      signal = await res.json();
-
-    } catch { /* strategy engine not running */ }
-
-
-
-    if (signal) {
-
-      handleStrategySignal(signal);
-
+    for (const sym of symbolsToQuery) {
+      try {
+        const res = await fetch(`${STRATEGY_URL}/evaluate?symbol=${encodeURIComponent(sym)}`);
+        const signal = await res.json();
+        if (signal && signal.signal) {
+          handleStrategySignal(signal);
+        }
+      } catch { /* strategy engine not running */ }
     }
 
 
@@ -1348,6 +1349,11 @@ export function addWaitingTrade(trade: WaitingTrade) {
 }
 
 
+
+export function activateWaitingTradeFromClient(symbol: string, entryPrice: string, logLine: string) {
+  activateWaitingTrade(symbol, entryPrice, logLine);
+  persistState();
+}
 
 export function cancelWaitingTrade(symbol: string) {
 
