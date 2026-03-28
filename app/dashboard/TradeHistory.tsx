@@ -150,9 +150,29 @@ export default function TradeHistory() {
                       <div className={styles.logLine}>No logs</div>
                     ) : (
                       item.logs.map((line, i) => (
-                        <div key={i} className={styles.logLine}>
-                          {line}
-                        </div>
+                        <div
+                          key={i}
+                          className={styles.logLine}
+                          dangerouslySetInnerHTML={{
+                            __html: line
+                              .replace(
+                                /₹ ?(\d+(?:\.\d+)?)/g,
+                                `<span class="${styles.rsGold}">₹$1</span>`
+                              )
+                              .replace(
+                                /at (\d{2}:\d{2})/g,
+                                `at <span class="${styles.cyanTime}">$1</span>`
+                              )
+                              .replace(
+                                /(Trade P\/L|Total P\/L): (-?\d+(?:\.\d+)?)/g,
+                                (match: string, label: string, plValue: string) => {
+                                  const isProfit = !plValue.startsWith("-");
+                                  const className = isProfit ? styles.plProfit : styles.plLoss;
+                                  return `<span class="${className}">${label}: ${plValue}</span>`;
+                                }
+                              ),
+                          }}
+                        />
                       ))
                     )}
                   </div>

@@ -39,11 +39,11 @@ function TradeLogsConsole({ logs }: { logs: string[] }) {
                 `at <span class="${styles.cyanTime}">$1</span>`
               )
               .replace(
-                /Trade P\/L: (-?\d+(?:\.\d+)?)/g,
-                (match, plValue) => {
+                /(Trade P\/L|Total P\/L): (-?\d+(?:\.\d+)?)/g,
+                (match, label, plValue) => {
                   const isProfit = !plValue.startsWith("-");
                   const className = isProfit ? styles.plProfit : styles.plLoss;
-                  return `<span class="${className}">Trade P/L: ${plValue}</span>`;
+                  return `<span class="${className}">${label}: ${plValue}</span>`;
                 }
               ),
           }}

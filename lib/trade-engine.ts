@@ -624,11 +624,18 @@ function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, log
     const currentTime = logLine.split(" at ").pop() || "";
     const sellLog = trade.inPosition ? `SELL triggered for ₹${exitPrice} at ${currentTime}` : "";
 
+    const entry = Number(trade.entryPrice);
+    const exit = Number(exitPrice);
+    const qty = trade.lotSize * trade.lotValue;
+    const cyclePnl = (trade.inPosition && Number.isFinite(entry) && Number.isFinite(exit)) ? (exit - entry) * qty : 0;
+    const newCompletedCycles = trade.inPosition ? trade.completedCycles + 1 : trade.completedCycles;
+
     const finalLogs = [
       ...trade.logs,
       ...(sellLog ? [sellLog] : []),
+      ...(trade.inPosition ? [`Trade P/L: ${cyclePnl.toFixed(2)}`, `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`] : []),
       logLine,
-      `Trade P/L: ${totalPnl.toFixed(2)}`,
+      `Total P/L: ${totalPnl.toFixed(2)}`,
     ];
 
     addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
@@ -637,6 +644,7 @@ function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, log
       ...trade,
       pnl: totalPnl,
       inPosition: false,
+      completedCycles: newCompletedCycles,
       exitPrice,
       logs: finalLogs,
       status: "COMPLETED" as const,
@@ -676,13 +684,14 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
     const newCompletedCycles = trade.completedCycles + 1;
 
-
+    const currentTime = logLine.split(" at ").pop() || "";
+    const sellLog = `SELL triggered for ₹${exitPrice} at ${currentTime}`;
 
     if (newCompletedCycles >= trade.numberOfTrades) {
 
       const finalLogs = [
 
-        ...trade.logs, logLine,
+        ...trade.logs, sellLog, logLine,
 
         `Trade P/L: ${cyclePnl.toFixed(2)}`,
 
@@ -710,7 +719,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
       ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
 
-      logs: [...trade.logs, logLine, `Trade P/L: ${cyclePnl.toFixed(2)}`, `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`],
+      logs: [...trade.logs, sellLog, logLine, `Trade P/L: ${cyclePnl.toFixed(2)}`, `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`],
 
       trailingTrailActive: false, trailingHighWatermark: undefined,
 
