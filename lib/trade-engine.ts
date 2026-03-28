@@ -621,8 +621,12 @@ function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, log
   activeTrades = activeTrades.map((trade) => {
     if (trade.symbol !== symbol || trade.status !== "ACTIVE") return trade;
 
+    const currentTime = logLine.split(" at ").pop() || "";
+    const sellLog = trade.inPosition ? `SELL triggered for ₹${exitPrice} at ${currentTime}` : "";
+
     const finalLogs = [
       ...trade.logs,
+      ...(sellLog ? [sellLog] : []),
       logLine,
       `Trade P/L: ${totalPnl.toFixed(2)}`,
     ];
