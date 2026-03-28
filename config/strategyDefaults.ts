@@ -19,7 +19,10 @@ export const STRATEGY_DEFAULTS = {
     timeFromAmpm: 'am',
     timeTo: '02:45',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: false,
+    maxProfit: 1100,
+    maxLoss: 900
   },
   allclear: {
     numberOfTrades: 3,
@@ -41,7 +44,10 @@ export const STRATEGY_DEFAULTS = {
     timeFromAmpm: 'am',
     timeTo: '02:45',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: false,
+    maxProfit: 1100,
+    maxLoss: 900
   },
   low: {
     numberOfTrades: 4,
@@ -63,7 +69,10 @@ export const STRATEGY_DEFAULTS = {
     timeFromAmpm: 'am',
     timeTo: '02:50',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: true,
+    maxProfit: 1100,
+    maxLoss: 900
   },
   medium: {
     numberOfTrades: 4,
@@ -85,7 +94,10 @@ export const STRATEGY_DEFAULTS = {
     timeFromAmpm: 'am',
     timeTo: '02:45',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: true,
+    maxProfit: 1100,
+    maxLoss: 900
   },
   high: {
     numberOfTrades: 4,
@@ -107,6 +119,9 @@ export const STRATEGY_DEFAULTS = {
     timeFromAmpm: 'am',
     timeTo: '02:45',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: false,
+    maxProfit: 1100,
+    maxLoss: 900
   }
 };

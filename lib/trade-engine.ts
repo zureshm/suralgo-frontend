@@ -68,6 +68,12 @@ type WaitingTrade = {
 
   waitAfterSellCandles: number;
 
+  maxProfitLossEnabled: boolean;
+
+  maxProfit: number;
+
+  maxLoss: number;
+
 };
 
 
@@ -137,6 +143,12 @@ type ActiveTrade = {
   waitAfterSellCandles: number;
 
   lastSellCandleTime?: string;
+
+  maxProfitLossEnabled: boolean;
+
+  maxProfit: number;
+
+  maxLoss: number;
 
 };
 
@@ -513,6 +525,12 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
     lastSellCandleTime: undefined,
 
+    maxProfitLossEnabled: trade.maxProfitLossEnabled,
+
+    maxProfit: trade.maxProfit,
+
+    maxLoss: trade.maxLoss,
+
   };
 
 
@@ -595,6 +613,33 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
 
   });
 
+}
+
+
+
+function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, logLine: string) {
+  activeTrades = activeTrades.map((trade) => {
+    if (trade.symbol !== symbol || trade.status !== "ACTIVE") return trade;
+
+    const finalLogs = [
+      ...trade.logs,
+      logLine,
+      `Trade P/L: ${totalPnl.toFixed(2)}`,
+    ];
+
+    addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
+
+    return {
+      ...trade,
+      pnl: totalPnl,
+      inPosition: false,
+      exitPrice,
+      logs: finalLogs,
+      status: "COMPLETED" as const,
+      trailingTrailActive: false,
+      trailingHighWatermark: undefined,
+    };
+  });
 }
 
 
@@ -1211,6 +1256,26 @@ function handleLtpMonitoring(ltpMap: Record<string, number>) {
 
       continue;
 
+    }
+
+    // Max Profit / Max Loss exit (SL/TG Range to Leave)
+    // When hit, fully exit the trade (move to history) — don't just complete a cycle.
+    if (trade.maxProfitLossEnabled) {
+      const qty = trade.lotSize * trade.lotValue;
+      const currentCyclePnl = priceDiff * qty;
+      const totalPnl = trade.pnl + currentCyclePnl;
+
+      if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
+        triggeredPositions.add(positionKey);
+        forceExitTrade(trade.symbol, String(ltp), totalPnl, `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) at ${currentTime}`);
+        continue;
+      }
+
+      if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
+        triggeredPositions.add(positionKey);
+        forceExitTrade(trade.symbol, String(ltp), totalPnl, `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) at ${currentTime}`);
+        continue;
+      }
     }
 
   }

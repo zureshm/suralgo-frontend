@@ -43,6 +43,9 @@ export default function TradePage() {
     setTimeTo(defaults.timeTo);
     setTimeToAmpm(defaults.timeToAmpm);
     setLotValue(defaults.lotValue);
+    if ('maxProfitLossEnabled' in defaults) setMaxProfitLossEnabled((defaults as any).maxProfitLossEnabled);
+    if ('maxProfit' in defaults) setMaxProfit((defaults as any).maxProfit);
+    if ('maxLoss' in defaults) setMaxLoss((defaults as any).maxLoss);
   };
 
   // Handle strategy change
@@ -72,6 +75,9 @@ export default function TradePage() {
   const [timeFromAmpm, setTimeFromAmpm] = useState('am');
   const [timeTo, setTimeTo] = useState('02:45');
   const [timeToAmpm, setTimeToAmpm] = useState('pm');
+  const [maxProfitLossEnabled, setMaxProfitLossEnabled] = useState(false);
+  const [maxProfit, setMaxProfit] = useState(1100);
+  const [maxLoss, setMaxLoss] = useState(900);
 
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
   const isAlreadyActive = selection && activeTrades.some((trade) => trade.symbol === selection.symbol && trade.status === "ACTIVE");
@@ -137,6 +143,9 @@ export default function TradePage() {
       setTimeTo(data.timeTo || '02:45');
       setTimeToAmpm(data.timeToAmpm || 'pm');
       setLotValue(data.lotValue || 1);
+      setMaxProfitLossEnabled(Boolean(data.maxProfitLossEnabled ?? false));
+      setMaxProfit(data.maxProfit || 1100);
+      setMaxLoss(data.maxLoss || 900);
     } else {
       // Reset to defaults
       setStrategy('nifty');
@@ -160,6 +169,9 @@ export default function TradePage() {
       setTimeTo('02:45');
       setTimeToAmpm('pm');
       setLotValue(1);
+      setMaxProfitLossEnabled(false);
+      setMaxProfit(1100);
+      setMaxLoss(900);
     }
   }, [selection?.symbol]);
 
@@ -195,6 +207,9 @@ export default function TradePage() {
       lotValue,
       lotSize,
       takenPrice: price,
+      maxProfitLossEnabled,
+      maxProfit,
+      maxLoss,
     };
     localStorage.setItem('tradeForm_' + selection.symbol, JSON.stringify(formData));
   };
@@ -505,7 +520,7 @@ export default function TradePage() {
                 onChange={(e) => setRangeEnabled(e.target.checked)}
                 className="accent-blue-600 w-4 h-4"
               />
-              <span className="text-base font-medium">Range</span>
+              <span className="text-base font-medium">Time Range</span>
             </div>
             
             <div className="space-y-3">
@@ -546,6 +561,44 @@ export default function TradePage() {
                 </select>
               </div>
 
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* SL / TG Range to Leave */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={maxProfitLossEnabled}
+                onChange={(e) => setMaxProfitLossEnabled(e.target.checked)}
+                className="accent-blue-600 w-4 h-4"
+              />
+              <span className="text-base font-medium">SL / TG Range to Leave</span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Profit</label>
+                <Input
+                  type="number"
+                  value={maxProfit}
+                  onChange={(e) => setMaxProfit(Number(e.target.value) || 0)}
+                  className="w-24 h-8 text-sm"
+                  disabled={!maxProfitLossEnabled}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Loss</label>
+                <Input
+                  type="number"
+                  value={maxLoss}
+                  onChange={(e) => setMaxLoss(Number(e.target.value) || 0)}
+                  className="w-24 h-8 text-sm"
+                  disabled={!maxProfitLossEnabled}
+                />
+              </div>
             </div>
           </div>
 
@@ -621,6 +674,9 @@ export default function TradePage() {
                         buyOverride: waitStrategyEnabled ? (stopLossNumber || undefined) : undefined,
                         waitAfterSellEnabled,
                         waitAfterSellCandles,
+                        maxProfitLossEnabled,
+                        maxProfit,
+                        maxLoss,
                       }),
                     }).catch(() => {});
 

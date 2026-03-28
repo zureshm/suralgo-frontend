@@ -31,6 +31,9 @@ export type WaitingTrade = {
   buyOverride?: number;
   waitAfterSellEnabled: boolean;
   waitAfterSellCandles: number;
+  maxProfitLossEnabled: boolean;
+  maxProfit: number;
+  maxLoss: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -67,6 +70,9 @@ export type ActiveTrade = {
   waitAfterSellEnabled: boolean;
   waitAfterSellCandles: number;
   lastSellCandleTime?: string;
+  maxProfitLossEnabled: boolean;
+  maxProfit: number;
+  maxLoss: number;
 };
 
 export type TradeHistoryItem = {
@@ -259,6 +265,9 @@ export function TradeStoreProvider({
         })(),
         waitAfterSellEnabled: readFormBool(sym, "waitAfterSellEnabled", true),
         waitAfterSellCandles: readFormNumber(sym, "waitAfterSellCandles", 8),
+        maxProfitLossEnabled: readFormBool(sym, "maxProfitLossEnabled", false),
+        maxProfit: readFormNumber(sym, "maxProfit", 1100),
+        maxLoss: readFormNumber(sym, "maxLoss", 900),
       },
       ...waitingTrades,
     ];
@@ -325,6 +334,9 @@ export function TradeStoreProvider({
       waitAfterSellEnabled: tradeToActivate.waitAfterSellEnabled,
       waitAfterSellCandles: tradeToActivate.waitAfterSellCandles,
       lastSellCandleTime: undefined,
+      maxProfitLossEnabled: tradeToActivate.maxProfitLossEnabled,
+      maxProfit: tradeToActivate.maxProfit,
+      maxLoss: tradeToActivate.maxLoss,
     };
 
     setActiveTrades((prev) => [...prev, newActiveTrade]);
