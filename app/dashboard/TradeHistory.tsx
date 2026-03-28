@@ -96,8 +96,9 @@ export default function TradeHistory() {
                   return parseInt(match[1]); // Return the actual completed count from the message
                 }
               }
-              // Count manual exiting as cycle completion
-              if (normalized.startsWith("SELL MANUALLY") || normalized.includes("EXIT")) {
+              // Count manual sell (was in position) as cycle completion.
+              // Bare "EXIT" (no BUY happened) is NOT a real cycle.
+              if (normalized.startsWith("SELL MANUALLY")) {
                 return count + 1;
               }
               return count;
