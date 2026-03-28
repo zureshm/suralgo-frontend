@@ -96,8 +96,8 @@ export const STRATEGY_DEFAULTS = {
     timeToAmpm: 'pm',
     lotValue: 1,
     maxProfitLossEnabled: true,
-    maxProfit: 1100,
-    maxLoss: 900
+    maxProfit: 2500,
+    maxLoss: 1200
   },
   high: {
     numberOfTrades: 4,
@@ -121,7 +121,7 @@ export const STRATEGY_DEFAULTS = {
     timeToAmpm: 'pm',
     lotValue: 1,
     maxProfitLossEnabled: false,
-    maxProfit: 1100,
-    maxLoss: 900
+    maxProfit: 3500,
+    maxLoss: 1500
   }
 };
