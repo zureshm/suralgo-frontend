@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Activity } from "lucide-react";
+import { Activity, Zap, XCircle } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
@@ -73,8 +73,7 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const [exitClicked, setExitClicked] = useState<Record<string, boolean>>({});
-  const { removeTradeAndFreeSymbol, getLastStrategyCandleTime } = useTradeStore();
+  const { removeTradeAndFreeSymbol } = useTradeStore();
 
   useEffect(() => {
     setMounted(true);
@@ -136,7 +135,7 @@ export default function ActiveTrade({
                     );
                   })()}
 
-                  {!exitClicked[t.symbol] && t.status === "ACTIVE" && (
+                  {t.status === "ACTIVE" && (
                     <button
                       className={`${styles.tradeAction} ${styles.dark}`}
                       type="button"
@@ -150,12 +149,11 @@ export default function ActiveTrade({
                             : 0;
                         const livePnl = t.pnl + unrealized;
 
-                        const lastCandleTime =
-                          getLastStrategyCandleTime() ||
-                          new Date().toLocaleTimeString("en-IN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }).replace("am", "").replace("pm", "");
+                        const now = new Date();
+                        const hh = String(now.getHours()).padStart(2, "0");
+                        const mm = String(now.getMinutes()).padStart(2, "0");
+                        const ss = String(now.getSeconds()).padStart(2, "0");
+                        const lastCandleTime = `${hh}:${mm}:${ss}`;
 
                         // Notify server-side engine of manual exit
                         fetch(`/api/trades/${encodeURIComponent(t.symbol)}/exit`, {
@@ -165,24 +163,18 @@ export default function ActiveTrade({
                         }).catch(() => {});
 
                         onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
-                        setExitClicked((prev) => ({ ...prev, [t.symbol]: true }));
                       }}
                     >
                       EXIT
                     </button>
                   )}
-                  {(exitClicked[t.symbol] || t.status === "COMPLETED") && (
+                  {t.status === "COMPLETED" && (
                     <button
                       className={`${styles.tradeAction} ${styles.danger}`}
                       type="button"
                       onClick={() => {
                         fetch(`/api/trades/${encodeURIComponent(t.symbol)}/remove`, { method: "POST" }).catch(() => {});
                         removeTradeAndFreeSymbol(t.symbol);
-                        setExitClicked((prev) => {
-                          const next = { ...prev };
-                          delete next[t.symbol];
-                          return next;
-                        });
                       }}
                     >
                       CLOSE
@@ -210,23 +202,43 @@ export default function ActiveTrade({
               <div key={index} className={styles.trade}>
                 <div className={styles.tradeRow}>
                   <div className={styles.tradeSymbol}>{t.symbol}</div>
+                </div>
 
-                  <div className={styles.tradeRight}>
-                    <div className={`${styles.tradeMeta} ${styles.waiting}`}>
-                      {t.stateText}
-                    </div>
-
-                    <button
-                      className={`${styles.tradeAction} ${styles.danger}`}
-                      type="button"
-                      onClick={() => {
-                        fetch(`/api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
-                        onCancelWaiting(t.symbol);
-                      }}
-                    >
-                      CANCEL
-                    </button>
+                <div className={styles.waitingActions}>
+                  <div className={`${styles.tradeMeta} ${styles.waiting}`}>
+                    <span className={styles.dot1}>.</span>
+                    <span className={styles.dot2}>.</span>
+                    <span className={styles.dot3}>.</span>
+                    <span className={styles.w1}>W</span>
+                    <span className={styles.w2}>A</span>
+                    <span className={styles.w3}>I</span>
+                    <span className={styles.w4}>T</span>
+                    <span className={styles.w5}>I</span>
+                    <span className={styles.w6}>N</span>
+                    <span className={styles.w7}>G</span>
                   </div>
+
+                  <button
+                    className={`${styles.waitingBtn} ${styles.dark}`}
+                    type="button"
+                    onClick={() => {
+                      fetch(`/api/trades/${encodeURIComponent(t.symbol)}/force-buy`, { method: "POST" }).catch(() => {});
+                    }}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    Force Buy
+                  </button>
+                  <button
+                    className={`${styles.waitingBtn} ${styles.danger}`}
+                    type="button"
+                    onClick={() => {
+                      fetch(`/api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                      onCancelWaiting(t.symbol);
+                    }}
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    Cancel
+                  </button>
                 </div>
 
                 {/* Trade Configuration for Waiting Trades */}

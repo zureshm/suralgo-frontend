@@ -578,11 +578,8 @@ export function TradeStoreProvider({
     lastCandleTime: string
   ) => {
     setActiveTrades((prev) => {
-      const next = prev.map((trade) => {
-        if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
-          return trade;
-        }
-
+      const trade = prev.find((t) => t.symbol === symbol && t.status === "ACTIVE");
+      if (trade) {
         const exitLog = trade.inPosition
           ? `SELL manually for ₹${exitPrice} at ${lastCandleTime}`
           : `EXIT  at ${lastCandleTime}`;
@@ -598,20 +595,9 @@ export function TradeStoreProvider({
         const finalLogs = [...trade.logs, exitLog, pnlLog];
 
         appendTradeHistoryEntry(trade.symbol, pnl, finalLogs, buildTradeConfigSnapshot(trade));
-
-        removeActiveTrade(symbol);
-
-        return {
-          ...trade,
-          exitPrice,
-          exitTime: lastCandleTime,
-          status: "COMPLETED" as const,
-          inPosition: false,
-          pnl,
-          logs: finalLogs,
-        };
-      });
-      return next;
+      }
+      // Remove the trade immediately — no COMPLETED limbo
+      return prev.filter((t) => t.symbol !== symbol);
     });
   };
 
@@ -691,6 +677,7 @@ export function TradeStoreProvider({
     setActiveTrades((prev) => {
       const merged = [...state.activeTrades];
       for (const local of prev) {
+        if (local.status === "COMPLETED") continue;
         if (!merged.some((s) => s.symbol === local.symbol)) {
           merged.push(local);
         }
