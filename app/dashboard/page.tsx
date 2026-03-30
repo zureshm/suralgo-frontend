@@ -79,6 +79,26 @@ useEffect(() => {
     }
 
    if (strategyData.signal === "BUY") {
+  // Time range guard: skip BUY if outside configured range
+  if (trade.rangeEnabled && strategyData.lastCandleTime) {
+    const tMatch = String(strategyData.lastCandleTime).match(/(\d{1,2}):(\d{2})/);
+    if (tMatch) {
+      const cMin = Number(tMatch[1]) * 60 + Number(tMatch[2]);
+      let fromH = Number(String(trade.timeFrom).match(/(\d{1,2})/)?.[1] ?? 0);
+      const fromM = Number(String(trade.timeFrom).match(/:(\d{2})/)?.[1] ?? 0);
+      if (trade.timeFromAmpm === "pm" && fromH < 12) fromH += 12;
+      if (trade.timeFromAmpm === "am" && fromH === 12) fromH = 0;
+      let toH = Number(String(trade.timeTo).match(/(\d{1,2})/)?.[1] ?? 0);
+      const toM = Number(String(trade.timeTo).match(/:(\d{2})/)?.[1] ?? 0);
+      if (trade.timeToAmpm === "pm" && toH < 12) toH += 12;
+      if (trade.timeToAmpm === "am" && toH === 12) toH = 0;
+      const rangeStart = fromH * 60 + fromM;
+      const rangeEnd = toH * 60 + toM;
+      if (cMin < rangeStart || cMin > rangeEnd) {
+        continue;
+      }
+    }
+  }
   const entryPrice = String(strategyData.close ?? trade.price);
   const logLine = `BUY triggered for ₹${entryPrice} at ${strategyData.lastCandleTime || "unknown time"}`;
   activateWaitingTrade(

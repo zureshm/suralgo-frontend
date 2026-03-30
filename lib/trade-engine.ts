@@ -1430,6 +1430,21 @@ export function addWaitingTrade(trade: WaitingTrade) {
 
 
 export function activateWaitingTradeFromClient(symbol: string, entryPrice: string, logLine: string) {
+  // Time range guard: extract candle time from logLine and check against trade config
+  const trade = waitingTrades.find((t) => t.symbol === symbol);
+  if (trade && trade.rangeEnabled) {
+    const timeMatch = logLine.match(/at (\d{2}:\d{2})/);
+    if (timeMatch) {
+      const cMin = toMinutes(timeMatch[1]);
+      const rangeStart = toMinutes12h(trade.timeFrom, trade.timeFromAmpm);
+      const rangeEnd = toMinutes12h(trade.timeTo, trade.timeToAmpm);
+      if (cMin >= 0 && (cMin < rangeStart || cMin > rangeEnd)) {
+        addLogToWaiting(symbol, `BUY skipped – outside time range (${trade.timeFrom} ${trade.timeFromAmpm} – ${trade.timeTo} ${trade.timeToAmpm}) for ₹${entryPrice} at ${timeMatch[1]}`);
+        persistState();
+        return;
+      }
+    }
+  }
   activateWaitingTrade(symbol, entryPrice, logLine);
   persistState();
 }
