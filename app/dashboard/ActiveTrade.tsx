@@ -35,7 +35,7 @@ function TradeLogsConsole({ logs }: { logs: string[] }) {
                 `<span class="${styles.rsGold}">₹$1</span>`
               )
               .replace(
-                /at (\d{2}:\d{2})/g,
+                /at (\d{2}:\d{2}(?::\d{2})?)/g,
                 `at <span class="${styles.cyanTime}">$1</span>`
               )
               .replace(

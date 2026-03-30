@@ -6,8 +6,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ sym
   try {
     const { symbol } = await params;
     const body = await request.json();
-    const { entryPrice, logLine } = body;
-    activateWaitingTradeFromClient(decodeURIComponent(symbol), entryPrice, logLine);
+    const { entryPrice, logLine, candleSize } = body;
+    activateWaitingTradeFromClient(decodeURIComponent(symbol), entryPrice, logLine, candleSize);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

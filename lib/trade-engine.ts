@@ -341,6 +341,14 @@ function cleanupStaleState() {
 
 
 
+function fmtTime(candleTime?: string): string {
+  if (!candleTime) return "";
+  const m = String(candleTime).match(/(\d{1,2}:\d{2})/);
+  const hhmm = m ? m[1] : candleTime;
+  const ss = String(new Date().getSeconds()).padStart(2, "0");
+  return `${hhmm}:${ss}`;
+}
+
 function toMinutes(timeStr?: string): number {
 
   if (!timeStr) return -1;
@@ -879,7 +887,7 @@ function handleStrategySignal(signal: any) {
 
       String(latestClose ?? ""),
 
-      `AUTO SELL triggered post 03:05 pm cut-off at ₹${String(latestClose ?? "")} (${signal.lastCandleTime})`
+      `AUTO SELL triggered post 03:05 pm cut-off at ₹${String(latestClose ?? "")} (${fmtTime(signal.lastCandleTime)})`
 
     );
 
@@ -901,7 +909,7 @@ function handleStrategySignal(signal: any) {
 
     if (!activeForSymbol || !activeForSymbol.inPosition) return;
 
-    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "STOPLOSS hit for ₹" + String(latestClose ?? "") + " at " + signal.lastCandleTime);
+    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "STOPLOSS hit for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     lastHandledSignalKey = signalKey;
 
@@ -929,7 +937,7 @@ function handleStrategySignal(signal: any) {
 
     }
 
-    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "TARGET hit for ₹" + String(latestClose ?? "") + " at " + signal.lastCandleTime);
+    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "TARGET hit for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     lastHandledSignalKey = signalKey;
 
@@ -951,7 +959,7 @@ function handleStrategySignal(signal: any) {
 
     if (!activeForSymbol || !activeForSymbol.inPosition) return;
 
-    completeActiveTrade(activeForSymbol.symbol, String(latestClose ?? ""), "SELL triggered for ₹" + String(latestClose ?? "") + " at " + signal.lastCandleTime);
+    completeActiveTrade(activeForSymbol.symbol, String(latestClose ?? ""), "SELL triggered for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime);
 
@@ -1019,7 +1027,7 @@ function handleStrategySignal(signal: any) {
 
       if (cMin >= 0 && (cMin < rangeStart || cMin > rangeEnd)) {
 
-        const skippedLog = `BUY skipped – outside time range (${tradeForRange.timeFrom} ${tradeForRange.timeFromAmpm} – ${tradeForRange.timeTo} ${tradeForRange.timeToAmpm}) for ₹${latestClose ?? ""} at ${signal.lastCandleTime}`;
+        const skippedLog = `BUY skipped – outside time range (${tradeForRange.timeFrom} ${tradeForRange.timeFromAmpm} – ${tradeForRange.timeTo} ${tradeForRange.timeToAmpm}) for ₹${latestClose ?? ""} at ${fmtTime(signal.lastCandleTime)}`;
 
         if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, skippedLog); }
 
@@ -1051,7 +1059,7 @@ function handleStrategySignal(signal: any) {
 
         if (candlesPassed < tradeForWaitCheck.waitAfterSellCandles) {
 
-          const waitLog = `BUY skipped – waiting ${tradeForWaitCheck.waitAfterSellCandles} candles after SELL (${candlesPassed} passed) at ${signal.lastCandleTime}`;
+          const waitLog = `BUY skipped – waiting ${tradeForWaitCheck.waitAfterSellCandles} candles after SELL (${candlesPassed} passed) at ${fmtTime(signal.lastCandleTime)}`;
 
           if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, waitLog); }
 
@@ -1075,7 +1083,7 @@ function handleStrategySignal(signal: any) {
 
     if (overrideValue != null && overrideValue > 0 && candleSize >= overrideValue) {
 
-      const ignoredLog = `BUY ignored – candle size ${candleSize.toFixed(2)} >= buyOverride ${overrideValue} at ${signal.lastCandleTime}`;
+      const ignoredLog = `BUY ignored – candle size ${candleSize.toFixed(2)} >= buyOverride ${overrideValue} at ${fmtTime(signal.lastCandleTime)}`;
 
       if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, ignoredLog); }
 
@@ -1091,11 +1099,11 @@ function handleStrategySignal(signal: any) {
 
     if (matchingTrade) {
 
-      activateWaitingTrade(matchingTrade.symbol, String(latestClose ?? ""), "BUY triggered for ₹ " + String(latestClose ?? "") + " at " + signal.lastCandleTime);
+      activateWaitingTrade(matchingTrade.symbol, String(latestClose ?? ""), "BUY triggered for ₹ " + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     } else if (activeForSymbol && !activeForSymbol.inPosition) {
 
-      updateActiveTradeBuy(activeForSymbol.symbol, String(latestClose ?? ""), "BUY triggered for ₹ " + String(latestClose ?? "") + " at " + signal.lastCandleTime);
+      updateActiveTradeBuy(activeForSymbol.symbol, String(latestClose ?? ""), "BUY triggered for ₹ " + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     }
 
@@ -1122,7 +1130,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>) {
     const ltp = ltpMap[trade.symbol];
     if (!Number.isFinite(ltp)) continue;
 
-    const currentTime = lastStrategyCandleTime || new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }).replace("am", "").replace("pm", "");
+    const currentTime = fmtTime(lastStrategyCandleTime) || new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
     // ── Max Profit / Max Loss check (runs even when NOT in position) ──
     // This is the overall trade-level guard — takes priority over per-cycle SL/target.
@@ -1429,10 +1437,12 @@ export function addWaitingTrade(trade: WaitingTrade) {
 
 
 
-export function activateWaitingTradeFromClient(symbol: string, entryPrice: string, logLine: string) {
-  // Time range guard: extract candle time from logLine and check against trade config
+export function activateWaitingTradeFromClient(symbol: string, entryPrice: string, logLine: string, candleSize?: number) {
   const trade = waitingTrades.find((t) => t.symbol === symbol);
-  if (trade && trade.rangeEnabled) {
+  if (!trade) return;
+
+  // Time range guard
+  if (trade.rangeEnabled) {
     const timeMatch = logLine.match(/at (\d{2}:\d{2})/);
     if (timeMatch) {
       const cMin = toMinutes(timeMatch[1]);
@@ -1445,6 +1455,16 @@ export function activateWaitingTradeFromClient(symbol: string, entryPrice: strin
       }
     }
   }
+
+  // buyOverride guard
+  if (trade.buyOverride != null && trade.buyOverride > 0 && typeof candleSize === "number" && candleSize >= trade.buyOverride) {
+    const timeMatch = logLine.match(/at (.+)$/);
+    const atTime = timeMatch ? timeMatch[1] : "";
+    addLogToWaiting(symbol, `BUY ignored – candle size ${candleSize.toFixed(2)} >= buyOverride ${trade.buyOverride} at ${atTime}`);
+    persistState();
+    return;
+  }
+
   activateWaitingTrade(symbol, entryPrice, logLine);
   persistState();
 }
