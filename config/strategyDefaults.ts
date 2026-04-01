@@ -20,7 +20,7 @@ export const STRATEGY_DEFAULTS = {
     timeTo: '02:45',
     timeToAmpm: 'pm',
     lotValue: 1,
-    maxProfitLossEnabled: false,
+    maxProfitLossEnabled: true,
     maxProfit: 1100,
     maxLoss: 900
   },
@@ -45,7 +45,7 @@ export const STRATEGY_DEFAULTS = {
     timeTo: '02:45',
     timeToAmpm: 'pm',
     lotValue: 1,
-    maxProfitLossEnabled: false,
+    maxProfitLossEnabled: true,
     maxProfit: 1100,
     maxLoss: 900
   },
@@ -120,7 +120,7 @@ export const STRATEGY_DEFAULTS = {
     timeTo: '02:55',
     timeToAmpm: 'pm',
     lotValue: 1,
-    maxProfitLossEnabled: false,
+    maxProfitLossEnabled: true,
     maxProfit: 3000,
     maxLoss: 1500
   }

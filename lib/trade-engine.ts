@@ -632,6 +632,38 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
 
 
 
+    // Check max loss/profit immediately after cycle — don't wait for next tick
+    if (trade.maxProfitLossEnabled) {
+      if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
+        const finalLogs = [
+          ...trade.logs, logLine,
+          `Trade P/L: ${cyclePnl.toFixed(2)}`,
+          `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+        ];
+        addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
+        return {
+          ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
+          exitPrice, logs: finalLogs, status: "COMPLETED" as const,
+          trailingTrailActive: false, trailingHighWatermark: undefined,
+        };
+      }
+      if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
+        const finalLogs = [
+          ...trade.logs, logLine,
+          `Trade P/L: ${cyclePnl.toFixed(2)}`,
+          `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+        ];
+        addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
+        return {
+          ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
+          exitPrice, logs: finalLogs, status: "COMPLETED" as const,
+          trailingTrailActive: false, trailingHighWatermark: undefined,
+        };
+      }
+    }
+
     return {
 
       ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
@@ -745,6 +777,38 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
     }
 
 
+
+    // Check max loss/profit immediately after cycle — don't wait for next tick
+    if (trade.maxProfitLossEnabled) {
+      if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
+        const finalLogs = [
+          ...trade.logs, sellLog, logLine,
+          `Trade P/L: ${cyclePnl.toFixed(2)}`,
+          `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+        ];
+        addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
+        return {
+          ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
+          exitPrice, logs: finalLogs, status: "COMPLETED" as const,
+          trailingTrailActive: false, trailingHighWatermark: undefined,
+        };
+      }
+      if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
+        const finalLogs = [
+          ...trade.logs, sellLog, logLine,
+          `Trade P/L: ${cyclePnl.toFixed(2)}`,
+          `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+        ];
+        addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
+        return {
+          ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
+          exitPrice, logs: finalLogs, status: "COMPLETED" as const,
+          trailingTrailActive: false, trailingHighWatermark: undefined,
+        };
+      }
+    }
 
     return {
 

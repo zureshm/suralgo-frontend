@@ -75,7 +75,7 @@ export default function TradePage() {
   const [timeFromAmpm, setTimeFromAmpm] = useState('am');
   const [timeTo, setTimeTo] = useState('02:45');
   const [timeToAmpm, setTimeToAmpm] = useState('pm');
-  const [maxProfitLossEnabled, setMaxProfitLossEnabled] = useState(false);
+  const [maxProfitLossEnabled, setMaxProfitLossEnabled] = useState(true);
   const [maxProfit, setMaxProfit] = useState(1100);
   const [maxLoss, setMaxLoss] = useState(900);
 
