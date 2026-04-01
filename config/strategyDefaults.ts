@@ -65,7 +65,7 @@ export const STRATEGY_DEFAULTS = {
     trailingAfterTargetEnabled: true,
     trailingAfterTarget: 10,
     rangeEnabled: true,
-    timeFrom: '09:50',
+    timeFrom: '10:00',
     timeFromAmpm: 'am',
     timeTo: '02:50',
     timeToAmpm: 'pm',

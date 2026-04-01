@@ -18,6 +18,20 @@ const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
 
 const DB_PATH = path.join(process.cwd(), "data", "trades.json");
 
+// Remove a symbol from angel-feed active strategy symbols if no other trade uses it
+function tryRemoveActiveStrategySymbol(symbol: string) {
+  const stillUsed =
+    waitingTrades.some((t) => t.symbol === symbol) ||
+    activeTrades.some((t) => t.symbol === symbol && t.status === "ACTIVE");
+  if (!stillUsed) {
+    fetch(`${API_URL}/active-strategy-symbols`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol }),
+    }).catch(() => {});
+  }
+}
+
 
 
 type WaitingTrade = {
@@ -1509,6 +1523,8 @@ export function cancelWaitingTrade(symbol: string) {
 
   persistState();
 
+  tryRemoveActiveStrategySymbol(symbol);
+
 }
 
 
@@ -1573,6 +1589,8 @@ export function manualExit(symbol: string, exitPrice: string, lastCandleTime: st
 
   persistState();
 
+  tryRemoveActiveStrategySymbol(symbol);
+
 }
 
 
@@ -1582,6 +1600,8 @@ export function removeCompletedTrade(symbol: string) {
   activeTrades = activeTrades.filter((t) => t.symbol !== symbol);
 
   persistState();
+
+  tryRemoveActiveStrategySymbol(symbol);
 
 }
 

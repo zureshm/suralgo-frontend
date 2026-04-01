@@ -73,7 +73,7 @@ export async function getMarketTime() {
   return res.json();
 }
 
-// Tell angel-feed backend which symbol is currently active
+// Tell angel-feed backend which symbol is currently active (DEPRECATED — use addActiveStrategySymbol)
 export async function setActiveSymbol(symbol: string) {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/active-symbol`, {
     method: "POST",
@@ -85,6 +85,47 @@ export async function setActiveSymbol(symbol: string) {
 
   if (!res.ok) {
     throw new Error("Failed to set active symbol");
+  }
+
+  return res.json();
+}
+
+// Add a symbol to the active strategy symbols list (max 2)
+export async function addActiveStrategySymbol(symbol: string) {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/active-strategy-symbols`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ symbol }),
+    }
+  );
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || "Failed to add active strategy symbol");
+  }
+
+  return res.json();
+}
+
+// Remove a symbol from the active strategy symbols list
+export async function removeActiveStrategySymbol(symbol: string) {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/active-strategy-symbols`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ symbol }),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to remove active strategy symbol");
   }
 
   return res.json();

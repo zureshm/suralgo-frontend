@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { STRATEGY_DEFAULTS } from "../../config/strategyDefaults";
-import { setActiveSymbol } from "@/lib/api";
+import { addActiveStrategySymbol } from "@/lib/api";
 
 export default function TradePage() {
   const router = useRouter();
@@ -640,8 +640,8 @@ export default function TradePage() {
               <Button
                 onClick={() => {
                   if (!isButtonDisabled && selection?.symbol) {
-                      // Tell angel-feed backend which symbol is now the active live symbol
-                      setActiveSymbol(selection.symbol).catch(() => {});
+                      // Tell angel-feed backend to add this symbol to active strategy symbols (max 2)
+                      addActiveStrategySymbol(selection.symbol).catch(() => {});
 
                       saveForm();
                       addWaitingTradeFromSelection();
