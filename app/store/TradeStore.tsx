@@ -31,6 +31,9 @@ export type WaitingTrade = {
   buyOverride?: number;
   waitAfterSellEnabled: boolean;
   waitAfterSellCandles: number;
+  maxProfitLossEnabled: boolean;
+  maxProfit: number;
+  maxLoss: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -67,6 +70,9 @@ export type ActiveTrade = {
   waitAfterSellEnabled: boolean;
   waitAfterSellCandles: number;
   lastSellCandleTime?: string;
+  maxProfitLossEnabled: boolean;
+  maxProfit: number;
+  maxLoss: number;
 };
 
 export type TradeHistoryItem = {
@@ -207,6 +213,13 @@ export function TradeStoreProvider({
   const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>([]);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
 
+  // Track whether we've done the initial sync from server
+  const initialSyncDone = useRef(false);
+
+  // Pending history deletes — prevents sync from overwriting optimistic local deletions
+  const pendingHistoryDeletes = useRef<Set<string>>(new Set());
+  const pendingClearAll = useRef(false);
+
   // strategy timing (ref to avoid re-render cascade every second)
   const lastStrategyCandleTimeRef = useRef<string>("");
   const getLastStrategyCandleTime = useCallback(() => lastStrategyCandleTimeRef.current, []);
@@ -256,6 +269,9 @@ export function TradeStoreProvider({
         })(),
         waitAfterSellEnabled: readFormBool(sym, "waitAfterSellEnabled", true),
         waitAfterSellCandles: readFormNumber(sym, "waitAfterSellCandles", 8),
+        maxProfitLossEnabled: readFormBool(sym, "maxProfitLossEnabled", false),
+        maxProfit: readFormNumber(sym, "maxProfit", 1100),
+        maxLoss: readFormNumber(sym, "maxLoss", 900),
       },
       ...waitingTrades,
     ];
@@ -322,6 +338,9 @@ export function TradeStoreProvider({
       waitAfterSellEnabled: tradeToActivate.waitAfterSellEnabled,
       waitAfterSellCandles: tradeToActivate.waitAfterSellCandles,
       lastSellCandleTime: undefined,
+      maxProfitLossEnabled: tradeToActivate.maxProfitLossEnabled,
+      maxProfit: tradeToActivate.maxProfit,
+      maxLoss: tradeToActivate.maxLoss,
     };
 
     setActiveTrades((prev) => [...prev, newActiveTrade]);
@@ -559,11 +578,8 @@ export function TradeStoreProvider({
     lastCandleTime: string
   ) => {
     setActiveTrades((prev) => {
-      const next = prev.map((trade) => {
-        if (trade.symbol !== symbol || trade.status !== "ACTIVE") {
-          return trade;
-        }
-
+      const trade = prev.find((t) => t.symbol === symbol && t.status === "ACTIVE");
+      if (trade) {
         const exitLog = trade.inPosition
           ? `SELL manually for ₹${exitPrice} at ${lastCandleTime}`
           : `EXIT  at ${lastCandleTime}`;
@@ -579,29 +595,22 @@ export function TradeStoreProvider({
         const finalLogs = [...trade.logs, exitLog, pnlLog];
 
         appendTradeHistoryEntry(trade.symbol, pnl, finalLogs, buildTradeConfigSnapshot(trade));
-
-        removeActiveTrade(symbol);
-
-        return {
-          ...trade,
-          exitPrice,
-          exitTime: lastCandleTime,
-          status: "COMPLETED" as const,
-          inPosition: false,
-          pnl,
-          logs: finalLogs,
-        };
-      });
-      return next;
+      }
+      // Remove the trade immediately — no COMPLETED limbo
+      return prev.filter((t) => t.symbol !== symbol);
     });
   };
 
   const clearTradeHistory = () => {
+    pendingClearAll.current = true;
     setTradeHistory([]);
+    setTimeout(() => { pendingClearAll.current = false; }, 3000);
   };
 
   const removeTradeHistoryEntry = (id: string) => {
+    pendingHistoryDeletes.current.add(id);
     setTradeHistory((prev) => prev.filter((item) => item.id !== id));
+    setTimeout(() => { pendingHistoryDeletes.current.delete(id); }, 3000);
   };
 
   const appendTradeHistoryEntry = (
@@ -652,9 +661,38 @@ export function TradeStoreProvider({
     tradeHistory: TradeHistoryItem[];
     lastStrategyCandleTime: string;
   }) => {
-    setWaitingTrades(state.waitingTrades);
-    setActiveTrades(state.activeTrades);
-    setTradeHistory(state.tradeHistory);
+    // On first sync (page load/refresh), populate waitingTrades from server.
+    // After that, waitingTrades is frontend-owned — only remove trades that
+    // the server has activated.
+    if (!initialSyncDone.current) {
+      initialSyncDone.current = true;
+      setWaitingTrades(state.waitingTrades);
+    } else {
+      setWaitingTrades((prev) =>
+        prev.filter((w) => !state.activeTrades.some((a) => a.symbol === w.symbol))
+      );
+    }
+    // Merge: use server trades as base, but keep frontend-only trades that server
+    // doesn't know about yet (e.g. just activated, POST hasn't reached server)
+    setActiveTrades((prev) => {
+      const merged = [...state.activeTrades];
+      for (const local of prev) {
+        if (local.status === "COMPLETED") continue;
+        if (!merged.some((s) => s.symbol === local.symbol)) {
+          merged.push(local);
+        }
+      }
+      return merged;
+    });
+    if (pendingClearAll.current) {
+      // Don't overwrite — user just cleared all history
+    } else if (pendingHistoryDeletes.current.size > 0) {
+      setTradeHistory(state.tradeHistory.filter(
+        (item) => !pendingHistoryDeletes.current.has(item.id)
+      ));
+    } else {
+      setTradeHistory(state.tradeHistory);
+    }
     if (state.lastStrategyCandleTime) {
       lastStrategyCandleTimeRef.current = state.lastStrategyCandleTime;
     }

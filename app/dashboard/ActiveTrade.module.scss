@@ -45,6 +45,33 @@
   color: #d12b2b;
 }
 
+@keyframes dotPulse {
+  0%, 100% { color: #d12b2b; }
+  50% { color: #000; }
+}
+
+.dot1, .dot2, .dot3 {
+  font-weight: 900;
+  font-size: 18px;
+  animation: dotPulse 1.8s infinite;
+}
+
+.dot2 {
+  animation-delay: 0.2s;
+}
+
+.dot3 {
+  animation-delay: 0.4s;
+}
+
+.w1 { animation: dotPulse 1.8s infinite; animation-delay: 0.6s; }
+.w2 { animation: dotPulse 1.8s infinite; animation-delay: 0.7s; }
+.w3 { animation: dotPulse 1.8s infinite; animation-delay: 0.8s; }
+.w4 { animation: dotPulse 1.8s infinite; animation-delay: 0.9s; }
+.w5 { animation: dotPulse 1.8s infinite; animation-delay: 1.0s; }
+.w6 { animation: dotPulse 1.8s infinite; animation-delay: 1.1s; }
+.w7 { animation: dotPulse 1.8s infinite; animation-delay: 1.2s; }
+
 .profit {
   color: #0a8a43;
 }
@@ -110,6 +137,27 @@
 .plLoss {
   color: #f14a4a;
   font-weight: bold;
+}
+
+.waitingActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.waitingBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .empty {

@@ -19,7 +19,10 @@ export const STRATEGY_DEFAULTS = {
     timeFromAmpm: 'am',
     timeTo: '02:45',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: false,
+    maxProfit: 1100,
+    maxLoss: 900
   },
   allclear: {
     numberOfTrades: 3,
@@ -41,7 +44,10 @@ export const STRATEGY_DEFAULTS = {
     timeFromAmpm: 'am',
     timeTo: '02:45',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: false,
+    maxProfit: 1100,
+    maxLoss: 900
   },
   low: {
     numberOfTrades: 4,
@@ -63,10 +69,13 @@ export const STRATEGY_DEFAULTS = {
     timeFromAmpm: 'am',
     timeTo: '02:50',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: true,
+    maxProfit: 1100,
+    maxLoss: 900
   },
   medium: {
-    numberOfTrades: 4,
+    numberOfTrades: 5,
     stopLossNumberEnabled: true,
     stopLossNumber: 15,
     stopLossPercentageEnabled: false,
@@ -77,7 +86,7 @@ export const STRATEGY_DEFAULTS = {
     waitAfterSellEnabled: true,
     waitAfterSellCandles: 8,
     minToHoldEnabled: true,
-    minToHold: 15,
+    minToHold: 12,
     trailingAfterTargetEnabled: true,
     trailingAfterTarget: 15,
     rangeEnabled: true,
@@ -85,28 +94,34 @@ export const STRATEGY_DEFAULTS = {
     timeFromAmpm: 'am',
     timeTo: '02:45',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: true,
+    maxProfit: 2000,
+    maxLoss: 1200
   },
   high: {
-    numberOfTrades: 4,
+    numberOfTrades: 5,
     stopLossNumberEnabled: true,
-    stopLossNumber: 15,
+    stopLossNumber: 18,
     stopLossPercentageEnabled: false,
-    stopLossPercentage: 12,
+    stopLossPercentage: 10,
     targetPointsEnabled: true,
-    targetPoints: 60,
+    targetPoints: 40,
     waitStrategyEnabled: false,
     waitAfterSellEnabled: true,
     waitAfterSellCandles: 8,
     minToHoldEnabled: true,
-    minToHold: 20,
+    minToHold: 15,
     trailingAfterTargetEnabled: true,
-    trailingAfterTarget: 25,
+    trailingAfterTarget: 20,
     rangeEnabled: true,
     timeFrom: '10:00',
     timeFromAmpm: 'am',
-    timeTo: '02:45',
+    timeTo: '02:55',
     timeToAmpm: 'pm',
-    lotValue: 1
+    lotValue: 1,
+    maxProfitLossEnabled: false,
+    maxProfit: 3000,
+    maxLoss: 1500
   }
 };
