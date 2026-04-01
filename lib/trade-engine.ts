@@ -342,11 +342,20 @@ function cleanupStaleState() {
 
 
 function fmtTime(candleTime?: string): string {
-  if (!candleTime) return "";
-  const m = String(candleTime).match(/(\d{1,2}:\d{2})/);
-  const hhmm = m ? m[1] : candleTime;
-  const ss = String(new Date().getSeconds()).padStart(2, "0");
-  return `${hhmm}:${ss}`;
+  if (candleTime) {
+    // If candle time already has seconds (HH:MM:SS from live), use as-is
+    const full = String(candleTime).match(/(\d{1,2}:\d{2}:\d{2})/);
+    if (full) return full[1];
+    // If only HH:MM (CSV backtest), return HH:MM
+    const hhmm = String(candleTime).match(/(\d{1,2}:\d{2})/);
+    if (hhmm) return hhmm[1];
+  }
+  // Fallback (Force Buy, manual exit, etc.) — use system time
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
 }
 
 function toMinutes(timeStr?: string): number {
