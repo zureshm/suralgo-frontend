@@ -21,8 +21,8 @@ export const STRATEGY_DEFAULTS = {
     timeToAmpm: 'pm',
     lotValue: 1,
     maxProfitLossEnabled: true,
-    maxProfit: 1100,
-    maxLoss: 900
+    maxProfit: 2000,
+    maxLoss: 1000
   },
   allclear: {
     numberOfTrades: 3,
@@ -46,8 +46,8 @@ export const STRATEGY_DEFAULTS = {
     timeToAmpm: 'pm',
     lotValue: 1,
     maxProfitLossEnabled: true,
-    maxProfit: 1100,
-    maxLoss: 900
+    maxProfit: 4000,
+    maxLoss: 2000
   },
   low: {
     numberOfTrades: 4,
@@ -71,7 +71,7 @@ export const STRATEGY_DEFAULTS = {
     timeToAmpm: 'pm',
     lotValue: 1,
     maxProfitLossEnabled: true,
-    maxProfit: 1100,
+    maxProfit: 1200,
     maxLoss: 900
   },
   medium: {
@@ -81,14 +81,14 @@ export const STRATEGY_DEFAULTS = {
     stopLossPercentageEnabled: false,
     stopLossPercentage: 10,
     targetPointsEnabled: true,
-    targetPoints: 30,
+    targetPoints: 24,
     waitStrategyEnabled: false,
     waitAfterSellEnabled: true,
     waitAfterSellCandles: 8,
     minToHoldEnabled: true,
-    minToHold: 12,
+    minToHold: 10,
     trailingAfterTargetEnabled: true,
-    trailingAfterTarget: 15,
+    trailingAfterTarget: 12,
     rangeEnabled: true,
     timeFrom: '10:00',
     timeFromAmpm: 'am',
@@ -96,7 +96,7 @@ export const STRATEGY_DEFAULTS = {
     timeToAmpm: 'pm',
     lotValue: 1,
     maxProfitLossEnabled: true,
-    maxProfit: 2000,
+    maxProfit: 1800,
     maxLoss: 1200
   },
   high: {
@@ -106,7 +106,7 @@ export const STRATEGY_DEFAULTS = {
     stopLossPercentageEnabled: false,
     stopLossPercentage: 10,
     targetPointsEnabled: true,
-    targetPoints: 40,
+    targetPoints: 35,
     waitStrategyEnabled: false,
     waitAfterSellEnabled: true,
     waitAfterSellCandles: 8,

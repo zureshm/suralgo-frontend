@@ -818,6 +818,8 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
       trailingTrailActive: false, trailingHighWatermark: undefined,
 
+      lastSellCandleTime: lastStrategyCandleTime || trade.lastSellCandleTime,
+
     };
 
   });
