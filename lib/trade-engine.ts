@@ -216,7 +216,7 @@ let tradeHistory: TradeHistoryItem[] = [];
 
 let lastStrategyCandleTime = "";
 
-let lastHandledSignalKey = "";
+let lastHandledSignalKey: Record<string, string> = {};
 
 let engineRunning = false;
 
@@ -256,7 +256,7 @@ function loadState() {
 
       if (typeof data.lastStrategyCandleTime === "string") lastStrategyCandleTime = data.lastStrategyCandleTime;
 
-      if (typeof data.lastHandledSignalKey === "string") lastHandledSignalKey = data.lastHandledSignalKey;
+      if (data.lastHandledSignalKey != null) lastHandledSignalKey = typeof data.lastHandledSignalKey === "string" ? {} : data.lastHandledSignalKey;
 
       console.log(`[trade-engine] Loaded state from ${DB_PATH} (${waitingTrades.length} waiting, ${activeTrades.length} active, ${tradeHistory.length} history)`);
 
@@ -994,13 +994,13 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
     if (!activeForSymbol || !activeForSymbol.inPosition) return;
 
     completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "STOPLOSS hit for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
     return;
 
@@ -1014,13 +1014,13 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
     if (!activeForSymbol || !activeForSymbol.inPosition) return;
 
     if (activeForSymbol.trailingAfterTargetEnabled && activeForSymbol.trailingAfterTarget > 0) {
 
-      lastHandledSignalKey = signalKey;
+      lastHandledSignalKey[signalSymbol] = signalKey;
 
       return;
 
@@ -1028,7 +1028,7 @@ function handleStrategySignal(signal: any) {
 
     completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "TARGET hit for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
     return;
 
@@ -1042,7 +1042,7 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
     if (waitingForBuy) return;
 
@@ -1052,7 +1052,7 @@ function handleStrategySignal(signal: any) {
 
     updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime);
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
     return;
 
@@ -1066,9 +1066,9 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
     return;
 
@@ -1082,7 +1082,7 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
     if (waitingForSell) return;
 
@@ -1122,7 +1122,7 @@ function handleStrategySignal(signal: any) {
 
         else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, skippedLog); }
 
-        lastHandledSignalKey = signalKey;
+        lastHandledSignalKey[signalSymbol] = signalKey;
 
         return;
 
@@ -1154,7 +1154,7 @@ function handleStrategySignal(signal: any) {
 
           else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, waitLog); }
 
-          lastHandledSignalKey = signalKey;
+          lastHandledSignalKey[signalSymbol] = signalKey;
 
           return;
 
@@ -1178,7 +1178,7 @@ function handleStrategySignal(signal: any) {
 
       else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, ignoredLog); }
 
-      lastHandledSignalKey = signalKey;
+      lastHandledSignalKey[signalSymbol] = signalKey;
 
       return;
 
@@ -1198,7 +1198,7 @@ function handleStrategySignal(signal: any) {
 
 
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
   }
 
