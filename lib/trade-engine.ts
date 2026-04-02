@@ -1524,6 +1524,18 @@ export function addWaitingTrade(trade: WaitingTrade) {
 
 }
 
+export function updateWaitingTrade(trade: WaitingTrade) {
+  const idx = waitingTrades.findIndex((t) => t.symbol === trade.symbol);
+  if (idx === -1) return false;
+  // Preserve existing logs, replace everything else
+  const existingLogs = waitingTrades[idx].logs;
+  waitingTrades = waitingTrades.map((t, i) =>
+    i === idx ? { ...trade, logs: existingLogs } : t
+  );
+  persistState();
+  return true;
+}
+
 
 
 export function activateWaitingTradeFromClient(symbol: string, entryPrice: string, logLine: string, candleSize?: number) {

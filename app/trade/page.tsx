@@ -646,11 +646,7 @@ export default function TradePage() {
                       saveForm();
                       addWaitingTradeFromSelection();
 
-                      // POST to server-side trade engine so it picks up the trade
-                    fetch("/api/trades", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
+                      const tradePayload = {
                         symbol: selection.symbol,
                         price: price,
                         stateText: "...WAITING",
@@ -677,8 +673,14 @@ export default function TradePage() {
                         maxProfitLossEnabled,
                         maxProfit,
                         maxLoss,
-                      }),
-                    }).catch(() => {});
+                      };
+
+                      // PUT to update existing waiting trade, POST to add new one
+                      fetch("/api/trades", {
+                        method: isAlreadyWaiting ? "PUT" : "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(tradePayload),
+                      }).catch(() => {});
 
                     router.push("/dashboard");
                   }
