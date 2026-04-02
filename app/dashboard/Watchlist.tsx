@@ -101,7 +101,7 @@ export default function Watchlist() {
           </button>
         </div>
 
-        <div className="font-mono text-sm flex-1 text-right pr-6">{row.ltp ?? "-"}</div>
+        <div className="font-mono text-sm flex-1 text-right pr-6">{row.ltp != null ? Number(row.ltp).toFixed(2) : "-"}</div>
 
         <div className="w-8 flex-shrink-0 flex justify-end">
           <button
