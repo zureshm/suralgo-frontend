@@ -18,6 +18,20 @@ const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
 
 const DB_PATH = path.join(process.cwd(), "data", "trades.json");
 
+// Remove a symbol from angel-feed active strategy symbols if no other trade uses it
+function tryRemoveActiveStrategySymbol(symbol: string) {
+  const stillUsed =
+    waitingTrades.some((t) => t.symbol === symbol) ||
+    activeTrades.some((t) => t.symbol === symbol && t.status === "ACTIVE");
+  if (!stillUsed) {
+    fetch(`${API_URL}/active-strategy-symbols`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol }),
+    }).catch(() => {});
+  }
+}
+
 
 
 type WaitingTrade = {
@@ -202,7 +216,7 @@ let tradeHistory: TradeHistoryItem[] = [];
 
 let lastStrategyCandleTime = "";
 
-let lastHandledSignalKey = "";
+let lastHandledSignalKey: Record<string, string> = {};
 
 let engineRunning = false;
 
@@ -242,7 +256,7 @@ function loadState() {
 
       if (typeof data.lastStrategyCandleTime === "string") lastStrategyCandleTime = data.lastStrategyCandleTime;
 
-      if (typeof data.lastHandledSignalKey === "string") lastHandledSignalKey = data.lastHandledSignalKey;
+      if (data.lastHandledSignalKey != null) lastHandledSignalKey = typeof data.lastHandledSignalKey === "string" ? {} : data.lastHandledSignalKey;
 
       console.log(`[trade-engine] Loaded state from ${DB_PATH} (${waitingTrades.length} waiting, ${activeTrades.length} active, ${tradeHistory.length} history)`);
 
@@ -618,6 +632,38 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
 
 
 
+    // Check max loss/profit immediately after cycle — don't wait for next tick
+    if (trade.maxProfitLossEnabled) {
+      if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
+        const finalLogs = [
+          ...trade.logs, logLine,
+          `Trade P/L: ${cyclePnl.toFixed(2)}`,
+          `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+        ];
+        addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
+        return {
+          ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
+          exitPrice, logs: finalLogs, status: "COMPLETED" as const,
+          trailingTrailActive: false, trailingHighWatermark: undefined,
+        };
+      }
+      if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
+        const finalLogs = [
+          ...trade.logs, logLine,
+          `Trade P/L: ${cyclePnl.toFixed(2)}`,
+          `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+        ];
+        addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
+        return {
+          ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
+          exitPrice, logs: finalLogs, status: "COMPLETED" as const,
+          trailingTrailActive: false, trailingHighWatermark: undefined,
+        };
+      }
+    }
+
     return {
 
       ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
@@ -732,6 +778,38 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
 
 
+    // Check max loss/profit immediately after cycle — don't wait for next tick
+    if (trade.maxProfitLossEnabled) {
+      if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
+        const finalLogs = [
+          ...trade.logs, sellLog, logLine,
+          `Trade P/L: ${cyclePnl.toFixed(2)}`,
+          `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+        ];
+        addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
+        return {
+          ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
+          exitPrice, logs: finalLogs, status: "COMPLETED" as const,
+          trailingTrailActive: false, trailingHighWatermark: undefined,
+        };
+      }
+      if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
+        const finalLogs = [
+          ...trade.logs, sellLog, logLine,
+          `Trade P/L: ${cyclePnl.toFixed(2)}`,
+          `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
+          `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+        ];
+        addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
+        return {
+          ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
+          exitPrice, logs: finalLogs, status: "COMPLETED" as const,
+          trailingTrailActive: false, trailingHighWatermark: undefined,
+        };
+      }
+    }
+
     return {
 
       ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
@@ -739,6 +817,8 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
       logs: [...trade.logs, sellLog, logLine, `Trade P/L: ${cyclePnl.toFixed(2)}`, `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`],
 
       trailingTrailActive: false, trailingHighWatermark: undefined,
+
+      lastSellCandleTime: lastStrategyCandleTime || trade.lastSellCandleTime,
 
     };
 
@@ -914,13 +994,13 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
     if (!activeForSymbol || !activeForSymbol.inPosition) return;
 
     completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "STOPLOSS hit for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
     return;
 
@@ -934,13 +1014,13 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
     if (!activeForSymbol || !activeForSymbol.inPosition) return;
 
     if (activeForSymbol.trailingAfterTargetEnabled && activeForSymbol.trailingAfterTarget > 0) {
 
-      lastHandledSignalKey = signalKey;
+      lastHandledSignalKey[signalSymbol] = signalKey;
 
       return;
 
@@ -948,7 +1028,7 @@ function handleStrategySignal(signal: any) {
 
     completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "TARGET hit for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
     return;
 
@@ -962,7 +1042,7 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
     if (waitingForBuy) return;
 
@@ -972,7 +1052,7 @@ function handleStrategySignal(signal: any) {
 
     updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime);
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
     return;
 
@@ -986,9 +1066,9 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
     return;
 
@@ -1002,7 +1082,7 @@ function handleStrategySignal(signal: any) {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
-    if (signalKey === lastHandledSignalKey) return;
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
 
     if (waitingForSell) return;
 
@@ -1042,7 +1122,7 @@ function handleStrategySignal(signal: any) {
 
         else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, skippedLog); }
 
-        lastHandledSignalKey = signalKey;
+        lastHandledSignalKey[signalSymbol] = signalKey;
 
         return;
 
@@ -1074,7 +1154,7 @@ function handleStrategySignal(signal: any) {
 
           else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, waitLog); }
 
-          lastHandledSignalKey = signalKey;
+          lastHandledSignalKey[signalSymbol] = signalKey;
 
           return;
 
@@ -1098,7 +1178,7 @@ function handleStrategySignal(signal: any) {
 
       else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, ignoredLog); }
 
-      lastHandledSignalKey = signalKey;
+      lastHandledSignalKey[signalSymbol] = signalKey;
 
       return;
 
@@ -1118,7 +1198,7 @@ function handleStrategySignal(signal: any) {
 
 
 
-    lastHandledSignalKey = signalKey;
+    lastHandledSignalKey[signalSymbol] = signalKey;
 
   }
 
@@ -1130,7 +1210,7 @@ function handleStrategySignal(signal: any) {
 
 
 
-function handleLtpMonitoring(ltpMap: Record<string, number>) {
+function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string) {
 
   for (const trade of activeTrades) {
 
@@ -1139,7 +1219,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>) {
     const ltp = ltpMap[trade.symbol];
     if (!Number.isFinite(ltp)) continue;
 
-    const currentTime = fmtTime(lastStrategyCandleTime) || new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    const currentTime = marketTime || fmtTime();
 
     // ── Max Profit / Max Loss check (runs even when NOT in position) ──
     // This is the overall trade-level guard — takes priority over per-cycle SL/target.
@@ -1363,9 +1443,21 @@ async function tick() {
 
         const list = symbols.join(",");
 
-        const res = await fetch(`${API_URL}/prices?symbols=${list}`);
+        const [priceRes, timeRes] = await Promise.all([
+          fetch(`${API_URL}/prices?symbols=${list}`),
+          fetch(`${API_URL}/market-time`).catch(() => null),
+        ]);
 
-        const prices = await res.json();
+        const prices = await priceRes.json();
+
+        let marketTime = "";
+        if (timeRes && timeRes.ok) {
+          const timeData = await timeRes.json();
+          if (timeData?.marketTime) {
+            const timePart = String(timeData.marketTime).match(/(\d{1,2}:\d{2}:\d{2})/);
+            if (timePart) marketTime = timePart[1];
+          }
+        }
 
         const ltpMap: Record<string, number> = {};
 
@@ -1385,7 +1477,7 @@ async function tick() {
 
         }
 
-        handleLtpMonitoring(ltpMap);
+        handleLtpMonitoring(ltpMap, marketTime);
 
       } catch { /* market data not running */ }
 
@@ -1442,6 +1534,18 @@ export function addWaitingTrade(trade: WaitingTrade) {
 
   ensureEngineRunning();
 
+}
+
+export function updateWaitingTrade(trade: WaitingTrade) {
+  const idx = waitingTrades.findIndex((t) => t.symbol === trade.symbol);
+  if (idx === -1) return false;
+  // Preserve existing logs, replace everything else
+  const existingLogs = waitingTrades[idx].logs;
+  waitingTrades = waitingTrades.map((t, i) =>
+    i === idx ? { ...trade, logs: existingLogs } : t
+  );
+  persistState();
+  return true;
 }
 
 
@@ -1509,6 +1613,8 @@ export function cancelWaitingTrade(symbol: string) {
 
   persistState();
 
+  tryRemoveActiveStrategySymbol(symbol);
+
 }
 
 
@@ -1573,6 +1679,8 @@ export function manualExit(symbol: string, exitPrice: string, lastCandleTime: st
 
   persistState();
 
+  tryRemoveActiveStrategySymbol(symbol);
+
 }
 
 
@@ -1582,6 +1690,8 @@ export function removeCompletedTrade(symbol: string) {
   activeTrades = activeTrades.filter((t) => t.symbol !== symbol);
 
   persistState();
+
+  tryRemoveActiveStrategySymbol(symbol);
 
 }
 

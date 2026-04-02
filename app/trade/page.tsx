@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { STRATEGY_DEFAULTS } from "../../config/strategyDefaults";
-import { setActiveSymbol } from "@/lib/api";
+import { addActiveStrategySymbol } from "@/lib/api";
 
 export default function TradePage() {
   const router = useRouter();
@@ -75,7 +75,7 @@ export default function TradePage() {
   const [timeFromAmpm, setTimeFromAmpm] = useState('am');
   const [timeTo, setTimeTo] = useState('02:45');
   const [timeToAmpm, setTimeToAmpm] = useState('pm');
-  const [maxProfitLossEnabled, setMaxProfitLossEnabled] = useState(false);
+  const [maxProfitLossEnabled, setMaxProfitLossEnabled] = useState(true);
   const [maxProfit, setMaxProfit] = useState(1100);
   const [maxLoss, setMaxLoss] = useState(900);
 
@@ -640,17 +640,13 @@ export default function TradePage() {
               <Button
                 onClick={() => {
                   if (!isButtonDisabled && selection?.symbol) {
-                      // Tell angel-feed backend which symbol is now the active live symbol
-                      setActiveSymbol(selection.symbol).catch(() => {});
+                      // Tell angel-feed backend to add this symbol to active strategy symbols (max 2)
+                      addActiveStrategySymbol(selection.symbol).catch(() => {});
 
                       saveForm();
                       addWaitingTradeFromSelection();
 
-                      // POST to server-side trade engine so it picks up the trade
-                    fetch("/api/trades", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
+                      const tradePayload = {
                         symbol: selection.symbol,
                         price: price,
                         stateText: "...WAITING",
@@ -677,8 +673,14 @@ export default function TradePage() {
                         maxProfitLossEnabled,
                         maxProfit,
                         maxLoss,
-                      }),
-                    }).catch(() => {});
+                      };
+
+                      // PUT to update existing waiting trade, POST to add new one
+                      fetch("/api/trades", {
+                        method: isAlreadyWaiting ? "PUT" : "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(tradePayload),
+                      }).catch(() => {});
 
                     router.push("/dashboard");
                   }

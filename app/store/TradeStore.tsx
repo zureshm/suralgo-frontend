@@ -216,6 +216,9 @@ export function TradeStoreProvider({
   // Track whether we've done the initial sync from server
   const initialSyncDone = useRef(false);
 
+  // Pending exits — prevents sync from re-adding trades that were just exited locally
+  const pendingExits = useRef<Set<string>>(new Set());
+
   // Pending history deletes — prevents sync from overwriting optimistic local deletions
   const pendingHistoryDeletes = useRef<Set<string>>(new Set());
   const pendingClearAll = useRef(false);
@@ -230,53 +233,57 @@ export function TradeStoreProvider({
   const addWaitingTradeFromSelection = () => {
     if (!selection) return;
     const alreadyExists = waitingTrades.some((trade) => trade.symbol === selection.symbol);
-    if (alreadyExists) return;
 
     const sym = selection.symbol;
-    const newWaitingTrades = [
-      {
-        symbol: sym,
-        price: selection.price,
-        stateText: "...WAITING",
-        logs: ["Strategy initialized - waiting for signals"],
-        lotSize: readFormNumber(sym, "lotSize", 65),
-        lotValue: readFormNumber(sym, "lotValue", 1),
-        numberOfTrades: readFormNumber(sym, "numberOfTrades", 3),
-        stopLossNumberEnabled: readFormBool(sym, "stopLossNumberEnabled", true),
-        stopLossNumber: readFormNumber(sym, "stopLossNumber", 15),
-        targetPointsEnabled: readFormBool(sym, "targetPointsEnabled", true),
-        targetPoints: readFormNumber(sym, "targetPoints", 20),
-        minToHoldEnabled: readFormBool(sym, "minToHoldEnabled", false),
-        minToHold: readFormNumber(sym, "minToHold", 8),
-        trailingAfterTargetEnabled: readFormBool(sym, "trailingAfterTargetEnabled", false),
-        trailingAfterTarget: readFormNumber(sym, "trailingAfterTarget", 15),
-        rangeEnabled: readFormBool(sym, "rangeEnabled", false),
-        timeFrom: readFormString(sym, "timeFrom", "10:00"),
-        timeFromAmpm: readFormString(sym, "timeFromAmpm", "am"),
-        timeTo: readFormString(sym, "timeTo", "02:45"),
-        timeToAmpm: readFormString(sym, "timeToAmpm", "pm"),
-        buyOverride: (() => {
-          try {
-            const saved = localStorage.getItem("tradeForm_" + sym);
-            if (!saved) return undefined;
-            const data = JSON.parse(saved);
-            if (!data.waitStrategyEnabled) return undefined;
-            const v = Number(data.stopLossNumber);
-            return Number.isFinite(v) && v > 0 ? v : undefined;
-          } catch {
-            return undefined;
-          }
-        })(),
-        waitAfterSellEnabled: readFormBool(sym, "waitAfterSellEnabled", true),
-        waitAfterSellCandles: readFormNumber(sym, "waitAfterSellCandles", 8),
-        maxProfitLossEnabled: readFormBool(sym, "maxProfitLossEnabled", false),
-        maxProfit: readFormNumber(sym, "maxProfit", 1100),
-        maxLoss: readFormNumber(sym, "maxLoss", 900),
-      },
-      ...waitingTrades,
-    ];
+    const newTrade = {
+      symbol: sym,
+      price: selection.price,
+      stateText: "...WAITING",
+      logs: ["Strategy initialized - waiting for signals"] as string[],
+      lotSize: readFormNumber(sym, "lotSize", 65),
+      lotValue: readFormNumber(sym, "lotValue", 1),
+      numberOfTrades: readFormNumber(sym, "numberOfTrades", 3),
+      stopLossNumberEnabled: readFormBool(sym, "stopLossNumberEnabled", true),
+      stopLossNumber: readFormNumber(sym, "stopLossNumber", 15),
+      targetPointsEnabled: readFormBool(sym, "targetPointsEnabled", true),
+      targetPoints: readFormNumber(sym, "targetPoints", 20),
+      minToHoldEnabled: readFormBool(sym, "minToHoldEnabled", false),
+      minToHold: readFormNumber(sym, "minToHold", 8),
+      trailingAfterTargetEnabled: readFormBool(sym, "trailingAfterTargetEnabled", false),
+      trailingAfterTarget: readFormNumber(sym, "trailingAfterTarget", 15),
+      rangeEnabled: readFormBool(sym, "rangeEnabled", false),
+      timeFrom: readFormString(sym, "timeFrom", "10:00"),
+      timeFromAmpm: readFormString(sym, "timeFromAmpm", "am"),
+      timeTo: readFormString(sym, "timeTo", "02:45"),
+      timeToAmpm: readFormString(sym, "timeToAmpm", "pm"),
+      buyOverride: (() => {
+        try {
+          const saved = localStorage.getItem("tradeForm_" + sym);
+          if (!saved) return undefined;
+          const data = JSON.parse(saved);
+          if (!data.waitStrategyEnabled) return undefined;
+          const v = Number(data.stopLossNumber);
+          return Number.isFinite(v) && v > 0 ? v : undefined;
+        } catch {
+          return undefined;
+        }
+      })(),
+      waitAfterSellEnabled: readFormBool(sym, "waitAfterSellEnabled", true),
+      waitAfterSellCandles: readFormNumber(sym, "waitAfterSellCandles", 8),
+      maxProfitLossEnabled: readFormBool(sym, "maxProfitLossEnabled", false),
+      maxProfit: readFormNumber(sym, "maxProfit", 1100),
+      maxLoss: readFormNumber(sym, "maxLoss", 900),
+    };
 
-    setWaitingTrades(newWaitingTrades);
+    if (alreadyExists) {
+      // Update: replace trade config but preserve existing logs
+      setWaitingTrades((prev) =>
+        prev.map((t) => t.symbol === sym ? { ...newTrade, logs: t.logs } : t)
+      );
+    } else {
+      // New: prepend
+      setWaitingTrades([newTrade, ...waitingTrades]);
+    }
     setSelection(null);
   };
 
@@ -596,6 +603,9 @@ export function TradeStoreProvider({
 
         appendTradeHistoryEntry(trade.symbol, pnl, finalLogs, buildTradeConfigSnapshot(trade));
       }
+      // Mark as pending exit so syncFromServer won't re-add it
+      pendingExits.current.add(symbol);
+      setTimeout(() => { pendingExits.current.delete(symbol); }, 5000);
       // Remove the trade immediately — no COMPLETED limbo
       return prev.filter((t) => t.symbol !== symbol);
     });
@@ -675,9 +685,11 @@ export function TradeStoreProvider({
     // Merge: use server trades as base, but keep frontend-only trades that server
     // doesn't know about yet (e.g. just activated, POST hasn't reached server)
     setActiveTrades((prev) => {
-      const merged = [...state.activeTrades];
+      // Start from server state, but filter out trades pending local exit
+      const merged = state.activeTrades.filter((t) => !pendingExits.current.has(t.symbol));
       for (const local of prev) {
         if (local.status === "COMPLETED") continue;
+        if (pendingExits.current.has(local.symbol)) continue;
         if (!merged.some((s) => s.symbol === local.symbol)) {
           merged.push(local);
         }
