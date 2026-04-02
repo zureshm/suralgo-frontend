@@ -72,14 +72,21 @@ export default function Watchlist() {
     syncWatchlistSymbols();
   }, [watchlist]);
 
+  const activeSlots = waitingTrades.length + activeTrades.filter((t) => t.status === "ACTIVE").length;
+  const atMaxCapacity = activeSlots >= 2;
+
   const watchlistItems = watchlist.map((row) => {
     const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);
     const isRunning = activeTrades.some((t) => t.symbol === row.symbol);
+    const isInTrade = isWaiting || isRunning;
+    const isDisabled = isRunning || (!isInTrade && atMaxCapacity);
 
     const buttonClass = isWaiting
       ? "bg-yellow-500 hover:bg-yellow-600 text-white"
       : isRunning
       ? "bg-red-500 hover:bg-red-600 text-white"
+      : isDisabled
+      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
       : "bg-blue-500 hover:bg-blue-600 text-white";
 
     return (
@@ -88,14 +95,14 @@ export default function Watchlist() {
           <button
             className={`w-full px-3 py-1 rounded text-sm font-medium truncate text-left ${buttonClass}`}
             type="button"
-            onClick={isRunning ? undefined : () => {
+            onClick={isDisabled ? undefined : () => {
               setSelection({
                 symbol: row.symbol,
                 price: String(row.ltp ?? ""),
               });
               router.push("/trade");
             }}
-            style={isRunning ? { pointerEvents: "none" } : {}}
+            style={isDisabled ? { pointerEvents: "none" } : {}}
           >
             {row.symbol}
           </button>

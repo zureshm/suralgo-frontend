@@ -1210,7 +1210,7 @@ function handleStrategySignal(signal: any) {
 
 
 
-function handleLtpMonitoring(ltpMap: Record<string, number>) {
+function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string) {
 
   for (const trade of activeTrades) {
 
@@ -1219,7 +1219,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>) {
     const ltp = ltpMap[trade.symbol];
     if (!Number.isFinite(ltp)) continue;
 
-    const currentTime = fmtTime(lastStrategyCandleTime) || new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    const currentTime = marketTime || fmtTime();
 
     // ── Max Profit / Max Loss check (runs even when NOT in position) ──
     // This is the overall trade-level guard — takes priority over per-cycle SL/target.
@@ -1443,9 +1443,21 @@ async function tick() {
 
         const list = symbols.join(",");
 
-        const res = await fetch(`${API_URL}/prices?symbols=${list}`);
+        const [priceRes, timeRes] = await Promise.all([
+          fetch(`${API_URL}/prices?symbols=${list}`),
+          fetch(`${API_URL}/market-time`).catch(() => null),
+        ]);
 
-        const prices = await res.json();
+        const prices = await priceRes.json();
+
+        let marketTime = "";
+        if (timeRes && timeRes.ok) {
+          const timeData = await timeRes.json();
+          if (timeData?.marketTime) {
+            const timePart = String(timeData.marketTime).match(/(\d{1,2}:\d{2}:\d{2})/);
+            if (timePart) marketTime = timePart[1];
+          }
+        }
 
         const ltpMap: Record<string, number> = {};
 
@@ -1465,7 +1477,7 @@ async function tick() {
 
         }
 
-        handleLtpMonitoring(ltpMap);
+        handleLtpMonitoring(ltpMap, marketTime);
 
       } catch { /* market data not running */ }
 
