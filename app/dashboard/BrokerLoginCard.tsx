@@ -6,14 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { UserCircle, Loader2 } from "lucide-react";
+import { UserCircle, Loader2, HelpCircle } from "lucide-react";
 
 interface AccountInfo {
   broker: string;
   clientCode: string;
+  net: number;
   availableCash: number;
-  marginUsed: number;
-  availableToTrade: number;
+  availableIntradayPayin: number;
+  availableLimitMargin: number;
+  collateral: number;
+  m2mUnrealized: number;
+  m2mRealized: number;
+  utilisedDebits: number;
+  utilisedPayout: number;
 }
 
 const TRADE_API = "http://localhost:5000";
@@ -29,6 +35,33 @@ export default function BrokerLoginCard() {
   const [totpSecret, setTotpSecret] = useState("");
 
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null);
+  const [openTooltip, setOpenTooltip] = useState<string | null>(null);
+
+  const fetchFunds = useCallback(() => {
+    fetch(`${TRADE_API}/auth/funds`)
+      .then((r) => r.json())
+      .then((funds) => {
+        if (funds.success) {
+          setAccountInfo((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  net: funds.net ?? 0,
+                  availableCash: funds.availableCash ?? 0,
+                  availableIntradayPayin: funds.availableIntradayPayin ?? 0,
+                  availableLimitMargin: funds.availableLimitMargin ?? 0,
+                  collateral: funds.collateral ?? 0,
+                  m2mUnrealized: funds.m2mUnrealized ?? 0,
+                  m2mRealized: funds.m2mRealized ?? 0,
+                  utilisedDebits: funds.utilisedDebits ?? 0,
+                  utilisedPayout: funds.utilisedPayout ?? 0,
+                }
+              : prev
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Check session status on mount
   useEffect(() => {
@@ -37,35 +70,25 @@ export default function BrokerLoginCard() {
       .then((data) => {
         if (data.isLoggedIn) {
           setConnected(true);
+          const emptyFunds = { net: 0, availableCash: 0, availableIntradayPayin: 0, availableLimitMargin: 0, collateral: 0, m2mUnrealized: 0, m2mRealized: 0, utilisedDebits: 0, utilisedPayout: 0 };
           setAccountInfo({
             broker: "Angel One",
             clientCode: data.clientCode || "",
-            availableCash: 0,
-            marginUsed: 0,
-            availableToTrade: 0,
+            ...emptyFunds,
           });
-          // Fetch funds separately
-          fetch(`${TRADE_API}/auth/funds`)
-            .then((r) => r.json())
-            .then((funds) => {
-              if (funds.success) {
-                setAccountInfo((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        availableCash: funds.availableCash ?? 0,
-                        marginUsed: funds.marginUsed ?? 0,
-                        availableToTrade: funds.availableToTrade ?? 0,
-                      }
-                    : prev
-                );
-              }
-            })
-            .catch(() => {});
+          fetchFunds();
         }
       })
       .catch(() => {});
-  }, []);
+  }, [fetchFunds]);
+
+  // Auto-refresh funds every 30s while connected
+  useEffect(() => {
+    if (!connected) return;
+
+    const interval = setInterval(fetchFunds, 30000);
+    return () => clearInterval(interval);
+  }, [connected, fetchFunds]);
 
   const handleConnect = useCallback(async () => {
     setError("");
@@ -97,12 +120,19 @@ export default function BrokerLoginCard() {
         return;
       }
 
+      const f = data.funds || {};
       setAccountInfo({
         broker: "Angel One",
         clientCode: data.clientCode || clientCode.trim(),
-        availableCash: data.availableCash ?? 0,
-        marginUsed: data.marginUsed ?? 0,
-        availableToTrade: data.availableToTrade ?? 0,
+        net: f.net ?? 0,
+        availableCash: f.availableCash ?? 0,
+        availableIntradayPayin: f.availableIntradayPayin ?? 0,
+        availableLimitMargin: f.availableLimitMargin ?? 0,
+        collateral: f.collateral ?? 0,
+        m2mUnrealized: f.m2mUnrealized ?? 0,
+        m2mRealized: f.m2mRealized ?? 0,
+        utilisedDebits: f.utilisedDebits ?? 0,
+        utilisedPayout: f.utilisedPayout ?? 0,
       });
       setConnected(true);
     } catch (err) {
@@ -128,7 +158,7 @@ export default function BrokerLoginCard() {
   }, []);
 
   const formatCurrency = (val: number) =>
-    "₹" + val.toLocaleString("en-IN");
+    "₹" + val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // ── Connected State ──
   if (connected && accountInfo) {
@@ -170,27 +200,44 @@ export default function BrokerLoginCard() {
         <CardContent className="space-y-3">
           <Separator />
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-sm font-medium">Available Cash</span>
-              <span className="text-sm font-bold text-green-600">
-                {formatCurrency(accountInfo.availableCash)}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-sm font-medium">Margin Used</span>
-              <span className="text-sm font-bold text-orange-600">
-                {formatCurrency(accountInfo.marginUsed)}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center py-2">
-              <span className="text-sm font-medium">Available to Trade</span>
-              <span className="text-sm font-bold text-blue-600">
-                {formatCurrency(accountInfo.availableToTrade)}
-              </span>
-            </div>
+          <div className="space-y-1">
+            {[
+              { key: "net", label: "Net Balance", value: accountInfo.net, color: "text-green-600", tip: "Your total account value after all credits and debits. This is the overall net worth of your trading account." },
+              { key: "availableCash", label: "Available Cash", value: accountInfo.availableCash, color: "text-green-600", tip: "Cash currently available in your account that can be used for trading or withdrawal." },
+              { key: "intradayPayin", label: "Intraday Payin", value: accountInfo.availableIntradayPayin, color: "text-blue-600", tip: "Funds available for intraday (MIS) trades, including any deposits (payin) made today that have been credited to your account." },
+              { key: "limitMargin", label: "Limit Margin", value: accountInfo.availableLimitMargin, color: "text-blue-600", tip: "Margin available for placing limit orders. This is the maximum amount you can use for pending/limit orders." },
+              { key: "collateral", label: "Collateral", value: accountInfo.collateral, color: "text-muted-foreground", tip: "Value of pledged holdings (stocks/mutual funds) that can be used as margin for F&O trading." },
+              { key: "m2mUnrealized", label: "M2M Unrealized", value: accountInfo.m2mUnrealized, color: "text-orange-600", tip: "Mark-to-Market profit or loss on your open positions that hasn't been booked yet. Changes with every price tick." },
+              { key: "m2mRealized", label: "M2M Realized", value: accountInfo.m2mRealized, color: "text-orange-600", tip: "Mark-to-Market profit or loss that has been booked from closed positions today." },
+              { key: "utilisedDebits", label: "Utilised Debits", value: accountInfo.utilisedDebits, color: "text-red-600", tip: "Total margin/funds currently blocked for your open positions and pending orders." },
+              { key: "utilisedPayout", label: "Utilised Payout", value: accountInfo.utilisedPayout, color: "text-red-600", tip: "Funds that have been received via payin (deposit/transfer) into your trading account. This reflects how much money you've added." },
+            ].map((row, i, arr) => (
+              <div key={row.key} className={`flex justify-between items-center py-1.5 ${i < arr.length - 1 ? "border-b" : ""}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium">{row.label}</span>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:text-gray-600"
+                      onClick={() => setOpenTooltip(openTooltip === row.key ? null : row.key)}
+                    >
+                      <HelpCircle className="h-3 w-3" />
+                    </button>
+                    {openTooltip === row.key && (
+                      <div
+                        className="absolute left-0 bottom-6 w-56 rounded-md p-2 text-white shadow-lg"
+                        style={{ zIndex: 9, background: "rgba(0, 0, 0, 0.85)", fontSize: "11px", lineHeight: "16px" }}
+                      >
+                        {row.tip}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <span className={`text-sm font-bold ${row.color}`}>
+                  {formatCurrency(row.value)}
+                </span>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
