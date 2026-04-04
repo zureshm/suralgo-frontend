@@ -13,7 +13,7 @@ import path from "path";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
-const TRADE_EXECUTION_URL = "http://localhost:5000";
+const TRADE_EXECUTION_URL = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 
 // Fire-and-forget real order to Angel One via port 5000
 function placeRealOrder(symbol: string, qty: number, side: "BUY" | "SELL") {

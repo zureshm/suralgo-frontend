@@ -22,7 +22,7 @@ interface AccountInfo {
   utilisedPayout: number;
 }
 
-const TRADE_API = "http://localhost:5000";
+const TRADE_API = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 
 export default function BrokerLoginCard() {
   const [connected, setConnected] = useState(false);

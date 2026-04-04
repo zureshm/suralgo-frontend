@@ -93,7 +93,7 @@ export default function TradePage() {
   // Fetch available cash from trade-execution backend
   useEffect(() => {
     const fetchCash = () => {
-      fetch("http://localhost:5000/auth/funds")
+      fetch(`${process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000"}/auth/funds`)
         .then((r) => r.json())
         .then((data) => {
           if (data.success) {
