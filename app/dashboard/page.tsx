@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useTradeStore } from "../store/TradeStore";
 import { getPrices } from "@/lib/getPrices";
 import TradeHistory from "./TradeHistory";
-import AccountDetails from "./AccountDetails";
+import BrokerLoginCard from "./BrokerLoginCard";
 import ConnectionStatus from "./ConnectionStatus";
 import Watchlist from "./Watchlist";
 import ActiveTrade from "./ActiveTrade";
@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
         <TradeHistory />
 
-        <AccountDetails />
+        <BrokerLoginCard />
 
         <div className={styles.bottomActions}></div>
       </div>
