@@ -13,34 +13,6 @@ import path from "path";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
-const TRADE_EXECUTION_URL = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
-
-// Fire-and-forget real order to Angel One via port 5000
-function placeRealOrder(symbol: string, qty: number, side: "BUY" | "SELL") {
-  console.log(`[trade-engine] Sending real ${side} order: ${symbol} x${qty}`);
-  fetch(`${TRADE_EXECUTION_URL}/orders/place`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      symbol,
-      qty,
-      side,
-      orderType: "MARKET",
-      productType: "INTRADAY",
-    }),
-  })
-    .then(async (res) => {
-      const data = await res.json();
-      if (data.success) {
-        console.log(`[trade-engine] Real ${side} order placed: ${symbol} x${qty}, orderId: ${data.orderId}`);
-      } else {
-        console.error(`[trade-engine] Real ${side} order FAILED: ${symbol} - ${data.message}`);
-      }
-    })
-    .catch((err) => {
-      console.error(`[trade-engine] Real ${side} order ERROR: ${symbol} - ${err.message}`);
-    });
-}
 
 
 
@@ -516,8 +488,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
   if (!trade) return;
 
-  // Place real BUY order on Angel One
-  placeRealOrder(trade.symbol, trade.lotSize * trade.lotValue, "BUY");
+
 
   const newActive: ActiveTrade = {
 
@@ -604,10 +575,6 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
 
 function completeActiveTrade(symbol: string, exitPrice: string, logLine: string) {
-
-  // Place real SELL order on Angel One
-  const tradeToSell = activeTrades.find(t => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
-  if (tradeToSell) placeRealOrder(symbol, tradeToSell.lotSize * tradeToSell.lotValue, "SELL");
 
   activeTrades = activeTrades.map((trade) => {
 
@@ -714,10 +681,6 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
 
 
 function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, logLine: string) {
-  // Place real SELL order on Angel One (max P/L exit)
-  const tradeToSell = activeTrades.find(t => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
-  if (tradeToSell) placeRealOrder(symbol, tradeToSell.lotSize * tradeToSell.lotValue, "SELL");
-
   activeTrades = activeTrades.map((trade) => {
     if (trade.symbol !== symbol || trade.status !== "ACTIVE") return trade;
 
@@ -757,10 +720,6 @@ function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, log
 
 
 function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: string) {
-
-  // Place real SELL order on Angel One (SL/Target/Trailing exit)
-  const tradeToSell = activeTrades.find(t => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
-  if (tradeToSell) placeRealOrder(symbol, tradeToSell.lotSize * tradeToSell.lotValue, "SELL");
 
   activeTrades = activeTrades.map((trade) => {
 
@@ -870,10 +829,6 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
 
 function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: string) {
-
-  // Place real BUY order on Angel One (re-entry after cycle)
-  const tradeForBuy = activeTrades.find(t => t.symbol === symbol && t.status === "ACTIVE");
-  if (tradeForBuy) placeRealOrder(symbol, tradeForBuy.lotSize * tradeForBuy.lotValue, "BUY");
 
   activeTrades = activeTrades.map((trade) => {
 
@@ -1665,10 +1620,6 @@ export function cancelWaitingTrade(symbol: string) {
 
 
 export function manualExit(symbol: string, exitPrice: string, lastCandleTime: string) {
-
-  // Place real SELL order on Angel One (manual exit)
-  const tradeToSell = activeTrades.find(t => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
-  if (tradeToSell) placeRealOrder(symbol, tradeToSell.lotSize * tradeToSell.lotValue, "SELL");
 
   activeTrades = activeTrades.map((trade) => {
 
