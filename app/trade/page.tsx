@@ -17,7 +17,6 @@ export default function TradePage() {
   const { selection, addWaitingTradeFromSelection, waitingTrades, activeTrades } = useTradeStore();
   const [currentPrice, setCurrentPrice] = useState<string | null>(null);
   const [lotValue, setLotValue] = useState(1);
-  const [availableCash, setAvailableCash] = useState<number | null>(null);
 
   // Apply strategy defaults
   const applyStrategyDefaults = (strategyKey: string) => {
@@ -89,23 +88,6 @@ export default function TradePage() {
 
   const price = Number(currentPrice || selection?.price || 0);
   const total = price * (lotSize * lotValue);
-
-  // Fetch available cash from trade-execution backend
-  useEffect(() => {
-    const fetchCash = () => {
-      fetch(`${process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000"}/auth/funds`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.success) {
-            setAvailableCash(data.availableCash ?? 0);
-          }
-        })
-        .catch(() => {});
-    };
-    fetchCash();
-    const interval = setInterval(fetchCash, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (!stopLossPercentageEnabled || !Number.isFinite(price) || price <= 0) return;
@@ -626,9 +608,7 @@ export default function TradePage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <label className="text-sm">Available to Trade</label>
-              <span className={`text-sm font-semibold ${availableCash !== null && total > availableCash ? "text-red-600" : "text-green-600"}`}>
-                {availableCash !== null ? `₹${availableCash.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "--"}
-              </span>
+              <span className="text-sm font-semibold">≥ ₹85,000</span>
             </div>
 
             <div className="p-3 bg-gray-50 rounded-lg">
@@ -706,10 +686,9 @@ export default function TradePage() {
                   }
                 }}
                 className="flex-1"
-                disabled={isButtonDisabled || (availableCash !== null && total > availableCash)}
-                style={availableCash !== null && total > availableCash ? { color: "#333", backgroundColor: "#999" } : {}}
+                disabled={isButtonDisabled || false}
               >
-                {availableCash !== null && total > availableCash ? "NO ENOUGH CASH" : buttonText}
+                {buttonText}
               </Button>
               <Button 
                 variant="outline" 
