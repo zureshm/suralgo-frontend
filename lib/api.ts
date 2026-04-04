@@ -52,7 +52,7 @@ export async function getStrategySignal() {
 
 export async function getStrategyEvaluation(symbol: string) {
   const response = await fetch(
-    `${STRATEGY_URL}/evaluate?symbol=${encodeURIComponent(symbol)}`
+    `http://localhost:4000/evaluate?symbol=${encodeURIComponent(symbol)}`
   );
 
   if (!response.ok) {
