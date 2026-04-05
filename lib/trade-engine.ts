@@ -13,6 +13,7 @@ import path from "path";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
+const TRADE_EXECUTION_URL = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 
 
 
@@ -30,6 +31,45 @@ function tryRemoveActiveStrategySymbol(symbol: string) {
       body: JSON.stringify({ symbol }),
     }).catch(() => {});
   }
+}
+
+// Send real broker order to trade-execution backend (fire-and-forget)
+function sendBrokerOrder(symbol: string, qty: number, side: "BUY" | "SELL") {
+  const endpoint = side === "BUY" ? "/orders/place" : "/orders/exit";
+  const body = side === "BUY"
+    ? { symbol, qty, side: "BUY", orderType: "MARKET", productType: "INTRADAY" }
+    : { symbol, qty, side: "BUY" }; // exit a BUY position
+
+  fetch(`${TRADE_EXECUTION_URL}${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        const logMsg = `[BROKER] ${side} order SUCCESS for ${symbol} qty=${qty} orderId=${data.orderId || "N/A"}`;
+        console.log(`[trade-engine] ${logMsg}`);
+        addLogToActive(symbol, logMsg);
+      } else {
+        const reason = data.message || (data.errors ? data.errors.join(", ") : "unknown");
+        const logMsg = `[BROKER] ${side} order FAILED for ${symbol}: ${reason}`;
+        console.error(`[trade-engine] ${logMsg}`);
+        addLogToActive(symbol, logMsg);
+      }
+      persistState();
+    })
+    .catch((err) => {
+      const logMsg = `[BROKER] ${side} order ERROR for ${symbol}: ${err.message || err}`;
+      console.error(`[trade-engine] ${logMsg}`);
+      addLogToActive(symbol, logMsg);
+      persistState();
+    });
+}
+
+// Get qty from a trade's lot config
+function getTradeQty(trade: { lotSize: number; lotValue: number }): number {
+  return trade.lotSize * trade.lotValue;
 }
 
 
@@ -570,11 +610,20 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
   waitingTrades = waitingTrades.filter((t) => t.symbol !== symbol);
 
+  // Send real BUY order to broker
+  sendBrokerOrder(symbol, getTradeQty(trade), "BUY");
+
 }
 
 
 
 function completeActiveTrade(symbol: string, exitPrice: string, logLine: string) {
+
+  // Send real SELL order to broker if in position
+  const tradeToExit = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
+  if (tradeToExit) {
+    sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
+  }
 
   activeTrades = activeTrades.map((trade) => {
 
@@ -681,6 +730,12 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
 
 
 function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, logLine: string) {
+  // Send real SELL order to broker if in position
+  const tradeToExit = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
+  if (tradeToExit) {
+    sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
+  }
+
   activeTrades = activeTrades.map((trade) => {
     if (trade.symbol !== symbol || trade.status !== "ACTIVE") return trade;
 
@@ -720,6 +775,12 @@ function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, log
 
 
 function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: string) {
+
+  // Send real SELL order to broker if in position
+  const tradeToExit = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
+  if (tradeToExit) {
+    sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
+  }
 
   activeTrades = activeTrades.map((trade) => {
 
@@ -830,6 +891,8 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
 function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: string) {
 
+  const matchedTrade = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
+
   activeTrades = activeTrades.map((trade) => {
 
     if (trade.symbol !== symbol || trade.status !== "ACTIVE") return trade;
@@ -845,6 +908,11 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
     };
 
   });
+
+  // Send real BUY order to broker (re-entry)
+  if (matchedTrade) {
+    sendBrokerOrder(symbol, getTradeQty(matchedTrade), "BUY");
+  }
 
 }
 
@@ -1620,6 +1688,12 @@ export function cancelWaitingTrade(symbol: string) {
 
 
 export function manualExit(symbol: string, exitPrice: string, lastCandleTime: string) {
+
+  // Send real SELL order to broker if in position
+  const tradeToExit = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
+  if (tradeToExit) {
+    sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
+  }
 
   activeTrades = activeTrades.map((trade) => {
 
