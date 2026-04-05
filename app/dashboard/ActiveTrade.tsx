@@ -16,8 +16,21 @@ function TradeLogsConsole({ logs }: { logs: string[] }) {
 
   useEffect(() => {
     const container = containerRef.current;
-    if (container && logs.length > prevLogsLengthRef.current) {
-      container.scrollTop = container.scrollHeight;
+    if (logs.length > prevLogsLengthRef.current) {
+      // Log new broker-related entries to browser console
+      const newLogs = logs.slice(prevLogsLengthRef.current);
+      for (const line of newLogs) {
+        if (line.includes("[BROKER]")) {
+          if (line.includes("SUCCESS")) {
+            console.log(`%c${line}`, "color: #22c55e; font-weight: bold;");
+          } else if (line.includes("FAILED") || line.includes("ERROR")) {
+            console.error(`%c${line}`, "color: #ef4444; font-weight: bold;");
+          } else {
+            console.log(line);
+          }
+        }
+      }
+      if (container) container.scrollTop = container.scrollHeight;
     }
     prevLogsLengthRef.current = logs.length;
   }, [logs]);
@@ -28,6 +41,10 @@ function TradeLogsConsole({ logs }: { logs: string[] }) {
         <div
           key={i}
           className={styles.logLine}
+          style={line.includes("[BROKER]") ? {
+            fontWeight: "bold",
+            color: line.includes("SUCCESS") ? "#22c55e" : line.includes("FAILED") || line.includes("ERROR") ? "#ef4444" : undefined,
+          } : undefined}
           dangerouslySetInnerHTML={{
             __html: line
               .replace(
