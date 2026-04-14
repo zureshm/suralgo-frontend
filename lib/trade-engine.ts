@@ -1314,16 +1314,20 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     if (trade.maxProfitLossEnabled) {
       const qty = trade.lotSize * trade.lotValue;
       const entry = Number(trade.entryPrice);
-      const currentCyclePnl = (trade.inPosition && Number.isFinite(entry)) ? (ltp - entry) * qty : 0;
-      const totalPnl = trade.pnl + currentCyclePnl;
+      const bestPnl = (trade.inPosition && Number.isFinite(entry)) ? (Math.max(high, ltp) - entry) * qty : 0;
+      const worstPnl = (trade.inPosition && Number.isFinite(entry)) ? (Math.min(low, ltp) - entry) * qty : 0;
 
-      if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
-        forceExitTrade(trade.symbol, String(ltp), totalPnl, `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) at ${currentTime}`);
+      const ltpPnl = (trade.inPosition && Number.isFinite(entry)) ? (ltp - entry) * qty : 0;
+
+      if (trade.maxProfit > 0 && (trade.pnl + bestPnl) >= trade.maxProfit) {
+        const exitPrice = (trade.pnl + ltpPnl) >= trade.maxProfit ? ltp : entry + (trade.maxProfit - trade.pnl) / qty;
+        forceExitTrade(trade.symbol, String(exitPrice), trade.pnl + bestPnl, `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${(trade.pnl + bestPnl).toFixed(2)}) at ${currentTime}`);
         continue;
       }
 
-      if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
-        forceExitTrade(trade.symbol, String(ltp), totalPnl, `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) at ${currentTime}`);
+      if (trade.maxLoss > 0 && (trade.pnl + worstPnl) <= -trade.maxLoss) {
+        const exitPrice = (trade.pnl + ltpPnl) <= -trade.maxLoss ? ltp : entry + (-trade.maxLoss - trade.pnl) / qty;
+        forceExitTrade(trade.symbol, String(exitPrice), trade.pnl + worstPnl, `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${(trade.pnl + worstPnl).toFixed(2)}) at ${currentTime}`);
         continue;
       }
     }
@@ -1394,7 +1398,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
           trailingArmedPositions.delete(positionKey);
 
-          completeCycleWithoutExit(trade.symbol, String(candleClose), `MINIMUM TARGET hit for ₹${candleClose} at ${currentTime}`);
+          completeCycleWithoutExit(trade.symbol, String(ltp), `MINIMUM TARGET hit for ₹${ltp} at ${currentTime}`);
 
           continue;
 
@@ -1428,7 +1432,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
         triggeredPositions.add(positionKey);
 
-        completeCycleWithoutExit(trade.symbol, String(candleClose), `Trailing target hit for ₹${candleClose} at ${currentTime}`);
+        completeCycleWithoutExit(trade.symbol, String(ltp), `Trailing target hit for ₹${ltp} at ${currentTime}`);
 
         continue;
 
@@ -1440,13 +1444,16 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     // Target hit
 
-    if (trade.targetPointsEnabled && trade.targetPoints > 0 && (high - entry) >= trade.targetPoints) {
+    if (trade.targetPointsEnabled && trade.targetPoints > 0 && (Math.max(high, ltp) - entry) >= trade.targetPoints) {
+
+      const targetLevel = entry + trade.targetPoints;
+      const tgtExit = priceDiff >= trade.targetPoints ? ltp : targetLevel;
 
       if (trailingEnabled) {
 
         if (!trade.trailingTrailActive) {
 
-          activateTrailing(trade.symbol, high, currentTime);
+          activateTrailing(trade.symbol, tgtExit, currentTime);
 
         }
 
@@ -1456,7 +1463,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       triggeredPositions.add(positionKey);
 
-      completeCycleWithoutExit(trade.symbol, String(high), `TARGET hit for ₹${high} at ${currentTime}`);
+      completeCycleWithoutExit(trade.symbol, String(tgtExit), `TARGET hit for ₹${tgtExit} at ${currentTime}`);
 
       continue;
 
@@ -1466,11 +1473,14 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     // Stop loss hit
 
-    if (trade.stopLossNumberEnabled && trade.stopLossNumber > 0 && (low - entry) <= -trade.stopLossNumber) {
+    if (trade.stopLossNumberEnabled && trade.stopLossNumber > 0 && (Math.min(low, ltp) - entry) <= -trade.stopLossNumber) {
+
+      const slLevel = entry - trade.stopLossNumber;
+      const slExit = priceDiff <= -trade.stopLossNumber ? ltp : slLevel;
 
       triggeredPositions.add(positionKey);
 
-      completeCycleWithoutExit(trade.symbol, String(low), `STOPLOSS hit for ₹${low} at ${currentTime}`);
+      completeCycleWithoutExit(trade.symbol, String(slExit), `STOPLOSS hit for ₹${slExit} at ${currentTime}`);
 
       continue;
 

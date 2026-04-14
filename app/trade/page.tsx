@@ -31,6 +31,7 @@ export default function TradePage() {
     setTargetPointsEnabled(defaults.targetPointsEnabled);
     setTargetPoints(defaults.targetPoints);
     setWaitStrategyEnabled(defaults.waitStrategyEnabled);
+    setBuyOverrideSize(defaults.buyOverrideSize);
     setWaitAfterSellEnabled(defaults.waitAfterSellEnabled);
     setWaitAfterSellCandles(defaults.waitAfterSellCandles);
     setMinToHoldEnabled(defaults.minToHoldEnabled);
@@ -62,6 +63,7 @@ export default function TradePage() {
   const [targetPointsEnabled, setTargetPointsEnabled] = useState(true);
   const [targetPoints, setTargetPoints] = useState(20);
   const [waitStrategyEnabled, setWaitStrategyEnabled] = useState(false);
+  const [buyOverrideSize, setBuyOverrideSize] = useState(15);
   const [waitAfterSellEnabled, setWaitAfterSellEnabled] = useState(true);
   const [waitAfterSellCandles, setWaitAfterSellCandles] = useState(8);
   const [minToHoldEnabled, setMinToHoldEnabled] = useState(false);
@@ -131,6 +133,7 @@ export default function TradePage() {
       setTargetPointsEnabled(Boolean(data.targetPointsEnabled ?? true));
       setTargetPoints(data.targetPoints || 20);
       setWaitStrategyEnabled(Boolean(data.waitStrategyEnabled ?? false));
+      setBuyOverrideSize(data.buyOverrideSize || 15);
       setWaitAfterSellEnabled(Boolean(data.waitAfterSellEnabled ?? true));
       setWaitAfterSellCandles(data.waitAfterSellCandles || 8);
       setMinToHoldEnabled(Boolean(data.minToHoldEnabled ?? false));
@@ -157,6 +160,7 @@ export default function TradePage() {
       setTargetPointsEnabled(true);
       setTargetPoints(20);
       setWaitStrategyEnabled(false);
+      setBuyOverrideSize(15);
       setWaitAfterSellEnabled(true);
       setWaitAfterSellCandles(8);
       setMinToHoldEnabled(false);
@@ -194,6 +198,7 @@ export default function TradePage() {
       minToHoldEnabled,
       minToHold,
       waitStrategyEnabled,
+      buyOverrideSize,
       waitAfterSellEnabled,
       waitAfterSellCandles,
       trailingAfterTargetEnabled,
@@ -337,8 +342,14 @@ export default function TradePage() {
                   className="h-4 w-4"
                 />
                 <label htmlFor="waitStrategyEnabled" className="text-sm font-medium">
-                  Wait when candle size ≥ stoploss size
+                  Wait when candle size ≥
                 </label>
+                <input
+                  type="number"
+                  value={buyOverrideSize}
+                  onChange={(e) => setBuyOverrideSize(Number(e.target.value))}
+                  className="w-16 border rounded px-2 py-1 text-sm"
+                />
               </div>
               
               <div className="flex items-center space-x-2">
@@ -667,7 +678,7 @@ export default function TradePage() {
                         timeFromAmpm,
                         timeTo,
                         timeToAmpm,
-                        buyOverride: waitStrategyEnabled ? (stopLossNumber || undefined) : undefined,
+                        buyOverride: waitStrategyEnabled ? (buyOverrideSize || undefined) : undefined,
                         waitAfterSellEnabled,
                         waitAfterSellCandles,
                         maxProfitLossEnabled,
