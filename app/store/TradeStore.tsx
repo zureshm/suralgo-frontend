@@ -262,7 +262,7 @@ export function TradeStoreProvider({
           if (!saved) return undefined;
           const data = JSON.parse(saved);
           if (!data.waitStrategyEnabled) return undefined;
-          const v = Number(data.stopLossNumber);
+          const v = Number(data.buyOverrideSize);
           return Number.isFinite(v) && v > 0 ? v : undefined;
         } catch {
           return undefined;

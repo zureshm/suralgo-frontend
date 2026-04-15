@@ -12,11 +12,31 @@ import { Separator } from "@/components/ui/separator";
 import { STRATEGY_DEFAULTS } from "../../config/strategyDefaults";
 import { addActiveStrategySymbol } from "@/lib/api";
 
+const TRADE_API = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
+
 export default function TradePage() {
   const router = useRouter();
   const { selection, addWaitingTradeFromSelection, waitingTrades, activeTrades } = useTradeStore();
   const [currentPrice, setCurrentPrice] = useState<string | null>(null);
   const [lotValue, setLotValue] = useState(1);
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null);
+
+  // Fetch real balance from broker backend
+  useEffect(() => {
+    const fetchBalance = () => {
+      fetch(`${TRADE_API}/auth/funds`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) {
+            setAvailableBalance(data.availableCash ?? null);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Apply strategy defaults
   const applyStrategyDefaults = (strategyKey: string) => {
@@ -31,6 +51,7 @@ export default function TradePage() {
     setTargetPointsEnabled(defaults.targetPointsEnabled);
     setTargetPoints(defaults.targetPoints);
     setWaitStrategyEnabled(defaults.waitStrategyEnabled);
+    setBuyOverrideSize(defaults.buyOverrideSize);
     setWaitAfterSellEnabled(defaults.waitAfterSellEnabled);
     setWaitAfterSellCandles(defaults.waitAfterSellCandles);
     setMinToHoldEnabled(defaults.minToHoldEnabled);
@@ -62,6 +83,7 @@ export default function TradePage() {
   const [targetPointsEnabled, setTargetPointsEnabled] = useState(true);
   const [targetPoints, setTargetPoints] = useState(20);
   const [waitStrategyEnabled, setWaitStrategyEnabled] = useState(false);
+  const [buyOverrideSize, setBuyOverrideSize] = useState(15);
   const [waitAfterSellEnabled, setWaitAfterSellEnabled] = useState(true);
   const [waitAfterSellCandles, setWaitAfterSellCandles] = useState(8);
   const [minToHoldEnabled, setMinToHoldEnabled] = useState(false);
@@ -81,13 +103,25 @@ export default function TradePage() {
 
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
   const isAlreadyActive = selection && activeTrades.some((trade) => trade.symbol === selection.symbol && trade.status === "ACTIVE");
-  const buttonText = isAlreadyActive ? "TRADE RUNNING" : (isAlreadyWaiting ? "UPDATE" : "ENTER");
-  const isButtonDisabled = isAlreadyActive;
 
   const lotSize: number = 65;
-
   const price = Number(currentPrice || selection?.price || 0);
-  const total = price * (lotSize * lotValue);
+  const quantity = lotSize * lotValue;
+  const total = price * quantity;
+  // For NRML options full premium is blocked; for MIS/intraday brokers block ~50% margin
+  const marginRequired = total;
+  const hasBalance = availableBalance !== null && availableBalance > 0;
+  const insufficientBalance = hasBalance && marginRequired > 0 && marginRequired > availableBalance!;
+  const noSymbol = !selection?.symbol;
+
+  const buttonText = isAlreadyActive
+    ? "TRADE RUNNING"
+    : insufficientBalance
+      ? "INSUFFICIENT BALANCE"
+      : isAlreadyWaiting
+        ? "UPDATE"
+        : "ENTER";
+  const isButtonDisabled = isAlreadyActive || insufficientBalance || noSymbol;
 
   useEffect(() => {
     if (!stopLossPercentageEnabled || !Number.isFinite(price) || price <= 0) return;
@@ -131,6 +165,7 @@ export default function TradePage() {
       setTargetPointsEnabled(Boolean(data.targetPointsEnabled ?? true));
       setTargetPoints(data.targetPoints || 20);
       setWaitStrategyEnabled(Boolean(data.waitStrategyEnabled ?? false));
+      setBuyOverrideSize(data.buyOverrideSize || 15);
       setWaitAfterSellEnabled(Boolean(data.waitAfterSellEnabled ?? true));
       setWaitAfterSellCandles(data.waitAfterSellCandles || 8);
       setMinToHoldEnabled(Boolean(data.minToHoldEnabled ?? false));
@@ -157,6 +192,7 @@ export default function TradePage() {
       setTargetPointsEnabled(true);
       setTargetPoints(20);
       setWaitStrategyEnabled(false);
+      setBuyOverrideSize(15);
       setWaitAfterSellEnabled(true);
       setWaitAfterSellCandles(8);
       setMinToHoldEnabled(false);
@@ -194,6 +230,7 @@ export default function TradePage() {
       minToHoldEnabled,
       minToHold,
       waitStrategyEnabled,
+      buyOverrideSize,
       waitAfterSellEnabled,
       waitAfterSellCandles,
       trailingAfterTargetEnabled,
@@ -337,8 +374,14 @@ export default function TradePage() {
                   className="h-4 w-4"
                 />
                 <label htmlFor="waitStrategyEnabled" className="text-sm font-medium">
-                  Wait when candle size ≥ stoploss size
+                  Wait when candle size ≥
                 </label>
+                <input
+                  type="number"
+                  value={buyOverrideSize}
+                  onChange={(e) => setBuyOverrideSize(Number(e.target.value))}
+                  className="w-16 border rounded px-2 py-1 text-sm"
+                />
               </div>
               
               <div className="flex items-center space-x-2">
@@ -607,17 +650,27 @@ export default function TradePage() {
           {/* Trade Taking Section */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <label className="text-sm">Available to Trade</label>
-              <span className="text-sm font-semibold">≥ ₹85,000</span>
+              <label className="text-sm font-medium">Available to Trade</label>
+              <span className={`text-sm font-bold ${
+                availableBalance === null
+                  ? "text-muted-foreground"
+                  : insufficientBalance
+                    ? "text-red-600"
+                    : "text-green-600"
+              }`}>
+                {availableBalance !== null
+                  ? `₹${availableBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : "Not connected"}
+              </span>
             </div>
 
-            <div className="p-3 bg-gray-50 rounded-lg">
+            <div className={`p-3 rounded-lg ${insufficientBalance ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">
                   {selection?.symbol ?? "Select a symbol from Watchlist"}
                 </span>
                 <span className="text-sm font-bold">
-                  ₹{currentPrice ?? selection?.price ?? "--"}
+                  {price > 0 ? `₹${price.toFixed(2)}` : "--"}
                 </span>
               </div>
 
@@ -626,14 +679,29 @@ export default function TradePage() {
                 <Input 
                   type="number" 
                   value={lotValue} 
-                  onChange={(e) => setLotValue(Number(e.target.value) || 0)}
+                  onChange={(e) => setLotValue(Math.max(1, Number(e.target.value) || 1))}
                   className="w-16 h-8 text-sm"
+                  min={1}
                 />
               </div>
 
-              <div className="text-sm text-gray-600">
-                Total: {price.toFixed(2)} × {lotSize * lotValue} = ₹{total.toFixed(2)}
+              <div className="flex justify-between items-center text-sm text-gray-600 mb-1">
+                <span>Qty</span>
+                <span>{quantity}</span>
               </div>
+
+              <div className="flex justify-between items-center text-sm font-medium">
+                <span>Total Required</span>
+                <span className={insufficientBalance ? "text-red-600 font-bold" : ""}>
+                  ₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {insufficientBalance && (
+                <p className="text-xs text-red-600 mt-2">
+                  You need ₹{((marginRequired - availableBalance!)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} more to place this trade.
+                </p>
+              )}
             </div>
 
             <div className="flex space-x-3">
@@ -667,7 +735,7 @@ export default function TradePage() {
                         timeFromAmpm,
                         timeTo,
                         timeToAmpm,
-                        buyOverride: waitStrategyEnabled ? (stopLossNumber || undefined) : undefined,
+                        buyOverride: waitStrategyEnabled ? (buyOverrideSize || undefined) : undefined,
                         waitAfterSellEnabled,
                         waitAfterSellCandles,
                         maxProfitLossEnabled,
