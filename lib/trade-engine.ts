@@ -1438,11 +1438,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       if (!trailingArmedPositions.has(positionKey)) {
 
-        if (candleClose >= activationLevel) { trailingArmedPositions.add(positionKey); }
+        if (Math.max(candleClose, ltp) >= activationLevel) { trailingArmedPositions.add(positionKey); }
 
       } else {
 
-        if (candleClose <= trailLevel) {
+        if (Math.min(candleClose, ltp) <= trailLevel) {
 
           triggeredPositions.add(positionKey);
 
