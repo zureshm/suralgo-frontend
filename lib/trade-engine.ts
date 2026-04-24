@@ -1110,7 +1110,7 @@ function handleStrategySignal(signal: any) {
 
       String(latestClose ?? ""),
 
-      `AUTO SELL triggered post 03:05 pm cut-off at ₹${String(latestClose ?? "")} (${fmtTime(signal.lastCandleTime)})`
+      `AUTO SELL triggered post 02:55 pm cut-off at ₹${String(latestClose ?? "")} (${fmtTime(signal.lastCandleTime)})`
 
     );
 
@@ -1468,15 +1468,19 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     if (trailingEnabled && trade.trailingTrailActive) {
 
-      if (typeof trade.trailingHighWatermark !== "number" || candleClose > trade.trailingHighWatermark) {
+      const peakPrice = Math.max(candleClose, ltp);
 
-        updateHighWatermark(trade.symbol, candleClose);
+      if (typeof trade.trailingHighWatermark !== "number" || peakPrice > trade.trailingHighWatermark) {
+
+        updateHighWatermark(trade.symbol, peakPrice);
 
       }
 
-      const highMark = trade.trailingHighWatermark ?? candleClose;
+      const highMark = trade.trailingHighWatermark ?? peakPrice;
 
-      const drop = highMark - candleClose;
+      const currentPrice = Math.min(candleClose, ltp);
+
+      const drop = highMark - currentPrice;
 
       if (drop >= trade.trailingAfterTarget) {
 
