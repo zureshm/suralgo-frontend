@@ -1110,7 +1110,7 @@ function handleStrategySignal(signal: any) {
 
       String(latestClose ?? ""),
 
-      `AUTO SELL triggered post 03:05 pm cut-off at ₹${String(latestClose ?? "")} (${fmtTime(signal.lastCandleTime)})`
+      `AUTO SELL triggered post 02:55 pm cut-off at ₹${String(latestClose ?? "")} (${fmtTime(signal.lastCandleTime)})`
 
     );
 
