@@ -110,8 +110,8 @@ export default function TradePage() {
   const total = price * quantity;
   // For NRML options full premium is blocked; for MIS/intraday brokers block ~50% margin
   const marginRequired = total;
-  const hasBalance = availableBalance !== null && availableBalance > 0;
-  const insufficientBalance = hasBalance && marginRequired > 0 && marginRequired > availableBalance!;
+  const hasFetchedBalance = availableBalance !== null;
+  const insufficientBalance = hasFetchedBalance && marginRequired > 0 && marginRequired > availableBalance!;
   const noSymbol = !selection?.symbol;
 
   const buttonText = isAlreadyActive
