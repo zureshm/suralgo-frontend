@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import styles from "./page.module.scss";
 import { useRouter } from "next/navigation";
 
@@ -26,7 +27,10 @@ export default function LoginPage() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
-        <h1 className={styles.title}>Login</h1>
+        <div className={styles.logo}>
+          <Image src="/logo.png" alt="SurAlgoApp" width={180} height={180} priority />
+        </div>
+        <hr className={styles.separator} />
 
         <div className={styles.formRow}>
           <label className={styles.label} htmlFor="userId">User ID</label>

@@ -16,15 +16,27 @@
 .card {
   width: 100%;
   border-radius: 18px;
-  padding: 32px 28px;
+  padding: 32px 28px 48px;
   background: #fff;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   box-sizing: border-box;
   font-family: Poppins, Arial, Helvetica, sans-serif;
   @media (max-width: 410px) {
     max-width: 360px;
-    padding: 24px 18px;
+    padding: 24px 18px 40px;
   }
+}
+
+.logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.separator {
+  border: 0;
+  border-top: 1.5px solid #e5e7eb;
+  margin: 0 0 20px;
 }
 
 .title {
