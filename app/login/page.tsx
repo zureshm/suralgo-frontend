@@ -26,36 +26,32 @@ export default function LoginPage() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
+        <h1 className={styles.title}>Login</h1>
+
         <div className={styles.formRow}>
-          <label className={styles.label} htmlFor="userId">
-            User ID :
-          </label>
+          <label className={styles.label} htmlFor="userId">User ID</label>
           <input
             id="userId"
             className={styles.input}
             type="text"
-            placeholder=""
             value={userId}
             onChange={(e) => setUserId(e.target.value)}
           />
         </div>
 
         <div className={styles.formRow}>
-          <label className={styles.label} htmlFor="apiKey">
-            API Key:
-          </label>
+          <label className={styles.label} htmlFor="apiKey">API Key</label>
           <input
             id="apiKey"
             className={styles.input}
             type="password"
-            placeholder=""
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleConnect()}
           />
         </div>
 
-        {error && <p style={{ color: "red", textAlign: "center", margin: "8px 0 0" }}>{error}</p>}
+        {error && <p className={styles.error}>{error}</p>}
 
         <div className={styles.actions}>
           <button className={styles.primaryButton} type="button" onClick={handleConnect}>
