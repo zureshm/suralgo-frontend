@@ -13,7 +13,38 @@ import path from "path";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
-const TRADE_EXECUTION_URL = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
+const ANGELONE_EXECUTION_URL = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
+const FLATTRADE_EXECUTION_URL = process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
+
+// Active broker execution URL — updated when user connects/disconnects a broker
+let activeBrokerUrl: string = ANGELONE_EXECUTION_URL;
+
+export function setActiveBrokerUrl(url: string) {
+  activeBrokerUrl = url;
+  console.log(`[trade-engine] Active broker URL set to: ${url}`);
+}
+
+export function getActiveBrokerUrl(): string {
+  return activeBrokerUrl;
+}
+
+// Auto-detect which broker is logged in (called on engine start)
+async function detectActiveBroker() {
+  for (const [label, url] of [["angelone", ANGELONE_EXECUTION_URL], ["flattrade", FLATTRADE_EXECUTION_URL]] as const) {
+    try {
+      const res = await fetch(`${url}/auth/status`);
+      const data = await res.json();
+      if (data.isLoggedIn) {
+        activeBrokerUrl = url;
+        console.log(`[trade-engine] Detected active broker: ${label} at ${url}`);
+        return;
+      }
+    } catch {
+      // server not reachable
+    }
+  }
+  console.log(`[trade-engine] No broker logged in — defaulting to Angel One URL`);
+}
 
 
 
@@ -90,7 +121,7 @@ function sendBrokerOrder(symbol: string, qty: number, side: "BUY" | "SELL") {
     ? { symbol, qty, side: "BUY", orderType: "MARKET", productType: "INTRADAY" }
     : { symbol, qty, side: "BUY" }; // exit a BUY position
 
-  fetch(`${TRADE_EXECUTION_URL}${endpoint}`, {
+  fetch(`${activeBrokerUrl}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -1933,6 +1964,7 @@ loadState();
 
 ensureEngineRunning();
 
-// On startup, sync all waiting+active trade symbols to angel-feed server
+// On startup, detect which broker is logged in and sync strategy symbols
+detectActiveBroker();
 syncActiveStrategySymbols();
 
