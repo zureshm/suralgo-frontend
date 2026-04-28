@@ -211,6 +211,13 @@ export default function BrokerLoginCard() {
         funds: fundData,
       });
       setConnected(true);
+
+      // Notify trade engine which broker execution server to use
+      fetch("/api/broker/active", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: apiUrl }),
+      }).catch(() => {});
     } catch {
       const port = selectedBroker === "angelone" ? "5000" : "5001";
       setError(
@@ -242,6 +249,9 @@ export default function BrokerLoginCard() {
     }
     setConnected(false);
     setAccountInfo(null);
+
+    // Reset trade engine to default broker URL
+    fetch("/api/broker/active", { method: "DELETE" }).catch(() => {});
     setAoApiKey("");
     setAoClientCode("");
     setAoPassword("");
