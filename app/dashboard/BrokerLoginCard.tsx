@@ -44,14 +44,13 @@ const ANGELONE_FUND_ROWS = [
 ];
 
 const FLATTRADE_FUND_ROWS = [
-  { key: "cash", label: "Available Cash", color: "text-green-600", tip: "Total cash available in your Flattrade account for trading." },
-  { key: "marginUsed", label: "Margin Used", color: "text-red-600", tip: "Total margin currently utilized for open positions and pending orders." },
-  { key: "payin", label: "Payin", color: "text-blue-600", tip: "Funds deposited into your trading account today." },
-  { key: "payout", label: "Payout", color: "text-blue-600", tip: "Funds withdrawn from your trading account today." },
+  { key: "availableMargin", label: "Available Margin", color: "text-green-600", tip: "Cash currently available for trading after deducting all margin utilization." },
+  { key: "totalCredits", label: "Total Credits", color: "text-green-600", tip: "Total funds credited to your account including opening balance and deposits." },
+  { key: "openingBalance", label: "Opening Balance", color: "text-blue-600", tip: "Your account balance at the start of the trading day." },
+  { key: "utilization", label: "Utilization", color: "text-red-600", tip: "Total margin currently utilized for open positions and pending orders." },
+  { key: "peakMargin", label: "Peak Margin", color: "text-orange-600", tip: "Highest margin utilized during the trading day." },
   { key: "unrealizedMtm", label: "Unrealized MTM", color: "text-orange-600", tip: "Mark-to-Market profit or loss on open positions that hasn't been booked yet." },
-  { key: "grossExposure", label: "Gross Exposure", color: "text-orange-600", tip: "Total gross exposure across all open positions." },
-  { key: "pendingOrderValue", label: "Pending Order Value", color: "text-muted-foreground", tip: "Total value of all pending/open orders." },
-  { key: "turnover", label: "Turnover", color: "text-muted-foreground", tip: "Total turnover for the trading day." },
+  { key: "derivativeIntradayMargin", label: "Derivative Intraday Margin", color: "text-muted-foreground", tip: "Margin blocked for intraday derivative positions." },
 ];
 
 const FUND_ROWS_MAP: Record<BrokerType, typeof ANGELONE_FUND_ROWS> = {
