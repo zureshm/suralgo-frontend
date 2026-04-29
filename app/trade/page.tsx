@@ -12,7 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { STRATEGY_DEFAULTS } from "../../config/strategyDefaults";
 import { addActiveStrategySymbol } from "@/lib/api";
 
-const TRADE_API = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
+const ANGELONE_API = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
+const FLATTRADE_API = process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
 
 export default function TradePage() {
   const router = useRouter();
@@ -21,17 +22,37 @@ export default function TradePage() {
   const [lotValue, setLotValue] = useState(1);
   const [availableBalance, setAvailableBalance] = useState<number | null>(null);
 
-  // Fetch real balance from broker backend
+  // Fetch real balance from whichever broker is connected
   useEffect(() => {
-    const fetchBalance = () => {
-      fetch(`${TRADE_API}/auth/funds`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.success) {
-            setAvailableBalance(data.availableCash ?? null);
-          }
-        })
-        .catch(() => {});
+    const fetchBalance = async () => {
+      // Try to get active broker URL from server
+      let brokerUrl: string | null = null;
+      try {
+        const res = await fetch("/api/broker/active");
+        const data = await res.json();
+        if (data.url) brokerUrl = data.url;
+      } catch {}
+
+      // If no active broker set, check both brokers for a logged-in session
+      if (!brokerUrl) {
+        for (const url of [ANGELONE_API, FLATTRADE_API]) {
+          try {
+            const res = await fetch(`${url}/auth/status`);
+            const data = await res.json();
+            if (data.isLoggedIn) { brokerUrl = url; break; }
+          } catch {}
+        }
+      }
+
+      if (!brokerUrl) return;
+
+      try {
+        const res = await fetch(`${brokerUrl}/auth/funds`);
+        const data = await res.json();
+        if (data.success) {
+          setAvailableBalance(data.availableCash ?? data.availableMargin ?? null);
+        }
+      } catch {}
     };
     fetchBalance();
     const interval = setInterval(fetchBalance, 30000);
