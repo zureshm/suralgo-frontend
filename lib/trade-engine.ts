@@ -359,6 +359,10 @@ const lastCandleHigh: Record<string, number> = {};
 
 const lastCandleLow: Record<string, number> = {};
 
+// Grace period after BUY: use only real-time LTP (not stale candle low/high) for SL/Target checks
+const lastBuyTimestamp: Record<string, number> = {};
+const BUY_GRACE_PERIOD_MS = 5000;
+
 
 
 // ─── JSON file persistence ───
@@ -706,6 +710,9 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     lastCandleCloseMap[symbol] = ep;
   }
 
+  // Mark buy timestamp — during grace period, LTP monitoring ignores stale candle low/high
+  lastBuyTimestamp[symbol] = Date.now();
+
   // Send real BUY order to broker
   sendBrokerOrder(symbol, getTradeQty(trade), "BUY");
 
@@ -1013,6 +1020,9 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
     lastCandleHigh[symbol] = ep;
     lastCandleCloseMap[symbol] = ep;
   }
+
+  // Mark buy timestamp — during grace period, LTP monitoring ignores stale candle low/high
+  lastBuyTimestamp[symbol] = Date.now();
 
   // Send real BUY order to broker (re-entry)
   if (matchedTrade) {
@@ -1402,9 +1412,13 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     const ltp = ltpMap[trade.symbol];
     if (!Number.isFinite(ltp)) continue;
 
-    const candleClose = lastCandleCloseMap[trade.symbol] ?? ltp;
-    const high = lastCandleHigh[trade.symbol] ?? ltp;
-    const low = lastCandleLow[trade.symbol] ?? ltp;
+    // During buy grace period, ignore stale candle low/high (from pre-entry candle data)
+    // and use only real-time LTP to prevent false SL/Target triggers
+    const buyTs = lastBuyTimestamp[trade.symbol] || 0;
+    const inBuyGrace = (Date.now() - buyTs) < BUY_GRACE_PERIOD_MS;
+    const candleClose = inBuyGrace ? ltp : (lastCandleCloseMap[trade.symbol] ?? ltp);
+    const high = inBuyGrace ? ltp : (lastCandleHigh[trade.symbol] ?? ltp);
+    const low = inBuyGrace ? ltp : (lastCandleLow[trade.symbol] ?? ltp);
 
     const currentTime = marketTime || fmtTime();
 
