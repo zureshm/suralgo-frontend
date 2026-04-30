@@ -363,6 +363,8 @@ let activeTrades: ActiveTrade[] = [];
 
 let tradeHistory: TradeHistoryItem[] = [];
 
+let watchlist: string[] = [];
+
 let lastStrategyCandleTime = "";
 
 let lastHandledSignalKey: Record<string, string> = {};
@@ -413,6 +415,8 @@ function loadState() {
 
       if (Array.isArray(data.tradeHistory)) tradeHistory = data.tradeHistory;
 
+      if (Array.isArray(data.watchlist)) watchlist = data.watchlist;
+
       if (typeof data.lastStrategyCandleTime === "string") lastStrategyCandleTime = data.lastStrategyCandleTime;
 
       if (data.lastHandledSignalKey != null) lastHandledSignalKey = typeof data.lastHandledSignalKey === "string" ? {} : data.lastHandledSignalKey;
@@ -456,6 +460,8 @@ function persistState() {
       activeTrades,
 
       tradeHistory,
+
+      watchlist,
 
       lastStrategyCandleTime,
 
@@ -1967,6 +1973,23 @@ export function removeHistoryEntry(id: string) {
 }
 
 
+
+// ─── Watchlist (server-persisted) ───
+
+export function getWatchlist(): string[] {
+  return watchlist;
+}
+
+export function addWatchlistSymbol(symbol: string) {
+  if (watchlist.includes(symbol)) return;
+  watchlist = [...watchlist, symbol];
+  persistState();
+}
+
+export function removeWatchlistSymbol(symbol: string) {
+  watchlist = watchlist.filter((s) => s !== symbol);
+  persistState();
+}
 
 export function ensureEngineRunning() {
 
