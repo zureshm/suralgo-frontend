@@ -50,7 +50,7 @@ export default function TradeHistory() {
               className="text-red-500 hover:text-red-600 transition-colors"
               onClick={() => {
                 if (window.confirm("Clear all trade history?")) {
-                  fetch("/api/trades/history/clear", { method: "POST" }).catch(() => {});
+                  fetch("/next-api/trades/history/clear", { method: "POST" }).catch(() => {});
                   clearTradeHistory();
                 }
               }}
@@ -124,7 +124,7 @@ export default function TradeHistory() {
                       aria-label="Delete this trade history entry"
                       className="text-gray-400 hover:text-red-500 transition-colors"
                       onClick={() => {
-                        fetch(`/api/trades/history/${encodeURIComponent(item.id)}/remove`, { method: "POST" }).catch(() => {});
+                        fetch(`/next-api/trades/history/${encodeURIComponent(item.id)}/remove`, { method: "POST" }).catch(() => {});
                         removeTradeHistoryEntry(item.id);
                       }}
                     >

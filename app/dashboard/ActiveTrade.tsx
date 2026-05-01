@@ -173,7 +173,7 @@ export default function ActiveTrade({
                         const lastCandleTime = `${hh}:${mm}:${ss}`;
 
                         // Notify server-side engine of manual exit
-                        fetch(`/api/trades/${encodeURIComponent(t.symbol)}/exit`, {
+                        fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/exit`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ exitPrice: String(ltp ?? ""), lastCandleTime }),
@@ -190,7 +190,7 @@ export default function ActiveTrade({
                       className={`${styles.tradeAction} ${styles.danger}`}
                       type="button"
                       onClick={() => {
-                        fetch(`/api/trades/${encodeURIComponent(t.symbol)}/remove`, { method: "POST" }).catch(() => {});
+                        fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/remove`, { method: "POST" }).catch(() => {});
                         removeTradeAndFreeSymbol(t.symbol);
                       }}
                     >
@@ -239,7 +239,7 @@ export default function ActiveTrade({
                     className={`${styles.waitingBtn} ${styles.dark}`}
                     type="button"
                     onClick={() => {
-                      fetch(`/api/trades/${encodeURIComponent(t.symbol)}/force-buy`, { method: "POST" }).catch(() => {});
+                      fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-buy`, { method: "POST" }).catch(() => {});
                     }}
                   >
                     <Zap className="w-3.5 h-3.5" />
@@ -249,7 +249,7 @@ export default function ActiveTrade({
                     className={`${styles.waitingBtn} ${styles.danger}`}
                     type="button"
                     onClick={() => {
-                      fetch(`/api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                      fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
                       onCancelWaiting(t.symbol);
                     }}
                   >

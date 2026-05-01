@@ -28,7 +28,7 @@ export default function TradePage() {
       // Try to get active broker URL from server
       let brokerUrl: string | null = null;
       try {
-        const res = await fetch("/api/broker/active");
+        const res = await fetch("/next-api/broker/active");
         const data = await res.json();
         if (data.url) brokerUrl = data.url;
       } catch {}
@@ -765,7 +765,7 @@ export default function TradePage() {
                       };
 
                       // PUT to update existing waiting trade, POST to add new one
-                      fetch("/api/trades", {
+                      fetch("/next-api/trades", {
                         method: isAlreadyWaiting ? "PUT" : "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(tradePayload),

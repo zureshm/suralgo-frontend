@@ -19,7 +19,7 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }): ReactN
 
   // Load watchlist from server on mount
   useEffect(() => {
-    fetch("/api/watchlist")
+    fetch("/next-api/watchlist")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.symbols)) {
@@ -36,7 +36,7 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }): ReactN
 
     const newWatchlist = [...watchlist, item];
     setWatchlist(newWatchlist);
-    fetch("/api/watchlist", {
+    fetch("/next-api/watchlist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ symbol: item.symbol }),
@@ -46,7 +46,7 @@ export const WatchlistProvider = ({ children }: { children: ReactNode }): ReactN
   const removeFromWatchlist = (symbol: string) => {
     const newWatchlist = watchlist.filter((row) => row.symbol !== symbol);
     setWatchlist(newWatchlist);
-    fetch("/api/watchlist", {
+    fetch("/next-api/watchlist", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ symbol }),
