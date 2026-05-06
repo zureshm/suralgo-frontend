@@ -28,7 +28,7 @@ export default function LoginPage() {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <Image src="/logo.png" alt="SurAlgoApp" width={180} height={180} priority />
+          <Image src="/logo.png" alt="SurAlgoApp" width={180} height={180} priority unoptimized />
         </div>
         <hr className={styles.separator} />
 
