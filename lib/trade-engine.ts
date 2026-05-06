@@ -137,15 +137,43 @@ function sendBrokerOrder(symbol: string, qty: number, side: "BUY" | "SELL") {
         const logMsg = `[BROKER] ${side} order FAILED for ${symbol}: ${reason}`;
         console.error(`[trade-engine] ${logMsg}`);
         addLogToActive(symbol, logMsg);
+        // Revert trade state on BUY rejection so P/L doesn't tick on a phantom position
+        if (side === "BUY") {
+          revertRejectedBuy(symbol);
+        }
       }
       persistState();
     })
     .catch((err) => {
+      // Network errors (broker unreachable) are NOT reverted — keeps backtest mode working
       const logMsg = `[BROKER] ${side} order ERROR for ${symbol}: ${err.message || err}`;
       console.error(`[trade-engine] ${logMsg}`);
       addLogToActive(symbol, logMsg);
       persistState();
     });
+}
+
+// Revert a BUY that was rejected by the broker:
+// - set inPosition to false so P/L stops ticking
+// - restore pnl to whatever it was before this cycle (pnl is unchanged since only SELL mutates it)
+// - clean up tracking sets
+// - log the rejection
+function revertRejectedBuy(symbol: string) {
+  activeTrades = activeTrades.map((trade) => {
+    if (trade.symbol !== symbol || trade.status !== "ACTIVE" || !trade.inPosition) return trade;
+    return {
+      ...trade,
+      inPosition: false,
+      logs: [...trade.logs, `BUY rejected by broker — position reverted, waiting for next signal`],
+      trailingTrailActive: false,
+      trailingHighWatermark: undefined,
+    };
+  });
+  // Clean up monitoring state for this position
+  const positionKey = `${symbol}-${activeTrades.find(t => t.symbol === symbol)?.entryPrice}`;
+  armedPositions.delete(positionKey);
+  triggeredPositions.delete(positionKey);
+  trailingArmedPositions.delete(positionKey);
 }
 
 // Get qty from a trade's lot config
