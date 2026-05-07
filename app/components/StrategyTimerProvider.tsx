@@ -12,7 +12,7 @@ export function StrategyTimerProvider({ children }: { children: React.ReactNode 
   // browser-tab throttling.
   const pollServer = useCallback(async () => {
     try {
-      const res = await fetch("/api/trades");
+      const res = await fetch("/next-api/trades");
       if (res.ok) {
         const state = await res.json();
         syncFromServer(state);

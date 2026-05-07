@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { activateWaitingTradeFromClient } from "@/lib/trade-engine";
+import { manualExit } from "@/lib/trade-engine";
 
-// POST /api/trades/[symbol]/activate — activate a waiting trade (called by frontend on BUY signal)
+// POST /next-api/trades/[symbol]/exit — manual exit
 export async function POST(request: Request, { params }: { params: Promise<{ symbol: string }> }) {
   try {
     const { symbol } = await params;
     const body = await request.json();
-    const { entryPrice, logLine, candleSize } = body;
-    activateWaitingTradeFromClient(decodeURIComponent(symbol), entryPrice, logLine, candleSize);
+    manualExit(decodeURIComponent(symbol), body.exitPrice, body.lastCandleTime);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

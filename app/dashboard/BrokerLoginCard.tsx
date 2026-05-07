@@ -212,7 +212,7 @@ export default function BrokerLoginCard() {
       setConnected(true);
 
       // Notify trade engine which broker execution server to use
-      fetch("/api/broker/active", {
+      fetch("/next-api/broker/active", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: apiUrl }),
@@ -250,7 +250,7 @@ export default function BrokerLoginCard() {
     setAccountInfo(null);
 
     // Reset trade engine to default broker URL
-    fetch("/api/broker/active", { method: "DELETE" }).catch(() => {});
+    fetch("/next-api/broker/active", { method: "DELETE" }).catch(() => {});
     setAoApiKey("");
     setAoClientCode("");
     setAoPassword("");

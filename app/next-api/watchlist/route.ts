@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getWatchlist, addWatchlistSymbol, removeWatchlistSymbol } from "@/lib/trade-engine";
 
-// GET /api/watchlist — returns current watchlist symbols
+// GET /next-api/watchlist — returns current watchlist symbols
 export async function GET() {
   return NextResponse.json({ symbols: getWatchlist() });
 }
 
-// POST /api/watchlist — add a symbol  { symbol: "NIFTY..." }
+// POST /next-api/watchlist — add a symbol  { symbol: "NIFTY..." }
 export async function POST(request: Request) {
   try {
     const { symbol } = await request.json();
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE /api/watchlist — remove a symbol  { symbol: "NIFTY..." }
+// DELETE /next-api/watchlist — remove a symbol  { symbol: "NIFTY..." }
 export async function DELETE(request: Request) {
   try {
     const { symbol } = await request.json();

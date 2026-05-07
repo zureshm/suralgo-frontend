@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 import { getEngineState, addWaitingTrade, updateWaitingTrade, ensureEngineRunning } from "@/lib/trade-engine";
 
-// GET /api/trades — returns current engine state for frontend to display
+// GET /next-api/trades — returns current engine state for frontend to display
 export async function GET() {
   try {
     ensureEngineRunning();
     const state = getEngineState();
     return NextResponse.json(state);
   } catch (error) {
-    console.error("[API] GET /api/trades error:", error);
+    console.error("[API] GET /next-api/trades error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// POST /api/trades — add a new waiting trade
+// POST /next-api/trades — add a new waiting trade
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT /api/trades — update an existing waiting trade's config
+// PUT /next-api/trades — update an existing waiting trade's config
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
