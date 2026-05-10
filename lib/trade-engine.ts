@@ -211,6 +211,8 @@ type WaitingTrade = {
 
   minToHold: number;
 
+  minToHoldTrigger: number;
+
   trailingAfterTargetEnabled: boolean;
 
   trailingAfterTarget: number;
@@ -230,6 +232,10 @@ type WaitingTrade = {
   waitAfterSellEnabled: boolean;
 
   waitAfterSellCandles: number;
+
+  sellWhenLossCandlesEnabled: boolean;
+
+  sellWhenLossCandles: number;
 
   maxProfitLossEnabled: boolean;
 
@@ -269,6 +275,8 @@ type ActiveTrade = {
 
   minToHold: number;
 
+  minToHoldTrigger: number;
+
   trailingAfterTargetEnabled: boolean;
 
   trailingAfterTarget: number;
@@ -304,6 +312,10 @@ type ActiveTrade = {
   waitAfterSellEnabled: boolean;
 
   waitAfterSellCandles: number;
+
+  sellWhenLossCandlesEnabled: boolean;
+
+  sellWhenLossCandles: number;
 
   lastSellCandleTime?: string;
 
@@ -348,6 +360,12 @@ type TradeHistoryItem = {
     minToHold?: number;
 
     minToHoldEnabled: boolean;
+
+    minToHoldTrigger?: number;
+
+    sellWhenLossCandlesEnabled?: boolean;
+
+    sellWhenLossCandles?: number;
 
   };
 
@@ -593,6 +611,12 @@ function buildConfigSnapshot(trade: ActiveTrade): TradeHistoryItem["config"] {
 
     minToHold: trade.minToHoldEnabled ? trade.minToHold : undefined,
 
+    minToHoldTrigger: trade.minToHoldEnabled ? trade.minToHoldTrigger : undefined,
+
+    sellWhenLossCandlesEnabled: Boolean(trade.sellWhenLossCandlesEnabled),
+
+    sellWhenLossCandles: trade.sellWhenLossCandlesEnabled ? trade.sellWhenLossCandles : undefined,
+
   };
 
 }
@@ -683,6 +707,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
     minToHold: trade.minToHold,
 
+    minToHoldTrigger: trade.minToHoldTrigger,
+
     trailingAfterTargetEnabled: trade.trailingAfterTargetEnabled,
 
     trailingAfterTarget: trade.trailingAfterTarget,
@@ -718,6 +744,10 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     waitAfterSellEnabled: trade.waitAfterSellEnabled,
 
     waitAfterSellCandles: trade.waitAfterSellCandles,
+
+    sellWhenLossCandlesEnabled: trade.sellWhenLossCandlesEnabled,
+
+    sellWhenLossCandles: trade.sellWhenLossCandles,
 
     lastSellCandleTime: undefined,
 
@@ -1037,6 +1067,8 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
     return {
 
       ...trade, entryPrice, inPosition: true,
+
+      entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
 
       logs: [...trade.logs, logLine],
 
@@ -1531,7 +1563,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       const trailLevel = entry + trade.minToHold;
 
-      const activationLevel = trailLevel + 2;
+      const activationLevel = trailLevel + (trade.minToHoldTrigger || 2);
 
       if (!trailingArmedPositions.has(positionKey)) {
 
@@ -1635,6 +1667,20 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       continue;
 
+    }
+
+    // Sell when in loss for X candles
+    if (trade.sellWhenLossCandlesEnabled && trade.sellWhenLossCandles > 0 && ltp < entry) {
+      const entryMin = toMinutes(trade.entryTime);
+      const currentMin = toMinutes(lastStrategyCandleTime);
+      if (entryMin >= 0 && currentMin >= 0) {
+        const candlesSinceEntry = currentMin - entryMin;
+        if (candlesSinceEntry >= trade.sellWhenLossCandles) {
+          triggeredPositions.add(positionKey);
+          completeCycleWithoutExit(trade.symbol, String(ltp), `SELL (in loss for ${candlesSinceEntry} candles) at ₹${ltp} at ${currentTime}`);
+          continue;
+        }
+      }
     }
 
 
