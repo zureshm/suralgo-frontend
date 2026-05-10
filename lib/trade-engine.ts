@@ -1482,13 +1482,9 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     const ltp = ltpMap[trade.symbol];
     if (!Number.isFinite(ltp)) continue;
 
-    // During buy grace period, ignore stale candle low/high (from pre-entry candle data)
-    // and use only real-time LTP to prevent false SL/Target triggers
-    const buyTs = lastBuyTimestamp[trade.symbol] || 0;
-    const inBuyGrace = (Date.now() - buyTs) < BUY_GRACE_PERIOD_MS;
-    const candleClose = inBuyGrace ? ltp : (lastCandleCloseMap[trade.symbol] ?? ltp);
-    const high = inBuyGrace ? ltp : (lastCandleHigh[trade.symbol] ?? ltp);
-    const low = inBuyGrace ? ltp : (lastCandleLow[trade.symbol] ?? ltp);
+    // Use only real-time LTP for all SL/Target/Trailing checks.
+    // Candle high/low from strategy signals are stale (previous completed candle)
+    // and would cause phantom exits on wicks that LTP polling already handles.
 
     const currentTime = marketTime || fmtTime();
 
@@ -1497,8 +1493,8 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     if (trade.maxProfitLossEnabled) {
       const qty = trade.lotSize * trade.lotValue;
       const entry = Number(trade.entryPrice);
-      const bestPnl = (trade.inPosition && Number.isFinite(entry)) ? (Math.max(high, ltp) - entry) * qty : 0;
-      const worstPnl = (trade.inPosition && Number.isFinite(entry)) ? (Math.min(low, ltp) - entry) * qty : 0;
+      const bestPnl = (trade.inPosition && Number.isFinite(entry)) ? (ltp - entry) * qty : 0;
+      const worstPnl = (trade.inPosition && Number.isFinite(entry)) ? (ltp - entry) * qty : 0;
 
       const ltpPnl = (trade.inPosition && Number.isFinite(entry)) ? (ltp - entry) * qty : 0;
 
@@ -1571,14 +1567,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       if (!trailingArmedPositions.has(positionKey)) {
 
-        if (Math.max(candleClose, ltp) >= activationLevel) { trailingArmedPositions.add(positionKey); trailingArmTimestamp[positionKey] = Date.now(); }
+        if (ltp >= activationLevel) { trailingArmedPositions.add(positionKey); }
 
       } else {
 
-        const armTs = trailingArmTimestamp[positionKey] || 0;
-        const inArmGrace = (Date.now() - armTs) < TRAILING_ARM_GRACE_MS;
-        const triggerPrice = inArmGrace ? ltp : Math.min(candleClose, ltp);
-        if (triggerPrice <= trailLevel) {
+        if (ltp <= trailLevel) {
 
           triggeredPositions.add(positionKey);
 
@@ -1604,7 +1597,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     if (trailingEnabled && trade.trailingTrailActive) {
 
-      const peakPrice = Math.max(candleClose, ltp);
+      const peakPrice = ltp;
 
       if (typeof trade.trailingHighWatermark !== "number" || peakPrice > trade.trailingHighWatermark) {
 
@@ -1614,7 +1607,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       const highMark = trade.trailingHighWatermark ?? peakPrice;
 
-      const currentPrice = Math.min(candleClose, ltp);
+      const currentPrice = ltp;
 
       const drop = highMark - currentPrice;
 
@@ -1634,7 +1627,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     // Target hit
 
-    if (trade.targetPointsEnabled && trade.targetPoints > 0 && (Math.max(high, ltp) - entry) >= trade.targetPoints) {
+    if (trade.targetPointsEnabled && trade.targetPoints > 0 && (ltp - entry) >= trade.targetPoints) {
 
       const targetLevel = entry + trade.targetPoints;
       const tgtExit = priceDiff >= trade.targetPoints ? ltp : targetLevel;
@@ -1663,7 +1656,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     // Stop loss hit
 
-    if (trade.stopLossNumberEnabled && trade.stopLossNumber > 0 && (Math.min(low, ltp) - entry) <= -trade.stopLossNumber) {
+    if (trade.stopLossNumberEnabled && trade.stopLossNumber > 0 && (ltp - entry) <= -trade.stopLossNumber) {
 
       const slLevel = entry - trade.stopLossNumber;
       const slExit = priceDiff <= -trade.stopLossNumber ? ltp : slLevel;
