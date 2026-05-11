@@ -131,7 +131,7 @@ export default function TradePage() {
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
   const isAlreadyActive = selection && activeTrades.some((trade) => trade.symbol === selection.symbol && trade.status === "ACTIVE");
 
-  const lotSize: number = 65;
+  const lotSize: number = selection?.symbol?.startsWith("SENSEX") ? 20 : 65;
   const price = Number(currentPrice || selection?.price || 0);
   const quantity = lotSize * lotValue;
   const total = price * quantity;

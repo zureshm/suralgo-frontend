@@ -255,7 +255,7 @@ export function TradeStoreProvider({
       price: selection.price,
       stateText: "...WAITING",
       logs: ["Strategy initialized - waiting for signals"] as string[],
-      lotSize: readFormNumber(sym, "lotSize", 65),
+      lotSize: readFormNumber(sym, "lotSize", sym.startsWith("SENSEX") ? 20 : 65),
       lotValue: readFormNumber(sym, "lotValue", 1),
       numberOfTrades: readFormNumber(sym, "numberOfTrades", 3),
       stopLossNumberEnabled: readFormBool(sym, "stopLossNumberEnabled", true),
