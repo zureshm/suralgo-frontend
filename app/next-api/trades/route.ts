@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { getEngineState, addWaitingTrade, updateWaitingTrade, ensureEngineRunning } from "@/lib/trade-engine";
+import { getEngineState, addWaitingTrade, updateWaitingTrade, ensureEngineRunning, flushSoundEvents } from "@/lib/trade-engine";
 
 // GET /next-api/trades — returns current engine state for frontend to display
 export async function GET() {
   try {
     ensureEngineRunning();
     const state = getEngineState();
-    return NextResponse.json(state);
+    const soundEvents = flushSoundEvents();
+    return NextResponse.json({ ...state, soundEvents });
   } catch (error) {
     console.error("[API] GET /next-api/trades error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
