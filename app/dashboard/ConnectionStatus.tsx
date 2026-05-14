@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import styles from "./ConnectionStatus.module.scss";
-import { Network } from "lucide-react";
+import { Network, Play } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
@@ -73,6 +73,13 @@ export default function ConnectionStatus() {
         <CardTitle className="flex items-center gap-2 text-lg font-semibold">
           <Network className="w-5 h-5" />
           CONNECTION STATUS
+          <button
+            onClick={() => window.open("/log-monitor", "_blank")}
+            className="ml-auto p-1 rounded hover:bg-zinc-100 transition-colors"
+            title="Open Log Monitor"
+          >
+            <Play className="w-6 h-6 text-zinc-700" />
+          </button>
         </CardTitle>
       </CardHeader>
       <CardContent>
