@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
-import { History, Trash2, XCircle } from "lucide-react";
+import { History, Trash2, XCircle, Loader2 } from "lucide-react";
 import styles from "./TradeHistory.module.scss";
 
 export default function TradeHistory() {
@@ -16,6 +16,7 @@ export default function TradeHistory() {
   const [mounted, setMounted] = useState(false);
   const { tradeHistory, clearTradeHistory, removeTradeHistoryEntry } = useTradeStore();
   const [currentPage, setCurrentPage] = useState(1);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   
   const tradesPerPage = 10;
 
@@ -123,12 +124,20 @@ export default function TradeHistory() {
                       type="button"
                       aria-label="Delete this trade history entry"
                       className="text-gray-400 hover:text-red-500 transition-colors"
+                      disabled={deletingIds.has(item.id)}
                       onClick={() => {
-                        fetch(`/next-api/trades/history/${encodeURIComponent(item.id)}/remove`, { method: "POST" }).catch(() => {});
-                        removeTradeHistoryEntry(item.id);
+                        setDeletingIds((prev) => new Set(prev).add(item.id));
+                        fetch(`/next-api/trades/history/${encodeURIComponent(item.id)}/remove`, { method: "POST" })
+                          .then(() => {
+                            removeTradeHistoryEntry(item.id);
+                          })
+                          .catch(() => {})
+                          .finally(() => {
+                            setDeletingIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+                          });
                       }}
                     >
-                      <XCircle className="w-4 h-4" />
+                      {deletingIds.has(item.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>

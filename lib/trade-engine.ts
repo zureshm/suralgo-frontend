@@ -211,6 +211,8 @@ type WaitingTrade = {
 
   minToHold: number;
 
+  minToHoldTrigger: number;
+
   trailingAfterTargetEnabled: boolean;
 
   trailingAfterTarget: number;
@@ -230,6 +232,10 @@ type WaitingTrade = {
   waitAfterSellEnabled: boolean;
 
   waitAfterSellCandles: number;
+
+  sellWhenLossCandlesEnabled: boolean;
+
+  sellWhenLossCandles: number;
 
   maxProfitLossEnabled: boolean;
 
@@ -269,6 +275,8 @@ type ActiveTrade = {
 
   minToHold: number;
 
+  minToHoldTrigger: number;
+
   trailingAfterTargetEnabled: boolean;
 
   trailingAfterTarget: number;
@@ -304,6 +312,10 @@ type ActiveTrade = {
   waitAfterSellEnabled: boolean;
 
   waitAfterSellCandles: number;
+
+  sellWhenLossCandlesEnabled: boolean;
+
+  sellWhenLossCandles: number;
 
   lastSellCandleTime?: string;
 
@@ -349,6 +361,12 @@ type TradeHistoryItem = {
 
     minToHoldEnabled: boolean;
 
+    minToHoldTrigger?: number;
+
+    sellWhenLossCandlesEnabled?: boolean;
+
+    sellWhenLossCandles?: number;
+
   };
 
 };
@@ -368,6 +386,20 @@ let watchlist: string[] = [];
 let lastStrategyCandleTime = "";
 
 let lastHandledSignalKey: Record<string, string> = {};
+
+// ─── Sound event queue (consumed by client via polling) ───
+type SoundType = "enter" | "exit" | "profit" | "loss";
+let pendingSoundEvents: SoundType[] = [];
+
+function queueSound(type: SoundType) {
+  pendingSoundEvents.push(type);
+}
+
+export function flushSoundEvents(): SoundType[] {
+  const events = pendingSoundEvents;
+  pendingSoundEvents = [];
+  return events;
+}
 
 let engineRunning = false;
 
@@ -392,6 +424,10 @@ const lastCandleLow: Record<string, number> = {};
 // Grace period after BUY: use only real-time LTP (not stale candle low/high) for SL/Target checks
 const lastBuyTimestamp: Record<string, number> = {};
 const BUY_GRACE_PERIOD_MS = 5000;
+
+// Grace period after minimum-target arming: ignore stale candle data for trigger check
+const trailingArmTimestamp: Record<string, number> = {};
+const TRAILING_ARM_GRACE_MS = 5000;
 
 
 
@@ -593,6 +629,12 @@ function buildConfigSnapshot(trade: ActiveTrade): TradeHistoryItem["config"] {
 
     minToHold: trade.minToHoldEnabled ? trade.minToHold : undefined,
 
+    minToHoldTrigger: trade.minToHoldEnabled ? trade.minToHoldTrigger : undefined,
+
+    sellWhenLossCandlesEnabled: Boolean(trade.sellWhenLossCandlesEnabled),
+
+    sellWhenLossCandles: trade.sellWhenLossCandlesEnabled ? trade.sellWhenLossCandles : undefined,
+
   };
 
 }
@@ -653,6 +695,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
   if (!trade) return;
 
+  queueSound("enter");
+
 
 
   const newActive: ActiveTrade = {
@@ -682,6 +726,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     minToHoldEnabled: trade.minToHoldEnabled,
 
     minToHold: trade.minToHold,
+
+    minToHoldTrigger: trade.minToHoldTrigger,
 
     trailingAfterTargetEnabled: trade.trailingAfterTargetEnabled,
 
@@ -718,6 +764,10 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     waitAfterSellEnabled: trade.waitAfterSellEnabled,
 
     waitAfterSellCandles: trade.waitAfterSellCandles,
+
+    sellWhenLossCandlesEnabled: trade.sellWhenLossCandlesEnabled,
+
+    sellWhenLossCandles: trade.sellWhenLossCandles,
 
     lastSellCandleTime: undefined,
 
@@ -788,9 +838,11 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
 
     const newCompletedCycles = trade.completedCycles + 1;
 
-
+    queueSound(cyclePnl >= 0 ? "profit" : "loss");
 
     if (newCompletedCycles >= trade.numberOfTrades) {
+
+      queueSound("exit");
 
       const finalLogs = [
 
@@ -821,6 +873,7 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
     // Check max loss/profit immediately after cycle — don't wait for next tick
     if (trade.maxProfitLossEnabled) {
       if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
+        queueSound("exit");
         const finalLogs = [
           ...trade.logs, logLine,
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
@@ -835,6 +888,7 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
         };
       }
       if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
+        queueSound("exit");
         const finalLogs = [
           ...trade.logs, logLine,
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
@@ -867,6 +921,9 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
 
 
 function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, logLine: string) {
+  queueSound(totalPnl >= 0 ? "profit" : "loss");
+  queueSound("exit");
+
   // Send real SELL order to broker if in position
   const tradeToExit = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
   if (tradeToExit) {
@@ -945,10 +1002,14 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
     const newCompletedCycles = trade.completedCycles + 1;
 
+    queueSound(cyclePnl >= 0 ? "profit" : "loss");
+
     const currentTime = logLine.split(" at ").pop() || "";
     const sellLog = `SELL triggered for ₹${exitPrice} at ${currentTime}`;
 
     if (newCompletedCycles >= trade.numberOfTrades) {
+
+      queueSound("exit");
 
       const finalLogs = [
 
@@ -979,6 +1040,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
     // Check max loss/profit immediately after cycle — don't wait for next tick
     if (trade.maxProfitLossEnabled) {
       if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
+        queueSound("exit");
         const finalLogs = [
           ...trade.logs, sellLog, logLine,
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
@@ -993,6 +1055,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
         };
       }
       if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
+        queueSound("exit");
         const finalLogs = [
           ...trade.logs, sellLog, logLine,
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
@@ -1037,6 +1100,8 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
     return {
 
       ...trade, entryPrice, inPosition: true,
+
+      entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
 
       logs: [...trade.logs, logLine],
 
@@ -1189,7 +1254,7 @@ function handleStrategySignal(signal: any) {
 
   // Auto-sell cutoff at 3:05 PM
 
-  const AUTO_SELL_CUTOFF_MINUTES = 15 * 60 - 5;
+  const AUTO_SELL_CUTOFF_MINUTES = 15 * 60  + 15;
 
   const candleMinutes = toMinutes(signal.lastCandleTime);
 
@@ -1207,7 +1272,7 @@ function handleStrategySignal(signal: any) {
 
     );
 
-    updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime ?? "14:55");
+    updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime ?? "15:15");
 
     return;
 
@@ -1446,13 +1511,9 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     const ltp = ltpMap[trade.symbol];
     if (!Number.isFinite(ltp)) continue;
 
-    // During buy grace period, ignore stale candle low/high (from pre-entry candle data)
-    // and use only real-time LTP to prevent false SL/Target triggers
-    const buyTs = lastBuyTimestamp[trade.symbol] || 0;
-    const inBuyGrace = (Date.now() - buyTs) < BUY_GRACE_PERIOD_MS;
-    const candleClose = inBuyGrace ? ltp : (lastCandleCloseMap[trade.symbol] ?? ltp);
-    const high = inBuyGrace ? ltp : (lastCandleHigh[trade.symbol] ?? ltp);
-    const low = inBuyGrace ? ltp : (lastCandleLow[trade.symbol] ?? ltp);
+    // Use only real-time LTP for all SL/Target/Trailing checks.
+    // Candle high/low from strategy signals are stale (previous completed candle)
+    // and would cause phantom exits on wicks that LTP polling already handles.
 
     const currentTime = marketTime || fmtTime();
 
@@ -1461,8 +1522,8 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     if (trade.maxProfitLossEnabled) {
       const qty = trade.lotSize * trade.lotValue;
       const entry = Number(trade.entryPrice);
-      const bestPnl = (trade.inPosition && Number.isFinite(entry)) ? (Math.max(high, ltp) - entry) * qty : 0;
-      const worstPnl = (trade.inPosition && Number.isFinite(entry)) ? (Math.min(low, ltp) - entry) * qty : 0;
+      const bestPnl = (trade.inPosition && Number.isFinite(entry)) ? (ltp - entry) * qty : 0;
+      const worstPnl = (trade.inPosition && Number.isFinite(entry)) ? (ltp - entry) * qty : 0;
 
       const ltpPnl = (trade.inPosition && Number.isFinite(entry)) ? (ltp - entry) * qty : 0;
 
@@ -1531,15 +1592,15 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       const trailLevel = entry + trade.minToHold;
 
-      const activationLevel = trailLevel + 2;
+      const activationLevel = trailLevel + (trade.minToHoldTrigger || 2);
 
       if (!trailingArmedPositions.has(positionKey)) {
 
-        if (Math.max(candleClose, ltp) >= activationLevel) { trailingArmedPositions.add(positionKey); }
+        if (ltp >= activationLevel) { trailingArmedPositions.add(positionKey); }
 
       } else {
 
-        if (Math.min(candleClose, ltp) <= trailLevel) {
+        if (ltp <= trailLevel) {
 
           triggeredPositions.add(positionKey);
 
@@ -1565,7 +1626,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     if (trailingEnabled && trade.trailingTrailActive) {
 
-      const peakPrice = Math.max(candleClose, ltp);
+      const peakPrice = ltp;
 
       if (typeof trade.trailingHighWatermark !== "number" || peakPrice > trade.trailingHighWatermark) {
 
@@ -1575,7 +1636,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       const highMark = trade.trailingHighWatermark ?? peakPrice;
 
-      const currentPrice = Math.min(candleClose, ltp);
+      const currentPrice = ltp;
 
       const drop = highMark - currentPrice;
 
@@ -1595,7 +1656,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     // Target hit
 
-    if (trade.targetPointsEnabled && trade.targetPoints > 0 && (Math.max(high, ltp) - entry) >= trade.targetPoints) {
+    if (trade.targetPointsEnabled && trade.targetPoints > 0 && (ltp - entry) >= trade.targetPoints) {
 
       const targetLevel = entry + trade.targetPoints;
       const tgtExit = priceDiff >= trade.targetPoints ? ltp : targetLevel;
@@ -1624,7 +1685,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     // Stop loss hit
 
-    if (trade.stopLossNumberEnabled && trade.stopLossNumber > 0 && (Math.min(low, ltp) - entry) <= -trade.stopLossNumber) {
+    if (trade.stopLossNumberEnabled && trade.stopLossNumber > 0 && (ltp - entry) <= -trade.stopLossNumber) {
 
       const slLevel = entry - trade.stopLossNumber;
       const slExit = priceDiff <= -trade.stopLossNumber ? ltp : slLevel;
@@ -1635,6 +1696,20 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       continue;
 
+    }
+
+    // Sell when in loss for X candles
+    if (trade.sellWhenLossCandlesEnabled && trade.sellWhenLossCandles > 0 && ltp < entry) {
+      const entryMin = toMinutes(trade.entryTime);
+      const currentMin = toMinutes(lastStrategyCandleTime);
+      if (entryMin >= 0 && currentMin >= 0) {
+        const candlesSinceEntry = currentMin - entryMin;
+        if (candlesSinceEntry >= trade.sellWhenLossCandles) {
+          triggeredPositions.add(positionKey);
+          completeCycleWithoutExit(trade.symbol, String(ltp), `SELL (in loss for ${candlesSinceEntry} candles) at ₹${ltp} at ${currentTime}`);
+          continue;
+        }
+      }
     }
 
 

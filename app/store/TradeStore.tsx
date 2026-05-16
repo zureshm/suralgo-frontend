@@ -21,6 +21,7 @@ export type WaitingTrade = {
   targetPoints: number;
   minToHoldEnabled: boolean;
   minToHold: number;
+  minToHoldTrigger: number;
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
   rangeEnabled: boolean;
@@ -31,6 +32,8 @@ export type WaitingTrade = {
   buyOverride?: number;
   waitAfterSellEnabled: boolean;
   waitAfterSellCandles: number;
+  sellWhenLossCandlesEnabled: boolean;
+  sellWhenLossCandles: number;
   maxProfitLossEnabled: boolean;
   maxProfit: number;
   maxLoss: number;
@@ -51,6 +54,7 @@ export type ActiveTrade = {
   targetPoints: number;
   minToHoldEnabled: boolean;
   minToHold: number;
+  minToHoldTrigger: number;
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
   trailingTrailActive: boolean;
@@ -69,6 +73,8 @@ export type ActiveTrade = {
   buyOverride?: number;
   waitAfterSellEnabled: boolean;
   waitAfterSellCandles: number;
+  sellWhenLossCandlesEnabled: boolean;
+  sellWhenLossCandles: number;
   lastSellCandleTime?: string;
   maxProfitLossEnabled: boolean;
   maxProfit: number;
@@ -91,6 +97,9 @@ export type TradeHistoryItem = {
     trailingAfterTargetEnabled: boolean;
     minToHold?: number;
     minToHoldEnabled: boolean;
+    minToHoldTrigger?: number;
+    sellWhenLossCandlesEnabled?: boolean;
+    sellWhenLossCandles?: number;
   };
 };
 
@@ -104,6 +113,9 @@ type TradeConfigSnapshotSource = {
   trailingAfterTarget: number;
   minToHoldEnabled: boolean;
   minToHold: number;
+  minToHoldTrigger: number;
+  sellWhenLossCandlesEnabled: boolean;
+  sellWhenLossCandles: number;
 };
 
 const buildTradeConfigSnapshot = (
@@ -118,6 +130,9 @@ const buildTradeConfigSnapshot = (
   trailingAfterTarget: trade.trailingAfterTargetEnabled ? trade.trailingAfterTarget : undefined,
   minToHoldEnabled: Boolean(trade.minToHoldEnabled),
   minToHold: trade.minToHoldEnabled ? trade.minToHold : undefined,
+  minToHoldTrigger: trade.minToHoldEnabled ? trade.minToHoldTrigger : undefined,
+  sellWhenLossCandlesEnabled: Boolean(trade.sellWhenLossCandlesEnabled),
+  sellWhenLossCandles: trade.sellWhenLossCandlesEnabled ? trade.sellWhenLossCandles : undefined,
 });
 
 type TradeStoreValue = {
@@ -240,7 +255,7 @@ export function TradeStoreProvider({
       price: selection.price,
       stateText: "...WAITING",
       logs: ["Strategy initialized - waiting for signals"] as string[],
-      lotSize: readFormNumber(sym, "lotSize", 65),
+      lotSize: readFormNumber(sym, "lotSize", sym.startsWith("SENSEX") ? 20 : 65),
       lotValue: readFormNumber(sym, "lotValue", 1),
       numberOfTrades: readFormNumber(sym, "numberOfTrades", 3),
       stopLossNumberEnabled: readFormBool(sym, "stopLossNumberEnabled", true),
@@ -249,6 +264,7 @@ export function TradeStoreProvider({
       targetPoints: readFormNumber(sym, "targetPoints", 20),
       minToHoldEnabled: readFormBool(sym, "minToHoldEnabled", false),
       minToHold: readFormNumber(sym, "minToHold", 8),
+      minToHoldTrigger: readFormNumber(sym, "minToHoldTrigger", 2),
       trailingAfterTargetEnabled: readFormBool(sym, "trailingAfterTargetEnabled", false),
       trailingAfterTarget: readFormNumber(sym, "trailingAfterTarget", 15),
       rangeEnabled: readFormBool(sym, "rangeEnabled", false),
@@ -270,6 +286,8 @@ export function TradeStoreProvider({
       })(),
       waitAfterSellEnabled: readFormBool(sym, "waitAfterSellEnabled", true),
       waitAfterSellCandles: readFormNumber(sym, "waitAfterSellCandles", 8),
+      sellWhenLossCandlesEnabled: readFormBool(sym, "sellWhenLossCandlesEnabled", false),
+      sellWhenLossCandles: readFormNumber(sym, "sellWhenLossCandles", 5),
       maxProfitLossEnabled: readFormBool(sym, "maxProfitLossEnabled", false),
       maxProfit: readFormNumber(sym, "maxProfit", 1100),
       maxLoss: readFormNumber(sym, "maxLoss", 900),
@@ -326,6 +344,7 @@ export function TradeStoreProvider({
       targetPoints: tradeToActivate.targetPoints,
       minToHoldEnabled: tradeToActivate.minToHoldEnabled,
       minToHold: tradeToActivate.minToHold,
+      minToHoldTrigger: tradeToActivate.minToHoldTrigger,
       trailingAfterTargetEnabled: tradeToActivate.trailingAfterTargetEnabled,
       trailingAfterTarget: tradeToActivate.trailingAfterTarget,
       trailingTrailActive: false,
@@ -344,6 +363,8 @@ export function TradeStoreProvider({
       status: "ACTIVE",
       waitAfterSellEnabled: tradeToActivate.waitAfterSellEnabled,
       waitAfterSellCandles: tradeToActivate.waitAfterSellCandles,
+      sellWhenLossCandlesEnabled: tradeToActivate.sellWhenLossCandlesEnabled,
+      sellWhenLossCandles: tradeToActivate.sellWhenLossCandles,
       lastSellCandleTime: undefined,
       maxProfitLossEnabled: tradeToActivate.maxProfitLossEnabled,
       maxProfit: tradeToActivate.maxProfit,

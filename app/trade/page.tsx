@@ -75,8 +75,11 @@ export default function TradePage() {
     setBuyOverrideSize(defaults.buyOverrideSize);
     setWaitAfterSellEnabled(defaults.waitAfterSellEnabled);
     setWaitAfterSellCandles(defaults.waitAfterSellCandles);
+    if ('sellWhenLossCandlesEnabled' in defaults) setSellWhenLossCandlesEnabled((defaults as any).sellWhenLossCandlesEnabled);
+    if ('sellWhenLossCandles' in defaults) setSellWhenLossCandles((defaults as any).sellWhenLossCandles);
     setMinToHoldEnabled(defaults.minToHoldEnabled);
     setMinToHold(defaults.minToHold);
+    if ('minToHoldTrigger' in defaults) setMinToHoldTrigger((defaults as any).minToHoldTrigger);
     setTrailingAfterTargetEnabled(defaults.trailingAfterTargetEnabled);
     setTrailingAfterTarget(defaults.trailingAfterTarget);
     setRangeEnabled(defaults.rangeEnabled);
@@ -107,8 +110,11 @@ export default function TradePage() {
   const [buyOverrideSize, setBuyOverrideSize] = useState(15);
   const [waitAfterSellEnabled, setWaitAfterSellEnabled] = useState(true);
   const [waitAfterSellCandles, setWaitAfterSellCandles] = useState(8);
+  const [sellWhenLossCandlesEnabled, setSellWhenLossCandlesEnabled] = useState(false);
+  const [sellWhenLossCandles, setSellWhenLossCandles] = useState(5);
   const [minToHoldEnabled, setMinToHoldEnabled] = useState(false);
   const [minToHold, setMinToHold] = useState(8);
+  const [minToHoldTrigger, setMinToHoldTrigger] = useState(2);
   const [isMinToHoldInfoOpen, setIsMinToHoldInfoOpen] = useState(false);
   const [trailingAfterTargetEnabled, setTrailingAfterTargetEnabled] = useState(false);
   const [trailingAfterTarget, setTrailingAfterTarget] = useState(15);
@@ -125,7 +131,7 @@ export default function TradePage() {
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
   const isAlreadyActive = selection && activeTrades.some((trade) => trade.symbol === selection.symbol && trade.status === "ACTIVE");
 
-  const lotSize: number = 65;
+  const lotSize: number = selection?.symbol?.startsWith("SENSEX") ? 20 : 65;
   const price = Number(currentPrice || selection?.price || 0);
   const quantity = lotSize * lotValue;
   const total = price * quantity;
@@ -189,8 +195,11 @@ export default function TradePage() {
       setBuyOverrideSize(data.buyOverrideSize || 15);
       setWaitAfterSellEnabled(Boolean(data.waitAfterSellEnabled ?? true));
       setWaitAfterSellCandles(data.waitAfterSellCandles || 8);
+      setSellWhenLossCandlesEnabled(Boolean(data.sellWhenLossCandlesEnabled ?? false));
+      setSellWhenLossCandles(data.sellWhenLossCandles || 5);
       setMinToHoldEnabled(Boolean(data.minToHoldEnabled ?? false));
       setMinToHold(data.minToHold || 8);
+      setMinToHoldTrigger(data.minToHoldTrigger || 2);
       setTrailingAfterTargetEnabled(Boolean(data.trailingAfterTargetEnabled ?? false));
       setTrailingAfterTarget(data.trailingAfterTarget || 15);
       setRangeEnabled(Boolean(data.rangeEnabled ?? false));
@@ -216,8 +225,11 @@ export default function TradePage() {
       setBuyOverrideSize(15);
       setWaitAfterSellEnabled(true);
       setWaitAfterSellCandles(8);
+      setSellWhenLossCandlesEnabled(false);
+      setSellWhenLossCandles(5);
       setMinToHoldEnabled(false);
       setMinToHold(8);
+      setMinToHoldTrigger(2);
       setTrailingAfterTargetEnabled(false);
       setTrailingAfterTarget(15);
       setRangeEnabled(true);
@@ -250,10 +262,13 @@ export default function TradePage() {
       targetPoints,
       minToHoldEnabled,
       minToHold,
+      minToHoldTrigger,
       waitStrategyEnabled,
       buyOverrideSize,
       waitAfterSellEnabled,
       waitAfterSellCandles,
+      sellWhenLossCandlesEnabled,
+      sellWhenLossCandles,
       trailingAfterTargetEnabled,
       trailingAfterTarget,
       rangeEnabled,
@@ -425,6 +440,27 @@ export default function TradePage() {
                 />
                 <span className="text-sm ml-2">candles</span>
               </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="sellWhenLossCandlesEnabled"
+                  checked={sellWhenLossCandlesEnabled}
+                  onChange={(e) => setSellWhenLossCandlesEnabled(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="sellWhenLossCandlesEnabled" className="text-sm font-medium">SELL when in loss for</label>
+                <input
+                  type="number"
+                  value={sellWhenLossCandles}
+                  onChange={(e) => setSellWhenLossCandles(Number(e.target.value))}
+                  className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2"
+                  min="1"
+                  max="99"
+                  disabled={!sellWhenLossCandlesEnabled}
+                />
+                <span className="text-sm ml-2">candles</span>
+              </div>
             </div>
           </div>
 
@@ -492,7 +528,7 @@ export default function TradePage() {
                           lineHeight: "18px",
                         }}
                       >
-                        Example: buy at 200 with trailing target 8. Once price hits 208 (trail level) plus 2 more points, we drag the stop loss up to 208 so even if it rallies to 219 and drops back, we still capture those 8 points.
+                        Example: buy at 200 with minimum target {minToHold} and trigger @ {minToHoldTrigger}. Once price hits {200 + minToHold + minToHoldTrigger} ({200 + minToHold} + {minToHoldTrigger}), we lock the exit at {200 + minToHold}. Even if it rallies higher and drops back, you still capture those {minToHold} points.
                       </div>
                     )}
                   </div>
@@ -506,6 +542,15 @@ export default function TradePage() {
                     value={minToHold} 
                     onChange={(e) => setMinToHold(Number(e.target.value) || 0)}
                     className="w-20 h-8"
+                    disabled={!minToHoldEnabled}
+                  />
+                  <label htmlFor="minToHoldTrigger" className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trigger @</label>
+                  <Input 
+                    id="minToHoldTrigger"
+                    type="number" 
+                    value={minToHoldTrigger} 
+                    onChange={(e) => setMinToHoldTrigger(Number(e.target.value) || 0)}
+                    className="w-16 h-8"
                     disabled={!minToHoldEnabled}
                   />
                 </div>
@@ -749,6 +794,7 @@ export default function TradePage() {
                         targetPoints,
                         minToHoldEnabled,
                         minToHold,
+                        minToHoldTrigger,
                         trailingAfterTargetEnabled,
                         trailingAfterTarget,
                         rangeEnabled,
@@ -759,6 +805,8 @@ export default function TradePage() {
                         buyOverride: waitStrategyEnabled ? (buyOverrideSize || undefined) : undefined,
                         waitAfterSellEnabled,
                         waitAfterSellCandles,
+                        sellWhenLossCandlesEnabled,
+                        sellWhenLossCandles,
                         maxProfitLossEnabled,
                         maxProfit,
                         maxLoss,

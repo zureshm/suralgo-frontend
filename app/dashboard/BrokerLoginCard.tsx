@@ -480,6 +480,24 @@ export default function BrokerLoginCard() {
               />
             </div>
 
+            <Button
+              type="button"
+              className={`w-full h-9 ${
+                ftApiKey.trim()
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+              disabled={!ftApiKey.trim()}
+              onClick={() => {
+                window.open(
+                  `https://auth.flattrade.in/?app_key=${ftApiKey.trim()}`,
+                  "_blank"
+                );
+              }}
+            >
+              Generate Code
+            </Button>
+
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">
                 Request Code
@@ -487,7 +505,21 @@ export default function BrokerLoginCard() {
               <Input
                 placeholder="Code from Flattrade auth redirect URL"
                 value={ftRequestCode}
-                onChange={(e) => setFtRequestCode(e.target.value)}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  // Auto-extract code from pasted redirect URL
+                  // e.g. http://localhost:3000/callback?code=abc-123&client=FT050489
+                  try {
+                    if (val.includes("code=")) {
+                      const url = new URL(val);
+                      const code = url.searchParams.get("code");
+                      if (code) val = code;
+                    }
+                  } catch {
+                    // not a valid URL, use raw value
+                  }
+                  setFtRequestCode(val);
+                }}
                 disabled={loading}
               />
             </div>
