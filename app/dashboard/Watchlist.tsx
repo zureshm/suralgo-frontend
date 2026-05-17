@@ -194,9 +194,9 @@ export default function Watchlist() {
             className="flex-1"
           />
 
-          <Button
+          <button
             type="button"
-            style={{ backgroundColor: "var(--theme-btn-primary)", color: "var(--theme-btn-primary-text)" }}
+            className={styles.addBtn}
             onClick={() => {
               if (suggestions.length > 0) {
                 // Add the exact backend symbol object to watchlist
@@ -210,7 +210,7 @@ export default function Watchlist() {
             disabled={suggestions.length === 0}
           >
             ADD
-          </Button>
+          </button>
         </div>
 
         {suggestions.length > 0 && (
