@@ -1,6 +1,6 @@
 .addBtn {
-  background-color: grey;
-  color: white;
+  background-color: var(--theme-btn-add);
+  color: var(--theme-btn-add-text);
   border: 0;
   border-radius: 10px;
   padding: 0 16px;
@@ -11,7 +11,7 @@
 }
 
 .addBtn:hover {
-  background-color: var(--theme-btn-primary-hover);
+  background-color: var(--theme-btn-add-hover);
 }
 
 .timeBadge {
