@@ -82,27 +82,30 @@ export default function Watchlist() {
     const isDisabled = isRunning || (!isInTrade && atMaxCapacity);
 
     const buttonClass = isWaiting
-      ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+      ? "hover:text-red-700 text-white"
       : isRunning
-      ? "bg-red-500 hover:bg-red-600 text-white"
-      : isDisabled
-      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-      : "bg-blue-500 hover:bg-blue-600 text-white";
+      ? "hover:text-red-600 text-white"
+      : "hover:text-blue-600 text-white";
+    const buttonStyle = isWaiting
+      ? { backgroundColor: "var(--theme-tailwind-yellow-500)", color: "var(--theme-text-white)" }
+      : isRunning
+      ? { backgroundColor: "var(--theme-tailwind-red-500)", color: "var(--theme-text-white)" }
+      : { backgroundColor: "var(--theme-tailwind-blue-500)", color: "var(--theme-text-white)" };
 
     return (
       <div key={row.symbol} className="flex items-center justify-between py-2 border-b last:border-b-0">
         <div className="w-[200px] flex-shrink-0">
           <button
             className={`w-full px-3 py-1 rounded text-sm font-medium truncate text-left ${buttonClass}`}
+            style={isRunning ? { ...buttonStyle, pointerEvents: "none" } : buttonStyle}
             type="button"
-            onClick={isDisabled ? undefined : () => {
+            onClick={isRunning ? undefined : () => {
               setSelection({
                 symbol: row.symbol,
                 price: String(row.ltp ?? ""),
               });
               router.push("/trade");
             }}
-            style={isDisabled ? { pointerEvents: "none" } : {}}
           >
             {row.symbol}
           </button>
@@ -112,7 +115,8 @@ export default function Watchlist() {
 
         <div className="w-8 flex-shrink-0 flex justify-end">
           <button
-            className="text-red-500 hover:text-red-700 text-sm"
+            className="text-sm"
+            style={{ color: "var(--theme-tailwind-red-500)" }}
             type="button"
             onClick={() => removeFromWatchlist(row.symbol)}
           >
@@ -171,13 +175,13 @@ export default function Watchlist() {
 
           <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground uppercase">
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Ready
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--theme-tailwind-blue-500)" }}></span> Ready
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Waiting
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--theme-tailwind-yellow-500)" }}></span> Waiting
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-red-500"></span> Running
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--theme-tailwind-red-500)" }}></span> Running
             </div>
           </div>
         </div>

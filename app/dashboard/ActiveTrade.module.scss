@@ -10,7 +10,7 @@
 
 .trade {
   padding: 14px 16px;
-  border-top: 2px solid rgba(0, 0, 0, 0.12);
+  border-top: 2px solid var(--theme-border-light);
   &:first-child {
     border-top: 0;
   }
@@ -42,12 +42,12 @@
 }
 
 .waiting {
-  color: #d12b2b;
+  color: var(--theme-status-waiting);
 }
 
 @keyframes dotPulse {
-  0%, 100% { color: #d12b2b; }
-  50% { color: #000; }
+  0%, 100% { color: var(--theme-status-waiting); }
+  50% { color: var(--theme-text-black); }
 }
 
 .dot1, .dot2, .dot3 {
@@ -73,11 +73,11 @@
 .w7 { animation: dotPulse 1.8s infinite; animation-delay: 1.2s; }
 
 .profit {
-  color: #0a8a43;
+  color: var(--theme-status-profit);
 }
 
 .loss {
-  color: #d12b2b;
+  color: var(--theme-status-loss);
 }
 
 .tradeAction {
@@ -85,17 +85,17 @@
   padding: 0 14px;
   border: 0;
   border-radius: 10px;
-  color: #fff;
+  color: var(--theme-text-white);
   font-weight: 900;
   cursor: pointer;
 }
 
 .danger {
-  background: #e23a3a;
+  background: var(--theme-btn-danger);
 }
 
 .dark {
-  background: #2f343b;
+  background: var(--theme-card-dark);
 }
 
 .tradeLogs {
@@ -103,14 +103,14 @@
   border: none;
   border-radius: 8px;
   padding: 16px;
-  background: #000000;
-  color: #fff;
+  background: var(--theme-log-bg);
+  color: var(--theme-text-white);
   min-height: 150px;
   max-height: 150px;
   overflow-y: auto;
   font-family: Courier;
   font-size: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px var(--theme-shadow-log), inset 0 2px 4px var(--theme-shadow-log-inset);
 }
 
 .logLine {
@@ -120,22 +120,22 @@
 }
 
 .rsGold {
-  color: #c0a610;
+  color: var(--theme-log-rs-gold);
   font-weight: bold;
 }
 
 .cyanTime {
-  color: #0084ff;
+  color: var(--theme-log-cyan-time);
   font-weight: bold;
 }
 
 .plProfit {
-  color: #5ee099;
+  color: var(--theme-log-pl-profit);
   font-weight: bold;
 }
 
 .plLoss {
-  color: #f14a4a;
+  color: var(--theme-log-pl-loss);
   font-weight: bold;
 }
 
@@ -154,7 +154,7 @@
   padding: 0 12px;
   border: 0;
   border-radius: 8px;
-  color: #fff;
+  color: var(--theme-text-white);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -162,12 +162,12 @@
 
 .empty {
   padding: 14px 16px;
-  color: #d12b2b;
+  color: var(--theme-status-waiting);
 }
 
 .tradeConfig {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: 1px solid var(--theme-border-subtle-very);
   text-align: center;
 }

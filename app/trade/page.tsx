@@ -288,7 +288,7 @@ export default function TradePage() {
   };
 
   return (
-    <div className="min-h-screen p-4 bg-[#f1f5f9] w-full max-w-[420px] mx-auto">
+    <div className="min-h-screen p-4 w-full max-w-[420px] mx-auto" style={{ backgroundColor: "var(--theme-trade-page-bg)" }}>
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-lg font-bold">Trade Configuration</CardTitle>

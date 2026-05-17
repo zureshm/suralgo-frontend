@@ -48,7 +48,8 @@ export default function TradeHistory() {
             <button
               type="button"
               aria-label="Clear trade history"
-              className="text-red-500 hover:text-red-600 transition-colors"
+              className="transition-colors"
+              style={{ color: "var(--theme-tailwind-red-500)" }}
               onClick={() => {
                 if (window.confirm("Clear all trade history?")) {
                   fetch("/next-api/trades/history/clear", { method: "POST" }).catch(() => {});
@@ -123,7 +124,8 @@ export default function TradeHistory() {
                     <button
                       type="button"
                       aria-label="Delete this trade history entry"
-                      className="text-gray-400 hover:text-red-500 transition-colors"
+                      className="transition-colors"
+                      style={{ color: "var(--theme-text-gray-400)" }}
                       disabled={deletingIds.has(item.id)}
                       onClick={() => {
                         setDeletingIds((prev) => new Set(prev).add(item.id));
@@ -143,7 +145,7 @@ export default function TradeHistory() {
                 </div>
 
                 {item.config && (
-                  <div style={{ fontSize: "10px", color: "#888", lineHeight: 1.4, padding: "2px 0" }}>
+                  <div style={{ fontSize: "10px", color: "var(--theme-text-config)", lineHeight: 1.4, padding: "2px 0" }}>
                     {tradesDisplay}
                     {item.config.stopLossNumberEnabled && item.config.stopLossNumber != null ? ` | SL: ${item.config.stopLossNumber}` : ""}
                     {item.config.targetPointsEnabled && item.config.targetPoints != null ? ` | Target: ${item.config.targetPoints}` : ""}

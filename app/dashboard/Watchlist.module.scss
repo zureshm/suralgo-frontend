@@ -3,8 +3,8 @@
   align-items: center;
   justify-content: center;
   width: 80px;
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--theme-time-badge-bg);
+  color: var(--theme-time-badge-text);
   font-size: 11px;
   font-weight: 500;
   padding: 4px 8px;

@@ -54,18 +54,18 @@ export default function LogMonitorPage() {
   }, [sections, autoScroll]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950 text-zinc-100 overflow-auto">
+    <div className="fixed inset-0 z-50 overflow-auto" style={{ backgroundColor: "var(--theme-zinc-950)", color: "var(--theme-zinc-100)" }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 px-6 py-4 flex items-center justify-between" style={{ backgroundColor: "var(--theme-zinc-900)", borderBottom: "1px solid var(--theme-zinc-800)" }}>
         <h1 className="text-xl font-bold tracking-wide text-center flex-1">
           Log Monitoring
         </h1>
-        <label className="flex items-center gap-2 text-sm text-zinc-400 cursor-pointer select-none">
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: "var(--theme-zinc-400)" }}>
           <input
             type="checkbox"
             checked={autoScroll}
             onChange={(e) => setAutoScroll(e.target.checked)}
-            className="accent-amber-500"
+            style={{ accentColor: "var(--theme-amber-500)" }}
           />
           Auto-scroll
         </label>
@@ -76,16 +76,17 @@ export default function LogMonitorPage() {
         {sections.map((section, idx) => (
           <div
             key={idx}
-            className="w-full border border-zinc-800 rounded-lg overflow-hidden bg-zinc-900"
+            className="w-full rounded-lg overflow-hidden"
+            style={{ border: "1px solid var(--theme-zinc-800)", backgroundColor: "var(--theme-zinc-900)" }}
           >
             {/* Section Header */}
-            <div className="px-4 py-2 bg-zinc-800 border-b border-zinc-700 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-amber-400 tracking-wide uppercase">
+            <div className="px-4 py-2 flex items-center justify-between" style={{ backgroundColor: "var(--theme-zinc-800)", borderBottom: "1px solid var(--theme-zinc-700)" }}>
+              <h2 className="text-sm font-semibold tracking-wide uppercase" style={{ color: "var(--theme-amber-400)" }}>
                 {section.title}
               </h2>
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs" style={{ color: "var(--theme-zinc-500)" }}>
                 {section.error ? (
-                  <span className="text-red-400">{section.error}</span>
+                  <span style={{ color: "var(--theme-tailwind-red-400)" }}>{section.error}</span>
                 ) : (
                   `${section.logs.length} lines`
                 )}
@@ -99,16 +100,17 @@ export default function LogMonitorPage() {
               style={{ minHeight: "250px", maxHeight: "400px" }}
             >
               {section.logs.length === 0 && !section.error && (
-                <div className="text-zinc-600 italic">No logs yet...</div>
+                <div className="italic" style={{ color: "var(--theme-zinc-600)" }}>No logs yet...</div>
               )}
               {section.logs.map((line, i) => (
                 <div
                   key={i}
-                  className={`whitespace-pre-wrap break-all ${
-                    line.startsWith("[ERR]")
-                      ? "text-red-400"
-                      : "text-zinc-300"
-                  }`}
+                  className="whitespace-pre-wrap break-all"
+                  style={{
+                    color: line.startsWith("[ERR]")
+                      ? "var(--theme-tailwind-red-400)"
+                      : "var(--theme-zinc-300)"
+                  }}
                 >
                   {line}
                 </div>
