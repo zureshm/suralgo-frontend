@@ -85,17 +85,18 @@
   padding: 0 14px;
   border: 0;
   border-radius: 10px;
-  color: var(--theme-text-white);
   font-weight: 900;
   cursor: pointer;
 }
 
 .danger {
   background: var(--theme-btn-danger);
+  color: var(--theme-btn-danger-text);
 }
 
 .dark {
   background: var(--theme-card-dark);
+  color: var(--theme-btn-dark-text);
 }
 
 .tradeLogs {
@@ -154,7 +155,6 @@
   padding: 0 12px;
   border: 0;
   border-radius: 8px;
-  color: var(--theme-text-white);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;

@@ -83,16 +83,22 @@
   /* Buttons */
   --theme-btn-primary: #1677ff;
   --theme-btn-primary-hover: #0e5fcc;
+  --theme-btn-primary-text: #fff;
   --theme-btn-buy: #2b9b3a;
   --theme-btn-buy-hover: #1f7a2d;
+  --theme-btn-buy-text: #fff;
   --theme-btn-danger: #e23a3a;
   --theme-btn-danger-hover: #c92e2e;
+  --theme-btn-danger-text: #fff;
   --theme-btn-disconnect: #e53935;
   --theme-btn-disconnect-hover: #d32f2f;
+  --theme-btn-disconnect-text: #fff;
   --theme-btn-dark: #2f343b;
+  --theme-btn-dark-text: #fff;
+  --theme-btn-waiting-text: #fff;
+  --theme-btn-status-text: #fff;
   --theme-btn-yellow: yellow;
   --theme-btn-green: green;
-  --theme-btn-text: #fff;
   
   /* Tailwind Button Colors (for TSX) */
   --theme-tailwind-yellow-500: #eab308;
@@ -103,6 +109,9 @@
   --theme-tailwind-red-700: #b91c1c;
   --theme-tailwind-blue-500: #3b82f6;
   --theme-tailwind-blue-600: #2563eb;
+  --theme-tailwind-blue-text: #fff;
+  --theme-tailwind-yellow-text: #fff;
+  --theme-tailwind-red-text: #fff;
   
   /* Status Colors */
   --theme-status-waiting: #d12b2b;
@@ -235,16 +244,22 @@
   
   --theme-btn-primary: #3b82f6;
   --theme-btn-primary-hover: #2563eb;
+  --theme-btn-primary-text: #fff;
   --theme-btn-buy: #22c55e;
   --theme-btn-buy-hover: #16a34a;
+  --theme-btn-buy-text: #fff;
   --theme-btn-danger: #ef4444;
   --theme-btn-danger-hover: #dc2626;
+  --theme-btn-danger-text: #fff;
   --theme-btn-disconnect: #ef4444;
   --theme-btn-disconnect-hover: #dc2626;
+  --theme-btn-disconnect-text: #fff;
   --theme-btn-dark: #1f2937;
+  --theme-btn-dark-text: #e5e5e5;
+  --theme-btn-waiting-text: #e5e5e5;
+  --theme-btn-status-text: #e5e5e5;
   --theme-btn-yellow: #8b5cf6;
   --theme-btn-green: #22c55e;
-  --theme-btn-text: #e5e5e5;
   
   --theme-tailwind-yellow-500: #eab308;
   --theme-tailwind-yellow-600: #ca8a04;
@@ -254,6 +269,9 @@
   --theme-tailwind-red-700: #b91c1c;
   --theme-tailwind-blue-500: #3b82f6;
   --theme-tailwind-blue-600: #2563eb;
+  --theme-tailwind-blue-text: #fff;
+  --theme-tailwind-yellow-text: #fff;
+  --theme-tailwind-red-text: #fff;
   
   --theme-status-waiting: #f87171;
   --theme-status-profit: #4ade80;

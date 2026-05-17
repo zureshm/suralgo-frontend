@@ -87,10 +87,10 @@ export default function Watchlist() {
       ? "hover:text-red-600 text-white"
       : "hover:text-blue-600 text-white";
     const buttonStyle = isWaiting
-      ? { backgroundColor: "var(--theme-tailwind-yellow-500)", color: "var(--theme-text-white)" }
+      ? { backgroundColor: "var(--theme-tailwind-yellow-500)", color: "var(--theme-tailwind-yellow-text)" }
       : isRunning
-      ? { backgroundColor: "var(--theme-tailwind-red-500)", color: "var(--theme-text-white)" }
-      : { backgroundColor: "var(--theme-tailwind-blue-500)", color: "var(--theme-text-white)" };
+      ? { backgroundColor: "var(--theme-tailwind-red-500)", color: "var(--theme-tailwind-red-text)" }
+      : { backgroundColor: "var(--theme-tailwind-blue-500)", color: "var(--theme-tailwind-blue-text)" };
 
     return (
       <div key={row.symbol} className="flex items-center justify-between py-2 border-b last:border-b-0">
@@ -196,6 +196,7 @@ export default function Watchlist() {
 
           <Button
             type="button"
+            style={{ backgroundColor: "var(--theme-btn-primary)", color: "var(--theme-btn-primary-text)" }}
             onClick={() => {
               if (suggestions.length > 0) {
                 // Add the exact backend symbol object to watchlist
