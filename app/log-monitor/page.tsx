@@ -107,7 +107,13 @@ export default function LogMonitorPage() {
                   key={i}
                   className="whitespace-pre-wrap break-all"
                   style={{
-                    color: line.startsWith("[ERR]")
+                    color: line.includes("WAIT")
+                      ? "#fff"
+                      : line.includes("BUY")
+                      ? "lime"
+                      : line.includes("SELL")
+                      ? "red"
+                      : line.startsWith("[ERR]")
                       ? "var(--theme-tailwind-red-400)"
                       : "var(--theme-zinc-300)"
                   }}
