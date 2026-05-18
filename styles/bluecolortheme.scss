@@ -56,7 +56,7 @@
   --theme-login-page-bg: #f1f5f9;
   
   /* Card Backgrounds */
-  --theme-card-white: #fefefe;
+  --theme-card-white: #efefff;
   --theme-card-dark: #104585;
   --theme-card-suggestion: #f3f6fb;
   --theme-card-log-line: #f8f9fa;
@@ -81,12 +81,23 @@
   /* Buttons */
   --theme-btn-primary: #1677ff;
   --theme-btn-primary-hover: #0e5fcc;
+  --theme-btn-primary-text: #fff;
   --theme-btn-buy: #2b9b3a;
   --theme-btn-buy-hover: #1f7a2d;
+  --theme-btn-buy-text: #fff;
   --theme-btn-danger: #febb08;
   --theme-btn-danger-hover: #c92e2e;
+  --theme-btn-danger-text: #000;
   --theme-btn-disconnect: #e53935;
   --theme-btn-disconnect-hover: #d32f2f;
+  --theme-btn-disconnect-text: #fff;
+  --theme-btn-dark: #2f343b;
+  --theme-btn-dark-text: #fff;
+  --theme-btn-waiting-text: #fff;
+  --theme-btn-status-text: #fff;
+  --theme-btn-add: #fdb902;
+  --theme-btn-add-hover: #a7d7ff;
+  --theme-btn-add-text: #000;
   --theme-btn-yellow: yellow;
   --theme-btn-green: green;
   
@@ -99,6 +110,9 @@
   --theme-tailwind-red-700: #b91c1c;
   --theme-tailwind-blue-500: #0f4382;
   --theme-tailwind-blue-600: #2563eb;
+  --theme-tailwind-blue-text: #fff;
+  --theme-tailwind-yellow-text: #fff;
+  --theme-tailwind-red-text: #fff;
   
   /* Status Colors */
   --theme-status-waiting: #d12b2b;
