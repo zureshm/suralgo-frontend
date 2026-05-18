@@ -191,7 +191,7 @@ export default function Watchlist() {
             placeholder="Search symbol"
             value={searchText}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
-            className="flex-1"
+            className={`flex-1 ${styles.searchInput}`}
           />
 
           <button

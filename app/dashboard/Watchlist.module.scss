@@ -14,6 +14,12 @@
   background-color: var(--theme-btn-add-hover);
 }
 
+.searchInput {
+  background: var(--theme-input-bg) !important;
+  border-color: var(--theme-input-border) !important;
+  color: var(--theme-input-text) !important;
+}
+
 .timeBadge {
   display: inline-flex;
   align-items: center;

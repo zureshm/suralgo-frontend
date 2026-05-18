@@ -71,27 +71,41 @@
   font-size: 13px;
 }
 
+.tradePage {
+  input[type="text"],
+  input[type="number"],
+  select {
+    background: var(--theme-input-bg) !important;
+    border-color: var(--theme-input-border) !important;
+    color: var(--theme-input-text) !important;
+  }
+}
+
 .input {
   height: 34px;
-  border: 2px solid var(--theme-border-dark);
+  border: 2px solid var(--theme-input-border);
   border-radius: 10px;
   padding: 0 10px;
+  background: var(--theme-input-bg);
+  color: var(--theme-input-text);
 }
 
 .select {
   height: 34px;
-  border: 2px solid var(--theme-border-dark);
+  border: 2px solid var(--theme-input-border);
   border-radius: 10px;
   padding: 0 10px;
-  background: var(--theme-card-white);
+  background: var(--theme-input-bg);
+  color: var(--theme-input-text);
 }
 
 .selectSmall {
   height: 34px;
-  border: 2px solid var(--theme-border-dark);
+  border: 2px solid var(--theme-input-border);
   border-radius: 10px;
   padding: 0 10px;
-  background: var(--theme-card-white);
+  background: var(--theme-input-bg);
+  color: var(--theme-input-text);
 }
 
 .note {

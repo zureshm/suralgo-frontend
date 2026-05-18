@@ -52,7 +52,7 @@
   /* Page Backgrounds */
   --theme-bg: #164c8e;
   --theme-page-bg: #f1f5f9;
-  --theme-trade-page-bg: #fff;
+  --theme-trade-page-bg: #164c8e;
   --theme-login-page-bg: #f1f5f9;
   
   /* Card Backgrounds */
@@ -76,6 +76,8 @@
   /* Search & Input */
   --theme-search-bg: #a7d7ff;
   --theme-input-bg: #fff;
+  --theme-input-border: #999;
+  --theme-input-text: #666;
   --theme-input-focus-border: #1677ff;
   
   /* Buttons */

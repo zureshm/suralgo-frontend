@@ -35,10 +35,11 @@
 
 .search {
   height: 46px;
-  border: 2px solid var(--theme-border);
+  border: 2px solid var(--theme-input-border);
   border-radius: 10px;
   padding: 0 14px;
   background: var(--theme-input-bg);
+  color: var(--theme-input-text);
 }
 
 .addBtn {
