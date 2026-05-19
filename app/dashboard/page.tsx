@@ -2,6 +2,7 @@
 
 import styles from "./page.module.scss";
 import { useEffect, useState } from "react";
+import { Settings, BarChart2, FileText, LogOut } from "lucide-react";
 
 import { useTradeStore } from "../store/TradeStore";
 import { getPrices } from "@/lib/getPrices";
@@ -79,6 +80,25 @@ export default function DashboardPage() {
         <BrokerLoginCard />
 
         <div className={styles.bottomActions}></div>
+
+        <div className={styles.bottomMenu}>
+          <div className={styles.menuItem}>
+            <Settings size={20} />
+            <span>Settings</span>
+          </div>
+          <div className={styles.menuItem}>
+            <BarChart2 size={20} />
+            <span>Chart</span>
+          </div>
+          <div className={styles.menuItem}>
+            <FileText size={20} />
+            <span>Logs</span>
+          </div>
+          <div className={styles.menuItem}>
+            <LogOut size={20} />
+            <span>Exit</span>
+          </div>
+        </div>
       </div>
     </div>
   );

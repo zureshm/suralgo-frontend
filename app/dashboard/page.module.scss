@@ -298,3 +298,34 @@
   pointer-events: none;
 }
 
+.bottomMenu {
+  position: sticky;
+  bottom: 0;
+  background: var(--theme-bg);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px 0 12px;
+  margin-top: 20px;
+  border-radius: 16px 16px 0 0;
+}
+
+.menuItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--theme-card-white);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 8px;
+  transition: opacity 0.2s;
+  opacity: 0.85;
+}
+
+.menuItem:hover {
+  opacity: 1;
+}
