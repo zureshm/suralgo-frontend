@@ -243,7 +243,7 @@ export default function ActiveTrade({
                     }}
                   >
                     <Zap className="w-3.5 h-3.5" />
-                    Force Buy
+                    Force&nbsp;Buy
                   </button>
                   <button
                     className={`${styles.waitingBtn} ${styles.danger}`}
