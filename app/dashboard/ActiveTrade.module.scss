@@ -11,6 +11,8 @@
 .trade {
   padding: 14px 16px;
   border-top: 2px solid var(--theme-border-light);
+  min-width: 0;
+  overflow: hidden;
   &:first-child {
     border-top: 0;
   }
@@ -28,6 +30,10 @@
 
 .tradeSymbol {
   font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tradeRight {
@@ -112,6 +118,8 @@
   min-height: 150px;
   max-height: 150px;
   overflow-y: auto;
+  overflow-x: hidden;
+  word-break: break-word;
   font-family: Courier;
   font-size: 10px;
   box-shadow: 0 4px 12px var(--theme-shadow-log), inset 0 2px 4px var(--theme-shadow-log-inset);
