@@ -9,7 +9,7 @@ import { getPrices } from "@/lib/getPrices";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ListPlus } from "lucide-react";
+import { ListPlus, Trash2, Lock } from "lucide-react";
 import styles from "./Watchlist.module.scss";
 
 export default function Watchlist() {
@@ -73,7 +73,7 @@ export default function Watchlist() {
   }, [watchlist]);
 
   const activeSlots = waitingTrades.length + activeTrades.filter((t) => t.status === "ACTIVE").length;
-  const atMaxCapacity = activeSlots >= 2;
+  const atMaxCapacity = activeSlots >= 4;
 
   const watchlistItems = watchlist.map((row) => {
     const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);
@@ -81,12 +81,16 @@ export default function Watchlist() {
     const isInTrade = isWaiting || isRunning;
     const isDisabled = isRunning || (!isInTrade && atMaxCapacity);
 
-    const buttonClass = isWaiting
+    const buttonClass = isDisabled && !isInTrade
+      ? "cursor-not-allowed"
+      : isWaiting
       ? "hover:text-red-700 text-white"
       : isRunning
       ? "hover:text-red-600 text-white"
       : "hover:text-blue-600 text-white";
-    const buttonStyle = isWaiting
+    const buttonStyle = isDisabled && !isInTrade
+      ? { backgroundColor: "#d1d5db", color: "#9ca3af", pointerEvents: "none" as const }
+      : isWaiting
       ? { backgroundColor: "var(--theme-tailwind-yellow-500)", color: "var(--theme-tailwind-yellow-text)" }
       : isRunning
       ? { backgroundColor: "var(--theme-tailwind-red-500)", color: "var(--theme-tailwind-red-text)" }
@@ -97,9 +101,9 @@ export default function Watchlist() {
         <div className="w-[200px] flex-shrink-0">
           <button
             className={`w-full px-3 py-1 rounded text-sm font-medium truncate text-left ${buttonClass}`}
-            style={isRunning ? { ...buttonStyle, pointerEvents: "none" } : buttonStyle}
+            style={isDisabled ? { ...buttonStyle, pointerEvents: "none" } : buttonStyle}
             type="button"
-            onClick={isRunning ? undefined : () => {
+            onClick={isDisabled ? undefined : () => {
               setSelection({
                 symbol: row.symbol,
                 price: String(row.ltp ?? ""),
@@ -116,11 +120,12 @@ export default function Watchlist() {
         <div className="w-8 flex-shrink-0 flex justify-end">
           <button
             className="text-sm"
-            style={{ color: "var(--theme-tailwind-red-500)" }}
+            style={isInTrade ? { color: "#d1d5db", cursor: "not-allowed" } : { color: "var(--theme-tailwind-red-500)" }}
             type="button"
-            onClick={() => removeFromWatchlist(row.symbol)}
+            disabled={isInTrade}
+            onClick={isInTrade ? undefined : () => removeFromWatchlist(row.symbol)}
           >
-            🗑️
+            {isInTrade ? <Lock className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
           </button>
         </div>
       </div>
