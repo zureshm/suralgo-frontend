@@ -18,6 +18,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    if (!body.symbol || !/^(NIFTY|SENSEX)\d{2}[A-Z]{3}\d{2}\d+[A-Z]{2,3}$/.test(body.symbol)) {
+      return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
+    }
     addWaitingTrade(body);
     return NextResponse.json({ ok: true });
   } catch {
