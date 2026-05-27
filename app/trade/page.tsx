@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { STRATEGY_DEFAULTS } from "../../config/strategyDefaults";
 import { addActiveStrategySymbol } from "@/lib/api";
+import styles from "./page.module.scss";
 
 const ANGELONE_API = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 const FLATTRADE_API = process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
@@ -288,7 +289,7 @@ export default function TradePage() {
   };
 
   return (
-    <div className="min-h-screen p-4 bg-[#f1f5f9] w-full max-w-[420px] mx-auto">
+    <div className={`min-h-screen p-4 w-full max-w-[420px] mx-auto ${styles.tradePage}`} style={{ backgroundColor: "var(--theme-trade-page-bg)" }}>
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-lg font-bold">Trade Configuration</CardTitle>

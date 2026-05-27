@@ -1,0 +1,183 @@
+/* ============================================ */
+/* CENTRALIZED COLOR THEME - BLUE */
+/* All colors used by the app are defined here. */
+/* To change the color scheme, modify these values. */
+/* ============================================ */
+
+:root {
+  /* ============================================ */
+  /* BASE COLORS (from globals.css - Light Theme) */
+  /* ============================================ */
+  
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  
+  /* Chart Colors */
+  --chart-1: oklch(0.809 0.105 251.813);
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-5: oklch(0.424 0.199 265.638);
+  
+  /* Sidebar Colors */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  
+  /* ============================================ */
+  /* CUSTOM COLORS (from SCSS modules - Light Theme) */
+  /* ============================================ */
+  
+  /* Page Backgrounds */
+  --theme-bg: #6d0125;
+  --theme-page-bg: #f1f5f9;
+  --theme-trade-page-bg: #6d0125;
+  --theme-login-page-bg: #f1f5f9;
+  
+  /* Card Backgrounds */
+  --theme-card-white: #fdf7d8;
+  --theme-card-dark: #710127;
+  --theme-card-suggestion: #f3f6fb;
+  --theme-card-log-line: #f8f9fa;
+  --theme-card-shadow: rgba(0, 0, 0, 0.06);
+  
+  /* Borders */
+  --theme-border-dark: #222;
+  --theme-border-light: rgba(0, 0, 0, 0.12);
+  --theme-border-subtle: rgba(0, 0, 0, 0.06);
+  --theme-border-subtle-hover: rgba(0, 0, 0, 0.18);
+  --theme-border-subtle-very: rgba(0, 0, 0, 0.1);
+  --theme-border-log: rgba(0, 0, 0, 0.22);
+  --theme-border-suggestion: #cfcfcf;
+  --theme-border-separator: #e5e7eb;
+  --theme-border-input: #d0d5dd;
+  
+  /* Search & Input */
+  --theme-search-bg: #a7d7ff;
+  --theme-input-bg: #fff;
+  --theme-input-border: #999;
+  --theme-input-text: #666;
+  --theme-input-focus-border: #1677ff;
+  
+  /* Buttons */
+  --theme-btn-primary: #1677ff;
+  --theme-btn-primary-hover: #0e5fcc;
+  --theme-btn-primary-text: #fff;
+  --theme-btn-buy: #2b9b3a;
+  --theme-btn-buy-hover: #1f7a2d;
+  --theme-btn-buy-text: #fff;
+  --theme-btn-danger: #febb08;
+  --theme-btn-danger-hover: #c92e2e;
+  --theme-btn-danger-text: #000;
+  --theme-btn-disconnect: #e53935;
+  --theme-btn-disconnect-hover: #d32f2f;
+  --theme-btn-disconnect-text: #fff;
+  --theme-btn-dark: #2f343b;
+  --theme-btn-dark-text: #fff;
+  --theme-btn-waiting-text: #fff;
+  --theme-btn-status-text: #fff;
+  --theme-btn-add: #fdb902;
+  --theme-btn-add-hover: #a7d7ff;
+  --theme-btn-add-text: #000;
+  --theme-btn-yellow: yellow;
+  --theme-btn-green: green;
+  
+  /* Tailwind Button Colors (for TSX) */
+  --theme-tailwind-yellow-500: #eab308;
+  --theme-tailwind-yellow-600: #ca8a04;
+  --theme-tailwind-red-500: #ef4444;
+  --theme-tailwind-red-600: #dc2626;
+  --theme-tailwind-red-400: #f87171;
+  --theme-tailwind-red-700: #b91c1c;
+  --theme-tailwind-blue-500: #2cad02;
+  --theme-tailwind-blue-600: #2563eb;
+  --theme-tailwind-blue-text: #fff;
+  --theme-tailwind-yellow-text: #fff;
+  --theme-tailwind-red-text: #fff;
+  
+  /* Status Colors */
+  --theme-status-waiting: #d12b2b;
+  --theme-status-profit: #0a8a43;
+  --theme-status-loss: #d12b2b;
+  --theme-status-success: #0a9b3f;
+  --theme-status-empty: #d60000;
+  
+  /* Text Colors */
+  --theme-text-primary: #333;
+  --theme-text-secondary: #666;
+  --theme-text-muted: rgba(0, 0, 0, 0.72);
+  --theme-text-label: #555;
+  --theme-text-label-alt: rgba(0, 0, 0, 0.7);
+  --theme-text-white: #fff;
+  --theme-text-black: #000;
+  --theme-text-gray-400: #9ca3af;
+  --theme-text-gray-500: #6b7280;
+  --theme-text-gray-600: #4b5563;
+  --theme-text-config: #888;
+  
+  /* Log/Console Colors */
+  --theme-log-bg: #000000;
+  --theme-log-text: #fff;
+  --theme-log-rs-gold: #c0a610;
+  --theme-log-cyan-time: #0084ff;
+  --theme-log-pl-profit: #5ee099;
+  --theme-log-pl-loss: #f14a4a;
+  --theme-log-pl-profit-alt: #0a8a43;
+  --theme-log-pl-loss-alt: #d12b2b;
+  
+  /* Time Badge */
+  --theme-time-badge-bg: #000000;
+  --theme-time-badge-text: #ffffff;
+  
+  /* Note/Warning */
+  --theme-note: #f18a00;
+  --theme-error: #febb08;
+  
+  /* Zinc Colors (for log-monitor page) */
+  --theme-zinc-50: #fafafa;
+  --theme-zinc-100: #f4f4f5;
+  --theme-zinc-200: #e4e4e7;
+  --theme-zinc-300: #d4d4d8;
+  --theme-zinc-400: #a1a1aa;
+  --theme-zinc-500: #71717a;
+  --theme-zinc-600: #52525b;
+  --theme-zinc-700: #3f3f46;
+  --theme-zinc-800: #27272a;
+  --theme-zinc-900: #18181b;
+  --theme-zinc-950: #09090b;
+  
+  /* Amber Colors (for log-monitor page) */
+  --theme-amber-400: #fbbf24;
+  --theme-amber-500: #f59e0b;
+}
+
+/* Card elements with data-slot="card" */
+[data-slot="card"] {
+  background: var(--theme-card-white);
+}
+
+/* Card header elements */
+[data-slot="card-header"] {
+  background: var(--theme-card-white);
+}

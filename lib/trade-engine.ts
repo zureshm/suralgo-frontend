@@ -86,17 +86,6 @@ async function syncActiveStrategySymbols() {
       if (t.status === "ACTIVE") desired.add(t.symbol);
     }
 
-    // Remove symbols no longer needed
-    for (const sym of current) {
-      if (!desired.has(sym)) {
-        await fetch(`${API_URL}/active-strategy-symbols`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ symbol: sym }),
-        }).catch(() => {});
-      }
-    }
-
     // Add missing symbols
     for (const sym of desired) {
       if (!current.includes(sym)) {

@@ -3,14 +3,14 @@
   padding: 18px;
   display: grid;
   place-items: start center;
-  background: #fff;
+  background: var(--theme-card-white);
 }
 
 .card {
   width: min(520px, 100%);
-  border: 2px solid #222;
+  border: 2px solid var(--theme-border-dark);
   border-radius: 18px;
-  background: #fff;
+  background: var(--theme-card-white);
   padding: 18px 16px;
 }
 
@@ -38,7 +38,7 @@
 
 .divider {
   height: 2px;
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--theme-border-subtle-hover);
   margin: 14px 0;
 }
 
@@ -71,32 +71,46 @@
   font-size: 13px;
 }
 
+.tradePage {
+  input[type="text"],
+  input[type="number"],
+  select {
+    background: var(--theme-input-bg) !important;
+    border-color: var(--theme-input-border) !important;
+    color: var(--theme-input-text) !important;
+  }
+}
+
 .input {
   height: 34px;
-  border: 2px solid #222;
+  border: 2px solid var(--theme-input-border);
   border-radius: 10px;
   padding: 0 10px;
+  background: var(--theme-input-bg);
+  color: var(--theme-input-text);
 }
 
 .select {
   height: 34px;
-  border: 2px solid #222;
+  border: 2px solid var(--theme-input-border);
   border-radius: 10px;
   padding: 0 10px;
-  background: #fff;
+  background: var(--theme-input-bg);
+  color: var(--theme-input-text);
 }
 
 .selectSmall {
   height: 34px;
-  border: 2px solid #222;
+  border: 2px solid var(--theme-input-border);
   border-radius: 10px;
   padding: 0 10px;
-  background: #fff;
+  background: var(--theme-input-bg);
+  color: var(--theme-input-text);
 }
 
 .note {
   margin-top: 10px;
-  color: #f18a00;
+  color: var(--theme-note);
   font-size: 12px;
 }
 
@@ -120,7 +134,7 @@
 .inputSmall {
   height: 32px;
   width: 86px;
-  border: 2px solid #222;
+  border: 2px solid var(--theme-border-dark);
   border-radius: 10px;
   padding: 0 10px;
 }
@@ -128,10 +142,10 @@
 .selectTiny {
   height: 32px;
   width: 64px;
-  border: 2px solid #222;
+  border: 2px solid var(--theme-border-dark);
   border-radius: 10px;
   padding: 0 8px;
-  background: #fff;
+  background: var(--theme-card-white);
 }
 
 .tradeTaking {
@@ -147,7 +161,7 @@
 }
 
 .availableLabel {
-  color: rgba(0, 0, 0, 0.72);
+  color: var(--theme-text-muted);
 }
 
 .availableValue {
@@ -188,14 +202,14 @@
 
 .lotLabel {
   font-size: 13px;
-  color: rgba(0, 0, 0, 0.72);
+  color: var(--theme-text-muted);
   font-weight: 900;
 }
 
 .lotInput {
   height: 30px;
   width: 56px;
-  border: 2px solid #222;
+  border: 2px solid var(--theme-border-dark);
   border-radius: 10px;
   padding: 0 10px;
   text-align: center;
@@ -204,13 +218,13 @@
 .totalText {
   font-size: 13px;
   text-align: right;
-  color: rgba(0, 0, 0, 0.72);
+  color: var(--theme-text-muted);
 }
 
 .totalEq {
   margin-left: 10px;
   font-weight: 900;
-  color: #111;
+  color: var(--theme-log-bg);
   white-space: nowrap;
 }
 
@@ -225,8 +239,8 @@
   height: 50px;
   border: 0;
   border-radius: 12px;
-  background: #2b9b3a;
-  color: #fff;
+  background: var(--theme-btn-buy);
+  color: var(--theme-btn-buy-text);
   font-weight: 900;
   cursor: pointer;
 }
@@ -235,8 +249,8 @@
   height: 50px;
   border: 0;
   border-radius: 12px;
-  background: #e23a3a;
-  color: #fff;
+  background: var(--theme-btn-danger);
+  color: var(--theme-btn-danger-text);
   font-weight: 900;
   cursor: pointer;
 }

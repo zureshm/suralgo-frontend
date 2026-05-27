@@ -9,7 +9,7 @@ import { getPrices } from "@/lib/getPrices";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ListPlus } from "lucide-react";
+import { ListPlus, Trash2, Lock } from "lucide-react";
 import styles from "./Watchlist.module.scss";
 
 export default function Watchlist() {
@@ -73,7 +73,7 @@ export default function Watchlist() {
   }, [watchlist]);
 
   const activeSlots = waitingTrades.length + activeTrades.filter((t) => t.status === "ACTIVE").length;
-  const atMaxCapacity = activeSlots >= 2;
+  const atMaxCapacity = activeSlots >= 4;
 
   const watchlistItems = watchlist.map((row) => {
     const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);
@@ -81,19 +81,27 @@ export default function Watchlist() {
     const isInTrade = isWaiting || isRunning;
     const isDisabled = isRunning || (!isInTrade && atMaxCapacity);
 
-    const buttonClass = isWaiting
-      ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+    const buttonClass = isDisabled && !isInTrade
+      ? "cursor-not-allowed"
+      : isWaiting
+      ? "hover:text-red-700 text-white"
       : isRunning
-      ? "bg-red-500 hover:bg-red-600 text-white"
-      : isDisabled
-      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-      : "bg-blue-500 hover:bg-blue-600 text-white";
+      ? "hover:text-red-600 text-white"
+      : "hover:text-blue-600 text-white";
+    const buttonStyle = isDisabled && !isInTrade
+      ? { backgroundColor: "#d1d5db", color: "#9ca3af", pointerEvents: "none" as const }
+      : isWaiting
+      ? { backgroundColor: "var(--theme-tailwind-yellow-500)", color: "var(--theme-tailwind-yellow-text)" }
+      : isRunning
+      ? { backgroundColor: "var(--theme-tailwind-red-500)", color: "var(--theme-tailwind-red-text)" }
+      : { backgroundColor: "var(--theme-tailwind-blue-500)", color: "var(--theme-tailwind-blue-text)" };
 
     return (
       <div key={row.symbol} className="flex items-center justify-between py-2 border-b last:border-b-0">
         <div className="w-[200px] flex-shrink-0">
           <button
             className={`w-full px-3 py-1 rounded text-sm font-medium truncate text-left ${buttonClass}`}
+            style={isDisabled ? { ...buttonStyle, pointerEvents: "none" } : buttonStyle}
             type="button"
             onClick={isDisabled ? undefined : () => {
               setSelection({
@@ -102,7 +110,6 @@ export default function Watchlist() {
               });
               router.push("/trade");
             }}
-            style={isDisabled ? { pointerEvents: "none" } : {}}
           >
             {row.symbol}
           </button>
@@ -112,11 +119,13 @@ export default function Watchlist() {
 
         <div className="w-8 flex-shrink-0 flex justify-end">
           <button
-            className="text-red-500 hover:text-red-700 text-sm"
+            className="text-sm"
+            style={isInTrade ? { color: "#d1d5db", cursor: "not-allowed" } : { color: "var(--theme-tailwind-red-500)" }}
             type="button"
-            onClick={() => removeFromWatchlist(row.symbol)}
+            disabled={isInTrade}
+            onClick={isInTrade ? undefined : () => removeFromWatchlist(row.symbol)}
           >
-            🗑️
+            {isInTrade ? <Lock className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -171,13 +180,13 @@ export default function Watchlist() {
 
           <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground uppercase">
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Ready
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--theme-tailwind-blue-500)" }}></span> Ready
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Waiting
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--theme-tailwind-yellow-500)" }}></span> Waiting
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-red-500"></span> Running
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--theme-tailwind-red-500)" }}></span> Running
             </div>
           </div>
         </div>
@@ -187,11 +196,12 @@ export default function Watchlist() {
             placeholder="Search symbol"
             value={searchText}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
-            className="flex-1"
+            className={`flex-1 ${styles.searchInput}`}
           />
 
-          <Button
+          <button
             type="button"
+            className={styles.addBtn}
             onClick={() => {
               if (suggestions.length > 0) {
                 // Add the exact backend symbol object to watchlist
@@ -205,7 +215,7 @@ export default function Watchlist() {
             disabled={suggestions.length === 0}
           >
             ADD
-          </Button>
+          </button>
         </div>
 
         {suggestions.length > 0 && (

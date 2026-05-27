@@ -1,10 +1,32 @@
+.addBtn {
+  background-color: var(--theme-btn-add);
+  color: var(--theme-btn-add-text);
+  border: 0;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  height: 32px;
+}
+
+.addBtn:hover {
+  background-color: var(--theme-btn-add-hover);
+}
+
+.searchInput {
+  background: var(--theme-input-bg) !important;
+  border-color: var(--theme-input-border) !important;
+  color: var(--theme-input-text) !important;
+}
+
 .timeBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 80px;
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--theme-time-badge-bg);
+  color: var(--theme-time-badge-text);
   font-size: 11px;
   font-weight: 500;
   padding: 4px 8px;
