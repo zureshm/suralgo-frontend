@@ -37,6 +37,8 @@ export type WaitingTrade = {
   maxProfitLossEnabled: boolean;
   maxProfit: number;
   maxLoss: number;
+  reEntryAfterTargetEnabled: boolean;
+  reEntryCandles: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -79,6 +81,11 @@ export type ActiveTrade = {
   maxProfitLossEnabled: boolean;
   maxProfit: number;
   maxLoss: number;
+  reEntryAfterTargetEnabled: boolean;
+  reEntryCandles: number;
+  reEntryExitPrice?: number;
+  reEntrySellTime?: string;
+  reEntryReason?: string;
 };
 
 export type TradeHistoryItem = {
@@ -291,6 +298,8 @@ export function TradeStoreProvider({
       maxProfitLossEnabled: readFormBool(sym, "maxProfitLossEnabled", false),
       maxProfit: readFormNumber(sym, "maxProfit", 1100),
       maxLoss: readFormNumber(sym, "maxLoss", 900),
+      reEntryAfterTargetEnabled: readFormBool(sym, "reEntryAfterTargetEnabled", false),
+      reEntryCandles: readFormNumber(sym, "reEntryCandles", 5),
     };
 
     if (alreadyExists) {
@@ -369,6 +378,8 @@ export function TradeStoreProvider({
       maxProfitLossEnabled: tradeToActivate.maxProfitLossEnabled,
       maxProfit: tradeToActivate.maxProfit,
       maxLoss: tradeToActivate.maxLoss,
+      reEntryAfterTargetEnabled: tradeToActivate.reEntryAfterTargetEnabled,
+      reEntryCandles: tradeToActivate.reEntryCandles,
     };
 
     setActiveTrades((prev) => [...prev, newActiveTrade]);
