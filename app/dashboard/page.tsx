@@ -11,10 +11,12 @@ import BrokerLoginCard from "./BrokerLoginCard";
 import ConnectionStatus from "./ConnectionStatus";
 import Watchlist from "./Watchlist";
 import ActiveTrade from "./ActiveTrade";
+import SettingsPopup from "./SettingsPopup";
 
 export default function DashboardPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeLtps, setActiveLtps] = useState<Record<string, number>>({});
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const {
     waitingTrades,
     removeWaitingTrade,
@@ -82,7 +84,7 @@ export default function DashboardPage() {
         <div className={styles.bottomActions}></div>
 
         <div className={styles.bottomMenu}>
-          <div className={styles.menuItem}>
+          <div className={styles.menuItem} onClick={() => setSettingsOpen(true)}>
             <Settings size={20} />
             <span>Settings</span>
           </div>
@@ -99,6 +101,8 @@ export default function DashboardPage() {
             <span>Exit</span>
           </div>
         </div>
+
+        <SettingsPopup open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       </div>
     </div>
   );

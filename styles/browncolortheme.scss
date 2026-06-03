@@ -170,6 +170,15 @@
   /* Amber Colors (for log-monitor page) */
   --theme-amber-400: #fbbf24;
   --theme-amber-500: #f59e0b;
+
+  /* Settings Popup */
+  --theme-popup-bg: var(--theme-card-white);
+  --theme-popup-border: var(--theme-bg);
+  --theme-popup-text: var(--theme-text-primary);
+  --theme-popup-label: var(--theme-text-secondary);
+  --theme-popup-field-bg: rgba(0, 0, 0, 0.04);
+  --theme-popup-field-border: rgba(0, 0, 0, 0.12);
+  --theme-popup-backdrop: rgba(255, 255, 255, 0.5);
 }
 
 /* Card elements with data-slot="card" */
