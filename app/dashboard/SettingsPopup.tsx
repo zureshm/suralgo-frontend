@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Settings } from "lucide-react";
+import { X, Settings, Play } from "lucide-react";
+import { playSound, setVolume } from "@/lib/sounds";
 
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL || "http://localhost:4000";
 
@@ -39,6 +40,13 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [volume, setVolumeState] = useState(0.5);
+
+  // Load volume from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("soundVolume");
+    if (stored) setVolumeState(parseFloat(stored));
+  }, []);
 
   // Fetch current strategy info when popup opens
   useEffect(() => {
@@ -96,7 +104,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
           background: "var(--theme-popup-bg)",
           color: "var(--theme-popup-text)",
           border: "3px solid var(--theme-popup-border)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",  maxWidth:"90%"
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -186,6 +194,44 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 {message.text}
               </div>
             )}
+
+            {/* Separator */}
+            <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
+
+            {/* Volume control */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium" style={{ color: "var(--theme-popup-label)" }}>Sound Volume</label>
+                <span className="text-xs font-semibold" style={{ color: "var(--theme-popup-border)" }}>{Math.round(volume * 100)}%</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={volume}
+                  onChange={(e) => {
+                    const newVolume = parseFloat(e.target.value);
+                    setVolumeState(newVolume);
+                    setVolume(newVolume);
+                  }}
+                  className="flex-1 h-2 rounded-lg cursor-pointer"
+                  style={{
+                    background: "var(--theme-popup-field-bg)",
+                    accentColor: "var(--theme-popup-border)",
+                  }}
+                />
+                <button
+                  onClick={() => playSound("enter")}
+                  className="p-2 rounded-lg transition"
+                  style={{ background: "var(--theme-popup-field-bg)", color: "var(--theme-popup-border)" }}
+                  aria-label="Test sound"
+                >
+                  <Play size={16} />
+                </button>
+              </div>
+            </div>
           </>
         )}
       </div>

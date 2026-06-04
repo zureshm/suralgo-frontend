@@ -4,15 +4,36 @@ const audioCache: Partial<Record<SoundType, HTMLAudioElement>> = {};
 
 function getAudio(type: SoundType): HTMLAudioElement {
   if (!audioCache[type]) {
-    audioCache[type] = new Audio(`/${type}.mp3`);
+    const audio = new Audio(`/${type}.mp3`);
+    audio.volume = defaultVolume;
+    audioCache[type] = audio;
   }
   return audioCache[type]!;
+}
+
+let defaultVolume = 0.5;
+
+function getVolume(): number {
+  if (typeof window === "undefined") return defaultVolume;
+  const stored = localStorage.getItem("soundVolume");
+  return stored ? parseFloat(stored) : defaultVolume;
+}
+
+export function setVolume(volume: number) {
+  if (typeof window === "undefined") return;
+  defaultVolume = volume;
+  localStorage.setItem("soundVolume", String(volume));
+  // Update all cached audio elements
+  Object.values(audioCache).forEach(audio => {
+    audio.volume = volume;
+  });
 }
 
 export function playSound(type: SoundType) {
   if (typeof window === "undefined") return;
   try {
     const audio = getAudio(type);
+    audio.volume = getVolume();
     audio.currentTime = 0;
     audio.play().catch(() => {});
   } catch {
