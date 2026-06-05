@@ -139,21 +139,51 @@ export default function ChartPopup({ open, onClose }: Props) {
     }
   }, [open]);
 
-  // Fetch logs and parse candles — poll every 5s while open
+  // Fetch candle history + log signals — poll every 5s while open
   useEffect(() => {
     if (!open) return;
 
     const fetchCandles = () => {
-      fetch(`${STRATEGY_URL}/logs/strategy`)
-        .then((r) => r.json())
-        .then((data) => {
-          const logs: string[] = data.logs || [];
-          const candles = parseCandlesFromLogs(logs);
-          setSymbolCandles(candles);
+      Promise.all([
+        fetch(`${STRATEGY_URL}/chart-history`).then((r) => r.json()).catch(() => ({})),
+        fetch(`${STRATEGY_URL}/logs/strategy`).then((r) => r.json()).catch(() => ({ logs: [] })),
+      ])
+        .then(([historyData, logData]) => {
+          const logs: string[] = logData.logs || [];
+          const logCandles = parseCandlesFromLogs(logs);
+
+          // Use history if available, otherwise fall back to log-parsed candles
+          const hasHistory = Object.keys(historyData).length > 0;
+          if (hasHistory) {
+            const result: SymbolCandles = {};
+            for (const symbol of Object.keys(historyData)) {
+              const candles: CandleData[] = (historyData[symbol] || []).map((c: { time: string; open: number; high: number; low: number; close: number }) => ({
+                time: c.time,
+                open: c.open,
+                high: c.high,
+                low: c.low,
+                close: c.close,
+              }));
+              // Merge signals from log parsing
+              if (logCandles[symbol]) {
+                for (const lc of logCandles[symbol]) {
+                  if (lc.signal) {
+                    const match = candles.find((c) => c.time === lc.time);
+                    if (match) match.signal = lc.signal;
+                  }
+                }
+              }
+              result[symbol] = candles;
+            }
+            setSymbolCandles(result);
+          } else {
+            // Fallback: use only log-parsed candles
+            setSymbolCandles(logCandles);
+          }
           setError(null);
         })
         .catch(() => {
-          setError("Failed to fetch logs from strategy server");
+          setError("Failed to fetch from strategy server");
         })
         .finally(() => setLoading(false));
     };
