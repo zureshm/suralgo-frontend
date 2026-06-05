@@ -12,11 +12,13 @@ import ConnectionStatus from "./ConnectionStatus";
 import Watchlist from "./Watchlist";
 import ActiveTrade from "./ActiveTrade";
 import SettingsPopup from "./SettingsPopup";
+import ChartPopup from "./ChartPopup";
 
 export default function DashboardPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeLtps, setActiveLtps] = useState<Record<string, number>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
   const {
     waitingTrades,
     removeWaitingTrade,
@@ -88,7 +90,7 @@ export default function DashboardPage() {
             <Settings size={20} />
             <span>Settings</span>
           </div>
-          <div className={styles.menuItem}>
+          <div className={styles.menuItem} onClick={() => setChartOpen(true)}>
             <BarChart2 size={20} />
             <span>Chart</span>
           </div>
@@ -103,6 +105,7 @@ export default function DashboardPage() {
         </div>
 
         <SettingsPopup open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <ChartPopup open={chartOpen} onClose={() => setChartOpen(false)} />
       </div>
     </div>
   );
