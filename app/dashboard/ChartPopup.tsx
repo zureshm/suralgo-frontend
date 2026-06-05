@@ -86,11 +86,30 @@ function parseCandlesFromLogs(logs: string[]): SymbolCandles {
   return result;
 }
 
-// Convert "2026-06-04 14:55" to Unix timestamp (seconds) for lightweight-charts
-// Parse as UTC so the chart displays the exact time from log (IST) without offset
-function toChartTime(timeStr: string): UTCTimestamp {
-  const date = new Date(timeStr.replace(" ", "T") + ":00Z");
-  return Math.floor(date.getTime() / 1000) as UTCTimestamp;
+// Convert time string to Unix timestamp (seconds) for lightweight-charts
+// Handles: "2026-06-04 14:55" (live), "2026-06-05T11:36:00+05:30" (history), numeric
+// We strip timezone and treat as UTC so chart shows the local IST time as-is
+function toChartTime(timeStr: string | number): UTCTimestamp {
+  if (typeof timeStr === "number") {
+    return timeStr as UTCTimestamp;
+  }
+  if (!timeStr) return 0 as UTCTimestamp;
+
+  let date: Date;
+  if (timeStr.includes("T")) {
+    // ISO format — strip timezone offset, treat as UTC
+    const stripped = timeStr.replace(/[+-]\d{2}:\d{2}$/, "").replace("Z", "");
+    date = new Date(stripped + "Z");
+  } else if (timeStr.includes(" ") && timeStr.includes("-")) {
+    // Simple "2026-06-04 14:55" format
+    date = new Date(timeStr.replace(" ", "T") + ":00Z");
+  } else {
+    // Fallback — try direct parsing
+    date = new Date(timeStr);
+  }
+
+  const ts = Math.floor(date.getTime() / 1000);
+  return (isNaN(ts) ? 0 : ts) as UTCTimestamp;
 }
 
 type Props = {
@@ -203,15 +222,26 @@ export default function ChartPopup({ open, onClose }: Props) {
         wickDownColor: "#d12b2b",
       });
 
-      series.setData(
-        candles.map((c) => ({
+      // Filter invalid times, deduplicate, and sort ascending
+      const mapped = candles
+        .map((c) => ({
           time: toChartTime(c.time),
           open: c.open,
           high: c.high,
           low: c.low,
           close: c.close,
         }))
-      );
+        .filter((c) => c.time > 0);
+
+      // Deduplicate by time (keep last occurrence)
+      const deduped = new Map<number, typeof mapped[0]>();
+      for (const c of mapped) deduped.set(c.time as number, c);
+      const validCandles = Array.from(deduped.values())
+        .sort((a, b) => (a.time as number) - (b.time as number));
+
+      if (validCandles.length === 0) return;
+
+      series.setData(validCandles);
 
       // Add BUY/SELL markers (arrows only, no text)
       const markers: SeriesMarker<Time>[] = candles
@@ -228,7 +258,7 @@ export default function ChartPopup({ open, onClose }: Props) {
         createSeriesMarkers(series, markers);
       }
 
-      // Show last ~25 candles with some right padding
+      // Show last ~20 candles with some right padding
       const visibleCandles = 25;
       chart.timeScale().setVisibleLogicalRange({
         from: candles.length - visibleCandles,
@@ -283,7 +313,7 @@ export default function ChartPopup({ open, onClose }: Props) {
             <X size={18} />
           </button>
         </div>
-
+        <h3 style={{ color: "var(--theme-popup-text)", padding: "10px 0" }}>Strategy Chart Status</h3>
         {loading ? (
           <div className="text-sm py-8 text-center" style={{ color: "var(--theme-popup-label)" }}>Loading charts...</div>
         ) : error ? (
