@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Settings, Play } from "lucide-react";
+import { X, Settings, Play, Palette } from "lucide-react";
 import { playSound, setVolume } from "@/lib/sounds";
+import { useTheme } from "@/components/ThemeProvider";
 
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL || "http://localhost:4000";
 
@@ -41,6 +42,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [volume, setVolumeState] = useState(0.5);
+  const { theme, setTheme } = useTheme();
 
   // Load volume from localStorage on mount
   useEffect(() => {
@@ -198,6 +200,44 @@ export default function SettingsPopup({ open, onClose }: Props) {
             {/* Separator */}
             <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
 
+            {/* Theme selector */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium" style={{ color: "var(--theme-popup-label)" }}>Color Theme</label>
+                <Palette size={14} style={{ color: "var(--theme-popup-border)" }} />
+              </div>
+              <div className="flex items-center gap-4">
+                {[
+                  { value: "default" as const, label: "Default", color: "#323335" },
+                  { value: "blue" as const, label: "Blue", color: "#164c8e" },
+                  { value: "brown" as const, label: "Brown", color: "#570101" },
+                ].map((t) => (
+                  <button
+                    key={t.value}
+                    onClick={() => setTheme(t.value)}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <span
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        background: t.color,
+                        border: theme === t.value ? "3px solid var(--theme-popup-border)" : "2px solid var(--theme-popup-field-border)",
+                        boxShadow: theme === t.value ? "0 0 0 2px #fff inset" : "none",
+                      }}
+                    />
+                    <span className="text-xs" style={{ color: "var(--theme-popup-text)", fontWeight: theme === t.value ? 700 : 400 }}>
+                      {t.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
+
             {/* Volume control */}
             <div className="mb-5">
               <div className="flex items-center justify-between mb-2">
@@ -216,9 +256,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     setVolumeState(newVolume);
                     setVolume(newVolume);
                   }}
-                  className="flex-1 h-2 rounded-lg cursor-pointer"
+                  className="flex-1 h-2 rounded-lg cursor-pointer appearance-auto"
                   style={{
-                    background: "var(--theme-popup-field-bg)",
                     accentColor: "var(--theme-popup-border)",
                   }}
                 />
