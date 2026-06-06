@@ -61,7 +61,7 @@ const FUND_ROWS_MAP: Record<BrokerType, typeof ANGELONE_FUND_ROWS> = {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function BrokerLoginCard() {
-  const [selectedBroker, setSelectedBroker] = useState<BrokerType>("angelone");
+  const [selectedBroker, setSelectedBroker] = useState<BrokerType>("flattrade");
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -411,6 +411,7 @@ export default function BrokerLoginCard() {
                 value={aoApiKey}
                 onChange={(e) => setAoApiKey(e.target.value)}
                 disabled={loading}
+                autoComplete="off"
               />
             </div>
 
@@ -423,6 +424,7 @@ export default function BrokerLoginCard() {
                 value={aoClientCode}
                 onChange={(e) => setAoClientCode(e.target.value)}
                 disabled={loading}
+                autoComplete="off"
               />
             </div>
 
@@ -436,6 +438,7 @@ export default function BrokerLoginCard() {
                 value={aoPassword}
                 onChange={(e) => setAoPassword(e.target.value)}
                 disabled={loading}
+                autoComplete="off"
               />
             </div>
 
@@ -449,6 +452,7 @@ export default function BrokerLoginCard() {
                 value={aoTotpSecret}
                 onChange={(e) => setAoTotpSecret(e.target.value)}
                 disabled={loading}
+                autoComplete="off"
               />
             </div>
           </div>
@@ -464,6 +468,7 @@ export default function BrokerLoginCard() {
                 value={ftApiKey}
                 onChange={(e) => setFtApiKey(e.target.value)}
                 disabled={loading}
+                autoComplete="off"
               />
             </div>
 
@@ -477,6 +482,7 @@ export default function BrokerLoginCard() {
                 value={ftApiSecret}
                 onChange={(e) => setFtApiSecret(e.target.value)}
                 disabled={loading}
+                autoComplete="off"
               />
             </div>
 
