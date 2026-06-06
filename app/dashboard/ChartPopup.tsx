@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { X, BarChart2 } from "lucide-react";
-import { createChart, CandlestickSeries, IChartApi, UTCTimestamp, SeriesMarker, Time, createSeriesMarkers } from "lightweight-charts";
+import { createChart, CandlestickSeries, IChartApi, UTCTimestamp, SeriesMarker, Time, createSeriesMarkers, LineSeries } from "lightweight-charts";
 import { useTradeStore } from "../store/TradeStore";
 
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL || "http://localhost:4000";
@@ -84,6 +84,29 @@ function parseCandlesFromLogs(logs: string[]): SymbolCandles {
   }
 
   return result;
+}
+
+// Calculate EMA (Exponential Moving Average)
+function calculateEMA(prices: number[], period: number): number[] {
+  if (prices.length < period) return [];
+  
+  const ema: number[] = [];
+  const multiplier = 2 / (period + 1);
+  
+  // First EMA is SMA of first 'period' prices
+  let sum = 0;
+  for (let i = 0; i < period; i++) {
+    sum += prices[i];
+  }
+  ema.push(sum / period);
+  
+  // Calculate subsequent EMAs
+  for (let i = period; i < prices.length; i++) {
+    const currentEMA = (prices[i] - ema[ema.length - 1]) * multiplier + ema[ema.length - 1];
+    ema.push(currentEMA);
+  }
+  
+  return ema;
 }
 
 // Convert time string to Unix timestamp (seconds) for lightweight-charts
@@ -272,6 +295,37 @@ export default function ChartPopup({ open, onClose }: Props) {
       if (validCandles.length === 0) return;
 
       series.setData(validCandles);
+
+      // Calculate and add EMA10 (blue) and EMA20 (orange) lines
+      const closePrices = validCandles.map(c => c.close);
+      const ema10Values = calculateEMA(closePrices, 10);
+      const ema20Values = calculateEMA(closePrices, 20);
+
+      // EMA10 line (blue)
+      const ema10Series = chart.addSeries(LineSeries, {
+        color: "#2563eb", // blue
+        lineWidth: 1,
+      });
+      if (ema10Values.length > 0) {
+        const ema10Data = ema10Values.map((val, idx) => ({
+          time: validCandles[idx + (closePrices.length - ema10Values.length)].time,
+          value: val,
+        }));
+        ema10Series.setData(ema10Data);
+      }
+
+      // EMA20 line (orange)
+      const ema20Series = chart.addSeries(LineSeries, {
+        color: "#f97316", // orange
+        lineWidth: 1,
+      });
+      if (ema20Values.length > 0) {
+        const ema20Data = ema20Values.map((val, idx) => ({
+          time: validCandles[idx + (closePrices.length - ema20Values.length)].time,
+          value: val,
+        }));
+        ema20Series.setData(ema20Data);
+      }
 
       // Add BUY/SELL markers (arrows only, no text)
       const markers: SeriesMarker<Time>[] = candles
