@@ -199,7 +199,7 @@ export default function Watchlist() {
             value={searchText}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
             className={`flex-1 ${styles.searchInput}`}
-            autoComplete="off"
+            autoComplete="new-password"
           />
 
           <button

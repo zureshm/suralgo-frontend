@@ -411,7 +411,7 @@ export default function BrokerLoginCard() {
                 value={aoApiKey}
                 onChange={(e) => setAoApiKey(e.target.value)}
                 disabled={loading}
-                autoComplete="off"
+                autoComplete="new-password"
               />
             </div>
 
@@ -438,7 +438,7 @@ export default function BrokerLoginCard() {
                 value={aoPassword}
                 onChange={(e) => setAoPassword(e.target.value)}
                 disabled={loading}
-                autoComplete="off"
+                autoComplete="new-password"
               />
             </div>
 
@@ -452,7 +452,7 @@ export default function BrokerLoginCard() {
                 value={aoTotpSecret}
                 onChange={(e) => setAoTotpSecret(e.target.value)}
                 disabled={loading}
-                autoComplete="off"
+                autoComplete="new-password"
               />
             </div>
           </div>
@@ -468,7 +468,7 @@ export default function BrokerLoginCard() {
                 value={ftApiKey}
                 onChange={(e) => setFtApiKey(e.target.value)}
                 disabled={loading}
-                autoComplete="off"
+                autoComplete="new-password"
               />
             </div>
 
@@ -482,7 +482,7 @@ export default function BrokerLoginCard() {
                 value={ftApiSecret}
                 onChange={(e) => setFtApiSecret(e.target.value)}
                 disabled={loading}
-                autoComplete="off"
+                autoComplete="new-password"
               />
             </div>
 
