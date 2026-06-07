@@ -4,7 +4,6 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   const client = req.nextUrl.searchParams.get("client");
 
-  // Log received parameters
   console.log("Flattrade callback received:", { code, client });
 
   // Redirect to dashboard with code in URL params
