@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -141,6 +142,26 @@ export default function BrokerLoginCard() {
     );
     return () => clearInterval(interval);
   }, [connected, accountInfo, fetchFunds]);
+
+  // Auto-populate credentials from URL params + localStorage (Flattrade callback)
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (code) {
+      setFtRequestCode(code);
+      setSelectedBroker("flattrade");
+
+      // Restore API key and secret from localStorage
+      const savedKey = localStorage.getItem("ft_pending_apiKey");
+      const savedSecret = localStorage.getItem("ft_pending_apiSecret");
+      if (savedKey) setFtApiKey(savedKey);
+      if (savedSecret) setFtApiSecret(savedSecret);
+
+      // Clean up
+      localStorage.removeItem("ft_pending_apiKey");
+      localStorage.removeItem("ft_pending_apiSecret");
+    }
+  }, []);
 
   // ── Connect handler ──
   const handleConnect = useCallback(async () => {
@@ -489,12 +510,17 @@ export default function BrokerLoginCard() {
             <Button
               type="button"
               className={`w-full h-9 ${
-                ftApiKey.trim()
+                ftApiKey.trim() && ftApiSecret.trim()
                   ? "bg-green-600 hover:bg-green-700 text-white"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
-              disabled={!ftApiKey.trim()}
+              disabled={!ftApiKey.trim() || !ftApiSecret.trim()}
               onClick={() => {
+                // Save credentials to localStorage before redirect
+                localStorage.setItem("ft_pending_apiKey", ftApiKey.trim());
+                localStorage.setItem("ft_pending_apiSecret", ftApiSecret.trim());
+
+                // Open Flattrade auth
                 window.open(
                   `https://auth.flattrade.in/?app_key=${ftApiKey.trim()}`,
                   "_blank"
