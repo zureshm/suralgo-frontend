@@ -4,6 +4,7 @@ import "./globals.css";
 import { TradeStoreProvider } from "./store/TradeStore";
 import { WatchlistProvider } from "./store/WatchlistContext";
 import { StrategyTimerProvider } from "./components/StrategyTimerProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -31,15 +32,17 @@ export default function RootLayout({
       <body
         className={`${poppins.variable} ${geistMono.variable} antialiased`}
       >
-        <TradeStoreProvider>
-          <StrategyTimerProvider>
-            <WatchlistProvider>
-              <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-                {children}
-              </div>
-            </WatchlistProvider>
-          </StrategyTimerProvider>
-        </TradeStoreProvider>
+        <ThemeProvider>
+          <TradeStoreProvider>
+            <StrategyTimerProvider>
+              <WatchlistProvider>
+                <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+                  {children}
+                </div>
+              </WatchlistProvider>
+            </StrategyTimerProvider>
+          </TradeStoreProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

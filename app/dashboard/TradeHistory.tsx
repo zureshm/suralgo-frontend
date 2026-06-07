@@ -88,18 +88,11 @@ export default function TradeHistory() {
             const pnlText = item.pnl >= 0 ? `+${item.pnl.toFixed(2)}` : item.pnl.toFixed(2);
             const completedCycles = item.logs.reduce((count, log) => {
               const normalized = log.trim().toUpperCase();
-              if (normalized.startsWith("CYCLE") && normalized.includes("COMPLETED")) {
+              // Count actual BUY triggers (including RE-ENTRY) as trade cycles
+              if (normalized.startsWith("BUY TRIGGERED") || normalized.startsWith("RE-ENTRY TRIGGERED")) {
                 return count + 1;
               }
-              // Count auto-exiting as cycle completion
-              if (normalized.startsWith("COMPLETED") && normalized.includes("TRADES") && normalized.includes("AUTO-EXITING")) {
-                const match = normalized.match(/COMPLETED\s+(\d+)\/(\d+)\s+TRADES/);
-                if (match) {
-                  return parseInt(match[1]); // Return the actual completed count from the message
-                }
-              }
               // Count manual sell (was in position) as cycle completion.
-              // Bare "EXIT" (no BUY happened) is NOT a real cycle.
               if (normalized.startsWith("SELL MANUALLY")) {
                 return count + 1;
               }

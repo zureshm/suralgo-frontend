@@ -4,7 +4,7 @@
 /* To change the color scheme, modify these values. */
 /* ============================================ */
 
-:root {
+[data-theme="brown"] {
   /* ============================================ */
   /* BASE COLORS (from globals.css - Light Theme) */
   /* ============================================ */
@@ -50,14 +50,14 @@
   /* ============================================ */
   
   /* Page Backgrounds */
-  --theme-bg: #6d0125;
+  --theme-bg: #592826;
   --theme-page-bg: #f1f5f9;
-  --theme-trade-page-bg: #6d0125;
+  --theme-trade-page-bg: #592826;
   --theme-login-page-bg: #f1f5f9;
   
   /* Card Backgrounds */
-  --theme-card-white: #fdf7d8;
-  --theme-card-dark: #710127;
+  --theme-card-white: #fdfbef;
+  --theme-card-dark: #710101;
   --theme-card-suggestion: #f3f6fb;
   --theme-card-log-line: #f8f9fa;
   --theme-card-shadow: rgba(0, 0, 0, 0.06);
@@ -104,13 +104,13 @@
   --theme-btn-green: green;
   
   /* Tailwind Button Colors (for TSX) */
-  --theme-tailwind-yellow-500: #eab308;
+  --theme-tailwind-yellow-500: #619f4d;
   --theme-tailwind-yellow-600: #ca8a04;
   --theme-tailwind-red-500: #ef4444;
   --theme-tailwind-red-600: #dc2626;
   --theme-tailwind-red-400: #f87171;
   --theme-tailwind-red-700: #b91c1c;
-  --theme-tailwind-blue-500: #2cad02;
+  --theme-tailwind-blue-500: #551414;
   --theme-tailwind-blue-600: #2563eb;
   --theme-tailwind-blue-text: #fff;
   --theme-tailwind-yellow-text: #fff;
@@ -170,6 +170,15 @@
   /* Amber Colors (for log-monitor page) */
   --theme-amber-400: #fbbf24;
   --theme-amber-500: #f59e0b;
+
+  /* Settings Popup */
+  --theme-popup-bg: var(--theme-card-white);
+  --theme-popup-border: var(--theme-bg);
+  --theme-popup-text: var(--theme-text-primary);
+  --theme-popup-label: var(--theme-text-secondary);
+  --theme-popup-field-bg: rgba(0, 0, 0, 0.04);
+  --theme-popup-field-border: rgba(0, 0, 0, 0.12);
+  --theme-popup-backdrop: rgba(255, 255, 255, 0.5);
 }
 
 /* Card elements with data-slot="card" */

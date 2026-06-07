@@ -2,8 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "../styles/colortheme.scss";
-@import "../styles/browncolortheme.scss";
 @import "../styles/bluecolortheme.scss";
+@import "../styles/browncolortheme.scss";
 
 @custom-variant dark (&:is(.dark *));
 

@@ -59,6 +59,8 @@ export default function Watchlist() {
 
   // Sync full watchlist symbols to backend whenever watchlist changes
   // Backend uses this list for multi-symbol LTP subscription
+  // Only fire when symbol list actually changes (not on LTP updates)
+  const watchlistSymbolsKey = watchlist.map((item) => item.symbol).join(",");
   useEffect(() => {
     const syncWatchlistSymbols = async () => {
       try {
@@ -70,7 +72,7 @@ export default function Watchlist() {
     };
 
     syncWatchlistSymbols();
-  }, [watchlist]);
+  }, [watchlistSymbolsKey]);
 
   const activeSlots = waitingTrades.length + activeTrades.filter((t) => t.status === "ACTIVE").length;
   const atMaxCapacity = activeSlots >= 4;
@@ -197,6 +199,7 @@ export default function Watchlist() {
             value={searchText}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
             className={`flex-1 ${styles.searchInput}`}
+            autoComplete="new-password"
           />
 
           <button
