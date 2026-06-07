@@ -1,7 +1,7 @@
 "use client";
 
 import styles from "./page.module.scss";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Settings, BarChart2, FileText, LogOut } from "lucide-react";
 
 import { useTradeStore } from "../store/TradeStore";
@@ -81,7 +81,9 @@ export default function DashboardPage() {
 
         <TradeHistory />
 
-        <BrokerLoginCard />
+        <Suspense fallback={<div>Loading...</div>}>
+          <BrokerLoginCard />
+        </Suspense>
 
         <div className={styles.bottomActions}></div>
 
