@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -141,6 +142,16 @@ export default function BrokerLoginCard() {
     );
     return () => clearInterval(interval);
   }, [connected, accountInfo, fetchFunds]);
+
+  // Auto-populate Request Code from URL params (Flattrade callback)
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (code && !connected) {
+      setFtRequestCode(code);
+      setSelectedBroker("flattrade");
+    }
+  }, [searchParams, connected]);
 
   // ── Connect handler ──
   const handleConnect = useCallback(async () => {
