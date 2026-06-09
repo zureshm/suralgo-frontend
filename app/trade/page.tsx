@@ -700,7 +700,6 @@ export default function TradePage() {
             
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <label className="text-sm w-12">Time:</label>
                 <Input 
                   type="text" 
                   value={timeFrom} 

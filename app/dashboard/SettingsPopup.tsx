@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, Settings, Play, Palette } from "lucide-react";
 import { playSound, setVolume } from "@/lib/sounds";
 import { useTheme } from "@/components/ThemeProvider";
+import { useTradeStore } from "../store/TradeStore";
 
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL || "http://localhost:4000";
 
@@ -43,6 +44,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [volume, setVolumeState] = useState(0.5);
   const { theme, setTheme } = useTheme();
+  const { forceBuyEnabled, setForceBuyEnabled } = useTradeStore();
 
   // Load volume from localStorage on mount
   useEffect(() => {
@@ -269,6 +271,47 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 >
                   <Play size={16} />
                 </button>
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
+
+            {/* Force Buy toggle */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium" style={{ color: "var(--theme-popup-label)" }}>Force Buy Button</label>
+                <button
+                  type="button"
+                  onClick={() => setForceBuyEnabled(!forceBuyEnabled)}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    background: forceBuyEnabled ? "var(--theme-popup-border)" : "var(--theme-popup-field-border)",
+                    position: "relative",
+                    transition: "background 0.2s",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 3,
+                      left: forceBuyEnabled ? 23 : 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    }}
+                  />
+                </button>
+              </div>
+              <div className="text-xs mt-1" style={{ color: forceBuyEnabled ? "var(--theme-status-success)" : "var(--theme-status-loss)" }}>
+                {forceBuyEnabled ? "Enabled" : "Disabled (self-control mode)"}
               </div>
             </div>
           </>
