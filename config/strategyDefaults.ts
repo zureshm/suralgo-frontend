@@ -130,7 +130,7 @@ export const STRATEGY_DEFAULTS = {
     sellWhenLossCandlesEnabled: false,
     sellWhenLossCandles: 5,
     minToHoldEnabled: true,
-    minToHold: 10,
+    minToHold: 6,
     minToHoldTrigger: 4,
     trailingAfterTargetEnabled: true,
     trailingAfterTarget: 12,

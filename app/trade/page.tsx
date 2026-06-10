@@ -224,44 +224,10 @@ export default function TradePage() {
       setReEntryPoints(data.reEntryPoints || 3);
     } else {
       // Reset to defaults
-      setStrategy('nifty');
-      setNumberOfTrades(5);
-      setStopLossNumberEnabled(true);
-      setStopLossNumber(15);
-      setStopLossPercentageEnabled(false);
-      setStopLossPercentage(10);
-      setTargetPointsEnabled(true);
-      setTargetPoints(20);
-      setWaitStrategyEnabled(false);
-      setBuyOverrideSize(15);
-      setWaitAfterSellEnabled(true);
-      setWaitAfterSellCandles(8);
-      setSellWhenLossCandlesEnabled(false);
-      setSellWhenLossCandles(5);
-      setMinToHoldEnabled(false);
-      setMinToHold(8);
-      setMinToHoldTrigger(2);
-      setTrailingAfterTargetEnabled(false);
-      setTrailingAfterTarget(15);
-      setRangeEnabled(true);
-      setTimeFrom('10:00');
-      setTimeFromAmpm('am');
-      setTimeTo('02:45');
-      setTimeToAmpm('pm');
-      setLotValue(1);
-      setMaxProfitLossEnabled(false);
-      setMaxProfit(1100);
-      setMaxLoss(900);
-      setReEntryAfterTargetEnabled(false);
-      setReEntryCandles(5);
-      setReEntryPoints(3);
+      setStrategy('default');
+      applyStrategyDefaults('default');
     }
   }, [selection?.symbol]);
-
-  // Apply default strategy on mount
-  useEffect(() => {
-    applyStrategyDefaults('default');
-  }, []);
 
   const saveForm = () => {
     if (!selection?.symbol) return;
