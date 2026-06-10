@@ -2170,12 +2170,12 @@ export function stopEngine() {
 
 
 // Load persisted state and auto-start the engine when this module is first imported on the server
-
-loadState();
-
-ensureEngineRunning();
-
-// On startup, detect which broker is logged in and sync strategy symbols
-detectActiveBroker();
-syncActiveStrategySymbols();
+// Skip during `next build` to prevent the build worker from crashing
+if (process.env.NEXT_PHASE !== 'phase-production-build') {
+  loadState();
+  ensureEngineRunning();
+  // On startup, detect which broker is logged in and sync strategy symbols
+  detectActiveBroker();
+  syncActiveStrategySymbols();
+}
 
