@@ -94,6 +94,7 @@ export default function TradePage() {
     if ('maxLoss' in defaults) setMaxLoss((defaults as any).maxLoss);
     if ('reEntryAfterTargetEnabled' in defaults) setReEntryAfterTargetEnabled((defaults as any).reEntryAfterTargetEnabled);
     if ('reEntryCandles' in defaults) setReEntryCandles((defaults as any).reEntryCandles);
+    if ('reEntryPoints' in defaults) setReEntryPoints((defaults as any).reEntryPoints);
   };
 
   // Handle strategy change
@@ -132,6 +133,7 @@ export default function TradePage() {
   const [maxLoss, setMaxLoss] = useState(900);
   const [reEntryAfterTargetEnabled, setReEntryAfterTargetEnabled] = useState(false);
   const [reEntryCandles, setReEntryCandles] = useState(5);
+  const [reEntryPoints, setReEntryPoints] = useState(3);
   const [isReEntryInfoOpen, setIsReEntryInfoOpen] = useState(false);
 
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
@@ -219,6 +221,7 @@ export default function TradePage() {
       setMaxLoss(data.maxLoss || 900);
       setReEntryAfterTargetEnabled(Boolean(data.reEntryAfterTargetEnabled ?? false));
       setReEntryCandles(data.reEntryCandles || 5);
+      setReEntryPoints(data.reEntryPoints || 3);
     } else {
       // Reset to defaults
       setStrategy('nifty');
@@ -251,6 +254,7 @@ export default function TradePage() {
       setMaxLoss(900);
       setReEntryAfterTargetEnabled(false);
       setReEntryCandles(5);
+      setReEntryPoints(3);
     }
   }, [selection?.symbol]);
 
@@ -295,6 +299,7 @@ export default function TradePage() {
       maxLoss,
       reEntryAfterTargetEnabled,
       reEntryCandles,
+      reEntryPoints,
     };
     localStorage.setItem('tradeForm_' + selection.symbol, JSON.stringify(formData));
   };
@@ -638,7 +643,19 @@ export default function TradePage() {
                     onChange={(e) => setReEntryAfterTargetEnabled(e.target.checked)}
                     className="h-4 w-4"
                   />
-                  <label htmlFor="reEntryAfterTargetEnabled" className="text-sm font-medium">ReEntry After Target</label>
+                  <label htmlFor="reEntryAfterTargetEnabled" className="text-sm font-medium flex items-center gap-1">
+                      ReEntry At +
+                      <input
+                        type="number"
+                        value={reEntryPoints}
+                        onChange={(e) => setReEntryPoints(Number(e.target.value) || 1)}
+                        className="w-10 h-6 px-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                        min="1"
+                        max="99"
+                        disabled={!reEntryAfterTargetEnabled}
+                      />
+                      Pts After Target
+                    </label>
                 </div>
 
                 <div className="relative">
@@ -877,6 +894,7 @@ export default function TradePage() {
                         maxLoss,
                         reEntryAfterTargetEnabled,
                         reEntryCandles,
+                        reEntryPoints,
                       };
 
                       // PUT to update existing waiting trade, POST to add new one
