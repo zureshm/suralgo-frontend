@@ -317,10 +317,10 @@ export default function TradePage() {
               className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="default">Default</option>
+              <option value="low">Strict Low</option>
+              <option value="medium">Free Low</option>
+              <option value="high">High Target</option>
               <option value="allclear">All Clear</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
             </select>
           </div>
 
