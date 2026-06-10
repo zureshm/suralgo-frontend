@@ -1297,9 +1297,9 @@ function handleStrategySignal(signal: any) {
 
 
 
-  // Auto-sell cutoff at 3:05 PM
+  // Auto-sell cutoff at 3:25 PM
 
-  const AUTO_SELL_CUTOFF_MINUTES = 15 * 60  + 15;
+  const AUTO_SELL_CUTOFF_MINUTES = 15 * 60  + 25;
 
   const candleMinutes = toMinutes(signal.lastCandleTime);
 
