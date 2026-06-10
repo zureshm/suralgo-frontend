@@ -609,19 +609,7 @@ export default function TradePage() {
                     onChange={(e) => setReEntryAfterTargetEnabled(e.target.checked)}
                     className="h-4 w-4"
                   />
-                  <label htmlFor="reEntryAfterTargetEnabled" className="text-sm font-medium flex items-center gap-1">
-                      ReEntry At +
-                      <input
-                        type="number"
-                        value={reEntryPoints}
-                        onChange={(e) => setReEntryPoints(Number(e.target.value) || 1)}
-                        className="w-10 h-6 px-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
-                        min="1"
-                        max="99"
-                        disabled={!reEntryAfterTargetEnabled}
-                      />
-                      Pts After Target
-                    </label>
+                  <label htmlFor="reEntryAfterTargetEnabled" className="text-sm font-medium">Re-entry Condition</label>
                 </div>
 
                 <div className="relative">
@@ -647,6 +635,20 @@ export default function TradePage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pl-6">
+                <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Plus</label>
+                <input
+                  type="number"
+                  value={reEntryPoints}
+                  onChange={(e) => setReEntryPoints(Number(e.target.value) || 1)}
+                  className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                  min="1"
+                  max="99"
+                  disabled={!reEntryAfterTargetEnabled}
+                />
+                <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Pts After Target</span>
               </div>
 
               <div className="flex items-center space-x-2 pl-6">
