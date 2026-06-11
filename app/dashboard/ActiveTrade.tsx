@@ -90,7 +90,7 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const { removeTradeAndFreeSymbol } = useTradeStore();
+  const { removeTradeAndFreeSymbol, forceBuyEnabled } = useTradeStore();
 
   useEffect(() => {
     setMounted(true);
@@ -235,6 +235,7 @@ export default function ActiveTrade({
                     <span className={styles.w7}>G</span>
                   </div>
 
+                  {forceBuyEnabled && (
                   <button
                     className={`${styles.waitingBtn} ${styles.dark}`}
                     type="button"
@@ -245,6 +246,7 @@ export default function ActiveTrade({
                     <Zap className="w-3.5 h-3.5" />
                     Force&nbsp;Buy
                   </button>
+                  )}
                   <button
                     className={`${styles.waitingBtn} ${styles.danger}`}
                     type="button"

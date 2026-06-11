@@ -235,6 +235,7 @@ type WaitingTrade = {
   reEntryAfterTargetEnabled: boolean;
 
   reEntryCandles: number;
+  reEntryPoints: number;
 
 };
 
@@ -321,6 +322,7 @@ type ActiveTrade = {
   reEntryAfterTargetEnabled: boolean;
 
   reEntryCandles: number;
+  reEntryPoints: number;
 
   reEntryExitPrice?: number;
 
@@ -787,6 +789,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     reEntryAfterTargetEnabled: trade.reEntryAfterTargetEnabled,
 
     reEntryCandles: trade.reEntryCandles,
+    reEntryPoints: trade.reEntryPoints,
 
   };
 
@@ -1294,9 +1297,9 @@ function handleStrategySignal(signal: any) {
 
 
 
-  // Auto-sell cutoff at 3:05 PM
+  // Auto-sell cutoff at 3:25 PM
 
-  const AUTO_SELL_CUTOFF_MINUTES = 15 * 60  + 15;
+  const AUTO_SELL_CUTOFF_MINUTES = 15 * 60  + 25;
 
   const candleMinutes = toMinutes(signal.lastCandleTime);
 
@@ -1603,10 +1606,10 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         const currentMin = toMinutes(lastStrategyCandleTime);
         if (sellMin >= 0 && currentMin >= 0) {
           const candlesSinceSell = currentMin - sellMin;
-          const reEntryThreshold = trade.reEntryExitPrice + 5;
+          const reEntryThreshold = trade.reEntryExitPrice + (trade.reEntryPoints || 5);
           if (candlesSinceSell <= trade.reEntryCandles) {
             if (ltp > reEntryThreshold) {
-              const reEntryLog = `RE-ENTRY triggered at ₹${ltp.toFixed(2)} (price exceeded exit+5 ₹${reEntryThreshold.toFixed(2)} within ${candlesSinceSell}/${trade.reEntryCandles} candles) at ${currentTime}`;
+              const reEntryLog = `RE-ENTRY triggered at ₹${ltp.toFixed(2)} (price exceeded exit+${trade.reEntryPoints || 5} ₹${reEntryThreshold.toFixed(2)} within ${candlesSinceSell}/${trade.reEntryCandles} candles) at ${currentTime}`;
               updateActiveTradeBuy(trade.symbol, String(ltp), reEntryLog);
               continue;
             }
@@ -2167,12 +2170,12 @@ export function stopEngine() {
 
 
 // Load persisted state and auto-start the engine when this module is first imported on the server
-
-loadState();
-
-ensureEngineRunning();
-
-// On startup, detect which broker is logged in and sync strategy symbols
-detectActiveBroker();
-syncActiveStrategySymbols();
+// Skip during `next build` to prevent the build worker from crashing
+if (process.env.NEXT_PHASE !== 'phase-production-build') {
+  loadState();
+  ensureEngineRunning();
+  // On startup, detect which broker is logged in and sync strategy symbols
+  detectActiveBroker();
+  syncActiveStrategySymbols();
+}
 
