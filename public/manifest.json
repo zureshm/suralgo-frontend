@@ -4,8 +4,8 @@
   "description": "SurAlgo Trading Application",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#1a1a2e",
+  "background_color": "#592826",
+  "theme_color": "#592826",
   "orientation": "portrait",
   "icons": [
     {

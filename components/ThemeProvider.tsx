@@ -24,13 +24,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  // Apply theme to HTML element
+  // Apply theme to HTML element and sync system UI colors
   useEffect(() => {
     if (!mounted) return;
 
     const html = document.documentElement;
     html.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
+
+    // Update the meta theme-color for mobile status bar
+    requestAnimationFrame(() => {
+      const bg = getComputedStyle(html).getPropertyValue("--theme-bg").trim();
+      if (bg) {
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", bg);
+        // Also set html background so system bar areas are filled
+        html.style.backgroundColor = bg;
+      }
+    });
   }, [theme, mounted]);
 
   const setTheme = (newTheme: Theme) => {
