@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { X, BarChart2 } from "lucide-react";
 import { createChart, CandlestickSeries, IChartApi, UTCTimestamp, SeriesMarker, Time, createSeriesMarkers, LineSeries } from "lightweight-charts";
 import { useTradeStore } from "../store/TradeStore";
@@ -149,17 +149,21 @@ export default function ChartPopup({ open, onClose }: Props) {
   const chartInstances = useRef<Record<string, IChartApi>>({});
 
   // Only show charts for symbols in active/waiting trades
-  const activeSymbols = new Set([
-    ...activeTrades.map((t) => t.symbol),
-    ...waitingTrades.map((t) => t.symbol),
-  ]);
+  const activeSymbols = useMemo(() => {
+    const set = new Set<string>();
+    activeTrades.forEach((t) => set.add(t.symbol));
+    waitingTrades.forEach((t) => set.add(t.symbol));
+    return set;
+  }, [activeTrades, waitingTrades]);
 
   // Clear data when popup closes
   useEffect(() => {
-    if (!open) {
+    if (!open) return;
+
+    return () => {
       setSymbolCandles({});
       setError(null);
-    }
+    };
   }, [open]);
 
   // Fetch candle history + log signals — poll every 5s while open
@@ -167,6 +171,7 @@ export default function ChartPopup({ open, onClose }: Props) {
     if (!open) return;
 
     const fetchCandles = () => {
+      setLoading(true);
       Promise.all([
         fetch(`${STRATEGY_URL}/chart-history`).then((r) => r.json()).catch(() => ({})),
         fetch(`${STRATEGY_URL}/logs/strategy`).then((r) => r.json()).catch(() => ({ logs: [] })),
@@ -211,11 +216,12 @@ export default function ChartPopup({ open, onClose }: Props) {
         .finally(() => setLoading(false));
     };
 
-    setLoading(true);
-    fetchCandles();
-
+    const kickoff = setTimeout(fetchCandles, 0);
     const interval = setInterval(fetchCandles, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(kickoff);
+      clearInterval(interval);
+    };
   }, [open]);
 
   // Create/update charts when data changes
@@ -355,7 +361,7 @@ export default function ChartPopup({ open, onClose }: Props) {
       Object.values(chartInstances.current).forEach((chart) => chart.remove());
       chartInstances.current = {};
     };
-  }, [symbolCandles, activeSymbols.size]);
+  }, [symbolCandles, activeSymbols]);
 
   if (!open) return null;
 
