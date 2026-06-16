@@ -153,6 +153,7 @@ export default function ChartPopup({ open, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [spinning, setSpinning] = useState(false);
   const chartRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const chartInstances = useRef<Record<string, IChartApi>>({});
 
@@ -163,12 +164,19 @@ export default function ChartPopup({ open, onClose }: Props) {
   const nifty50ChartInstance = useRef<IChartApi | null>(null);
 
   // Only show charts for symbols in active/waiting trades
+  // Stabilize: only return new Set when actual symbol list changes
+  const activeSymbolsKey = useMemo(() => {
+    const syms: string[] = [];
+    activeTrades.forEach((t) => { if (!syms.includes(t.symbol)) syms.push(t.symbol); });
+    waitingTrades.forEach((t) => { if (!syms.includes(t.symbol)) syms.push(t.symbol); });
+    return syms.sort().join(",");
+  }, [activeTrades, waitingTrades]);
+
   const activeSymbols = useMemo(() => {
     const set = new Set<string>();
-    activeTrades.forEach((t) => set.add(t.symbol));
-    waitingTrades.forEach((t) => set.add(t.symbol));
+    activeSymbolsKey.split(",").filter(Boolean).forEach((s) => set.add(s));
     return set;
-  }, [activeTrades, waitingTrades]);
+  }, [activeSymbolsKey]);
 
   // Clear data when popup closes
   useEffect(() => {
@@ -352,6 +360,7 @@ export default function ChartPopup({ open, onClose }: Props) {
 
     const fetchCandles = () => {
       setLoading(true);
+      setSpinning(true);
       Promise.all([
         fetch(`${STRATEGY_URL}/chart-history`).then((r) => r.json()).catch(() => ({})),
         fetch(`${STRATEGY_URL}/logs/strategy`).then((r) => r.json()).catch(() => ({ logs: [] })),
@@ -393,7 +402,10 @@ export default function ChartPopup({ open, onClose }: Props) {
         .catch(() => {
           setError("Failed to fetch from strategy server");
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          setLoading(false);
+          setSpinning(false);
+        });
     };
 
     const kickoff = setTimeout(fetchCandles, 0);
@@ -616,17 +628,17 @@ export default function ChartPopup({ open, onClose }: Props) {
                 className="p-1.5 rounded-full transition hover:opacity-80"
                 style={{ background: "var(--theme-popup-border)", color: "#fff" }}
                 title="Refresh charts"
-                disabled={loading}
+                disabled={spinning}
               >
-                <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+                <RefreshCw size={16} className={spinning ? "animate-spin" : ""} />
               </button>
             </div>
-            {loading ? (
-              <div className="text-sm py-8 text-center" style={{ color: "var(--theme-popup-label)" }}>Loading charts...</div>
-            ) : error ? (
+            {error ? (
               <div className="text-sm py-8 text-center" style={{ color: "var(--theme-status-loss)" }}>{error}</div>
-            ) : symbols.length === 0 ? (
+            ) : symbols.length === 0 && !loading ? (
               <div className="text-sm py-8 text-center" style={{ color: "var(--theme-popup-label)" }}>No candle data available yet</div>
+            ) : symbols.length === 0 && loading ? (
+              <div className="text-sm py-8 text-center" style={{ color: "var(--theme-popup-label)" }}>Loading charts...</div>
             ) : (
               <div className="flex flex-col gap-4">
                 {symbols.map((symbol) => (
