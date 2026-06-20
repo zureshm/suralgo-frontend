@@ -2,7 +2,7 @@
 
 import styles from "./page.module.scss";
 import { useEffect, useState, Suspense } from "react";
-import { Settings, BarChart2, FileText, LogOut } from "lucide-react";
+import { Settings, BarChart2, Grid2X2, LogOut } from "lucide-react";
 
 import { useTradeStore } from "../store/TradeStore";
 import { getPrices } from "@/lib/getPrices";
@@ -13,12 +13,14 @@ import Watchlist from "./Watchlist";
 import ActiveTrade from "./ActiveTrade";
 import SettingsPopup from "./SettingsPopup";
 import ChartPopup from "./ChartPopup";
+import OptionChainPopup from "./OptionChainPopup";
 
 export default function DashboardPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeLtps, setActiveLtps] = useState<Record<string, number>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
+  const [optionChainOpen, setOptionChainOpen] = useState(false);
   const {
     waitingTrades,
     removeWaitingTrade,
@@ -96,9 +98,9 @@ export default function DashboardPage() {
             <BarChart2 size={20} />
             <span>Chart</span>
           </div>
-          <div className={styles.menuItem}>
-            <FileText size={20} />
-            <span>Logs</span>
+          <div className={styles.menuItem} onClick={() => setOptionChainOpen(true)}>
+            <Grid2X2 size={20} />
+            <span>Options</span>
           </div>
           <div className={styles.menuItem}>
             <LogOut size={20} />
@@ -108,6 +110,7 @@ export default function DashboardPage() {
 
         <SettingsPopup open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <ChartPopup open={chartOpen} onClose={() => setChartOpen(false)} />
+        <OptionChainPopup open={optionChainOpen} onClose={() => setOptionChainOpen(false)} />
       </div>
     </div>
   );
