@@ -11,7 +11,7 @@ const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL || "http://localho
 // Friendly display names for strategy script names — edit these as needed
 const STRATEGY_DISPLAY_NAMES: Record<string, string> = {
   evaluateEMACross: "EMA Crossover",
-  surStrategy: "Sur Strategy",
+  surStrategy: "Suresh Strategy",
   chatGptStrategy: "ChatGPT Strategy",
   claudSurStrategy: "Claude Sur Strategy",
   utGptStrategy: "UT GPT",
@@ -20,7 +20,7 @@ const STRATEGY_DISPLAY_NAMES: Record<string, string> = {
   utGptStrategy3: "UT GPT v3",
   superDoubleUT: "Super Double UT",
   superUTBotStrategy: "Super UT Bot",
-  doubleUTBotStrategy: "Double UT Bot",
+  VWAPUTBotStrategy: "VWAP Double UT Bot",
   sumeshStrategy: "Sumesh Strategy",
   utGptStrategy4: "UT GPT v4",
   utGptStrategy4X: "UT GPT v4X",
