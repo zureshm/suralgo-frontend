@@ -83,6 +83,9 @@ export default function TradePage() {
     if ('minToHoldTrigger' in defaults) setMinToHoldTrigger((defaults as any).minToHoldTrigger);
     setTrailingAfterTargetEnabled(defaults.trailingAfterTargetEnabled);
     setTrailingAfterTarget(defaults.trailingAfterTarget);
+    setTargetMode(defaults.targetMode as "live" | "candleClose");
+    setTrailingMode(defaults.trailingMode as "live" | "candleClose");
+    setPriceMode(defaults.targetMode as "live" | "candleClose");
     setRangeEnabled(defaults.rangeEnabled);
     setTimeFrom(defaults.timeFrom);
     setTimeFromAmpm(defaults.timeFromAmpm);
@@ -135,6 +138,9 @@ export default function TradePage() {
   const [reEntryCandles, setReEntryCandles] = useState(5);
   const [reEntryPoints, setReEntryPoints] = useState(3);
   const [isReEntryInfoOpen, setIsReEntryInfoOpen] = useState(false);
+  const [targetMode, setTargetMode] = useState<"live" | "candleClose">("live");
+  const [trailingMode, setTrailingMode] = useState<"live" | "candleClose">("live");
+  const [priceMode, setPriceMode] = useState<"live" | "candleClose">("live");
 
   const isAlreadyWaiting = selection && waitingTrades.some((trade: WaitingTrade) => trade.symbol === selection.symbol);
   const isAlreadyActive = selection && activeTrades.some((trade) => trade.symbol === selection.symbol && trade.status === "ACTIVE");
@@ -222,6 +228,11 @@ export default function TradePage() {
       setReEntryAfterTargetEnabled(Boolean(data.reEntryAfterTargetEnabled ?? false));
       setReEntryCandles(data.reEntryCandles || 5);
       setReEntryPoints(data.reEntryPoints || 3);
+      const savedTargetMode = data.targetMode === "candleClose" ? "candleClose" : "live";
+      const savedTrailingMode = data.trailingMode === "candleClose" ? "candleClose" : "live";
+      setTargetMode(savedTargetMode);
+      setTrailingMode(savedTrailingMode);
+      setPriceMode(savedTargetMode);
     } else {
       // Reset to defaults
       setStrategy('default');
@@ -266,6 +277,8 @@ export default function TradePage() {
       reEntryAfterTargetEnabled,
       reEntryCandles,
       reEntryPoints,
+      targetMode,
+      trailingMode,
     };
     localStorage.setItem('tradeForm_' + selection.symbol, JSON.stringify(formData));
   };
@@ -477,6 +490,44 @@ export default function TradePage() {
                     disabled={!targetPointsEnabled}
                   />
                 </div>
+
+                <div className="flex items-center space-x-4 pl-6 pt-1">
+                  <label className={`text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>Use price:</label>
+                  <label className={`flex items-center space-x-1 text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>
+                    <input
+                      type="radio"
+                      name="priceMode"
+                      value="live"
+                      checked={priceMode === "live"}
+                      onChange={(e) => {
+                        const mode = e.target.value as "live" | "candleClose";
+                        setPriceMode(mode);
+                        setTargetMode(mode);
+                        setTrailingMode(mode);
+                      }}
+                      className="h-3 w-3"
+                      disabled={!targetPointsEnabled}
+                    />
+                    <span>LTP</span>
+                  </label>
+                  <label className={`flex items-center space-x-1 text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>
+                    <input
+                      type="radio"
+                      name="priceMode"
+                      value="candleClose"
+                      checked={priceMode === "candleClose"}
+                      onChange={(e) => {
+                        const mode = e.target.value as "live" | "candleClose";
+                        setPriceMode(mode);
+                        setTargetMode(mode);
+                        setTrailingMode(mode);
+                      }}
+                      className="h-3 w-3"
+                      disabled={!targetPointsEnabled}
+                    />
+                    <span>Candle close</span>
+                  </label>
+                </div>
               </div>
 
               <div className="rounded-md border border-gray-200 p-3 space-y-3">
@@ -550,7 +601,7 @@ export default function TradePage() {
                       className="h-4 w-4"
                     />
                     <label htmlFor="trailingAfterTargetEnabled" className="text-sm font-medium">
-                      Trailing SL
+                      Trailing SL <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span>
                     </label>
                   </div>
 

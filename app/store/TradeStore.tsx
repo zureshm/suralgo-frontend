@@ -19,11 +19,13 @@ export type WaitingTrade = {
   stopLossNumber: number;
   targetPointsEnabled: boolean;
   targetPoints: number;
+  targetMode: "live" | "candleClose";
   minToHoldEnabled: boolean;
   minToHold: number;
   minToHoldTrigger: number;
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
+  trailingMode: "live" | "candleClose";
   rangeEnabled: boolean;
   timeFrom: string;
   timeFromAmpm: string;
@@ -55,11 +57,13 @@ export type ActiveTrade = {
   stopLossNumber: number;
   targetPointsEnabled: boolean;
   targetPoints: number;
+  targetMode: "live" | "candleClose";
   minToHoldEnabled: boolean;
   minToHold: number;
   minToHoldTrigger: number;
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
+  trailingMode: "live" | "candleClose";
   trailingTrailActive: boolean;
   trailingHighWatermark?: number;
   rangeEnabled: boolean;
@@ -274,11 +278,13 @@ export function TradeStoreProvider({
       stopLossNumber: readFormNumber(sym, "stopLossNumber", 15),
       targetPointsEnabled: readFormBool(sym, "targetPointsEnabled", true),
       targetPoints: readFormNumber(sym, "targetPoints", 20),
+      targetMode: readFormString(sym, "targetMode", "live") as "live" | "candleClose",
       minToHoldEnabled: readFormBool(sym, "minToHoldEnabled", false),
       minToHold: readFormNumber(sym, "minToHold", 8),
       minToHoldTrigger: readFormNumber(sym, "minToHoldTrigger", 2),
       trailingAfterTargetEnabled: readFormBool(sym, "trailingAfterTargetEnabled", false),
       trailingAfterTarget: readFormNumber(sym, "trailingAfterTarget", 15),
+      trailingMode: readFormString(sym, "trailingMode", "live") as "live" | "candleClose",
       rangeEnabled: readFormBool(sym, "rangeEnabled", false),
       timeFrom: readFormString(sym, "timeFrom", "10:00"),
       timeFromAmpm: readFormString(sym, "timeFromAmpm", "am"),
@@ -357,11 +363,13 @@ export function TradeStoreProvider({
       stopLossNumber: tradeToActivate.stopLossNumber,
       targetPointsEnabled: tradeToActivate.targetPointsEnabled,
       targetPoints: tradeToActivate.targetPoints,
+      targetMode: tradeToActivate.targetMode,
       minToHoldEnabled: tradeToActivate.minToHoldEnabled,
       minToHold: tradeToActivate.minToHold,
       minToHoldTrigger: tradeToActivate.minToHoldTrigger,
       trailingAfterTargetEnabled: tradeToActivate.trailingAfterTargetEnabled,
       trailingAfterTarget: tradeToActivate.trailingAfterTarget,
+      trailingMode: tradeToActivate.trailingMode,
       trailingTrailActive: false,
       trailingHighWatermark: undefined,
       rangeEnabled: tradeToActivate.rangeEnabled,

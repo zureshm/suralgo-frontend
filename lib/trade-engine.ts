@@ -196,6 +196,8 @@ type WaitingTrade = {
 
   targetPoints: number;
 
+  targetMode: "live" | "candleClose";
+
   minToHoldEnabled: boolean;
 
   minToHold: number;
@@ -205,6 +207,8 @@ type WaitingTrade = {
   trailingAfterTargetEnabled: boolean;
 
   trailingAfterTarget: number;
+
+  trailingMode: "live" | "candleClose";
 
   rangeEnabled: boolean;
 
@@ -265,6 +269,8 @@ type ActiveTrade = {
 
   targetPoints: number;
 
+  targetMode: "live" | "candleClose";
+
   minToHoldEnabled: boolean;
 
   minToHold: number;
@@ -274,6 +280,8 @@ type ActiveTrade = {
   trailingAfterTargetEnabled: boolean;
 
   trailingAfterTarget: number;
+
+  trailingMode: "live" | "candleClose";
 
   trailingTrailActive: boolean;
 
@@ -732,6 +740,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
     targetPoints: trade.targetPoints,
 
+    targetMode: trade.targetMode,
+
     minToHoldEnabled: trade.minToHoldEnabled,
 
     minToHold: trade.minToHold,
@@ -741,6 +751,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     trailingAfterTargetEnabled: trade.trailingAfterTargetEnabled,
 
     trailingAfterTarget: trade.trailingAfterTarget,
+
+    trailingMode: trade.trailingMode,
 
     trailingTrailActive: false,
 
@@ -1556,9 +1568,10 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     const ltp = ltpMap[trade.symbol];
     if (!Number.isFinite(ltp)) continue;
 
-    // Use only real-time LTP for all SL/Target/Trailing checks.
-    // Candle high/low from strategy signals are stale (previous completed candle)
-    // and would cause phantom exits on wicks that LTP polling already handles.
+    const targetPrice = trade.targetMode === "candleClose" && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
+    const trailingPrice = trade.trailingMode === "candleClose" && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
+
+    // Use real-time LTP for SL/Minimum Target. Target/Trailing may use LTP or last candle close based on mode.
 
     const currentTime = marketTime || fmtTime();
 
@@ -1697,7 +1710,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     if (trailingEnabled && trade.trailingTrailActive) {
 
-      const peakPrice = ltp;
+      const peakPrice = trailingPrice;
 
       if (typeof trade.trailingHighWatermark !== "number" || peakPrice > trade.trailingHighWatermark) {
 
@@ -1707,15 +1720,15 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       const highMark = trade.trailingHighWatermark ?? peakPrice;
 
-      const currentPrice = ltp;
+      const currentTrailingPrice = trailingPrice;
 
-      const drop = highMark - currentPrice;
+      const drop = highMark - currentTrailingPrice;
 
       if (drop >= trade.trailingAfterTarget) {
 
         triggeredPositions.add(positionKey);
 
-        completeCycleWithoutExit(trade.symbol, String(ltp), `Trailing target hit for ₹${ltp} at ${currentTime}`);
+        completeCycleWithoutExit(trade.symbol, String(trailingPrice), `Trailing target hit for ₹${trailingPrice} at ${currentTime}`);
 
         continue;
 
@@ -1727,10 +1740,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     // Target hit
 
-    if (trade.targetPointsEnabled && trade.targetPoints > 0 && (ltp - entry) >= trade.targetPoints) {
+    if (trade.targetPointsEnabled && trade.targetPoints > 0 && (targetPrice - entry) >= trade.targetPoints) {
 
       const targetLevel = entry + trade.targetPoints;
-      const tgtExit = priceDiff >= trade.targetPoints ? ltp : targetLevel;
+      const targetPriceDiff = targetPrice - entry;
+      const tgtExit = targetPriceDiff >= trade.targetPoints ? targetPrice : targetLevel;
 
       if (trailingEnabled) {
 
