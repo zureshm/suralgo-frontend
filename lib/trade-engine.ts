@@ -241,6 +241,10 @@ type WaitingTrade = {
   reEntryCandles: number;
   reEntryPoints: number;
 
+  pendingSkippedBuy?: boolean;
+
+  signalReEntryEnabled: boolean;
+
 };
 
 
@@ -337,6 +341,12 @@ type ActiveTrade = {
   reEntrySellTime?: string;
 
   reEntryReason?: string;
+
+  pendingSkippedBuy?: boolean;
+
+  signalReEntryEnabled: boolean;
+
+  signalReEntryArmed?: boolean;
 
 };
 
@@ -803,6 +813,12 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     reEntryCandles: trade.reEntryCandles,
     reEntryPoints: trade.reEntryPoints,
 
+    pendingSkippedBuy: false,
+
+    signalReEntryEnabled: trade.signalReEntryEnabled,
+
+    signalReEntryArmed: false,
+
   };
 
 
@@ -1099,6 +1115,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
     // Determine if this was a profitable exit (target/trailing/min target)
     const isProfitableExit = cyclePnl >= 0 && !logLine.includes("STOPLOSS") && !logLine.includes("in loss");
+    const signalReEntryArmed = trade.signalReEntryEnabled && isProfitableExit;
     const reEntryInfo = (trade.reEntryAfterTargetEnabled && isProfitableExit) ? {
       reEntryExitPrice: Number(exitPrice),
       reEntrySellTime: lastStrategyCandleTime || trade.lastSellCandleTime,
@@ -1114,6 +1131,11 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
       reEntryMsg = `ReEntry armed: watching for price > ₹${exitPrice} within ${trade.reEntryCandles} candles`;
     } else if (trade.reEntryAfterTargetEnabled && !isProfitableExit) {
       reEntryMsg += ` [ReEntry skipped: not a profitable exit]`;
+    } else if (!trade.reEntryAfterTargetEnabled) {
+      reEntryMsg += ` [ReEntry disabled]`;
+    }
+    if (trade.signalReEntryEnabled && isProfitableExit) {
+      reEntryMsg += ` [Signal Re-entry armed: waiting for REENTER signal]`;
     }
 
     return {
@@ -1125,6 +1147,8 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
       trailingTrailActive: false, trailingHighWatermark: undefined,
 
       lastSellCandleTime: lastStrategyCandleTime || trade.lastSellCandleTime,
+
+      signalReEntryArmed,
 
       ...reEntryInfo,
 
@@ -1155,6 +1179,7 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
       trailingTrailActive: false, trailingHighWatermark: undefined,
 
       reEntryExitPrice: undefined, reEntrySellTime: undefined, reEntryReason: undefined,
+      pendingSkippedBuy: false, signalReEntryArmed: false,
 
     };
 
@@ -1186,6 +1211,15 @@ function clearReEntryState(symbol: string) {
     t.symbol === symbol && t.status === "ACTIVE"
       ? { ...t, reEntryExitPrice: undefined, reEntrySellTime: undefined, reEntryReason: undefined }
       : t
+  );
+}
+
+function setPendingSkippedBuy(symbol: string, value: boolean) {
+  waitingTrades = waitingTrades.map((t) =>
+    t.symbol === symbol ? { ...t, pendingSkippedBuy: value } : t
+  );
+  activeTrades = activeTrades.map((t) =>
+    t.symbol === symbol && t.status === "ACTIVE" ? { ...t, pendingSkippedBuy: value } : t
   );
 }
 
@@ -1521,11 +1555,13 @@ function handleStrategySignal(signal: any) {
 
     if (overrideValue != null && overrideValue > 0 && candleSize >= overrideValue) {
 
-      const ignoredLog = `BUY ignored – candle size ${candleSize.toFixed(2)} >= buyOverride ${overrideValue} at ${fmtTime(signal.lastCandleTime)}`;
+      const ignoredLog = `BUY ignored – candle size ${candleSize.toFixed(2)} >= buyOverride ${overrideValue} at ${fmtTime(signal.lastCandleTime)} (waiting for REENTER signal)`;
 
       if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, ignoredLog); }
 
       else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, ignoredLog); }
+
+      setPendingSkippedBuy(signalSymbol, true);
 
       lastHandledSignalKey[signalSymbol] = signalKey;
 
@@ -1547,7 +1583,94 @@ function handleStrategySignal(signal: any) {
 
 
 
+    // Clear pending skipped buy on successful entry
+    setPendingSkippedBuy(signalSymbol, false);
+
     lastHandledSignalKey[signalSymbol] = signalKey;
+
+  }
+
+
+
+  // REENTER signal
+
+  if (signal.signal === "REENTER") {
+
+    const signalKey = signal.signal + "-" + signal.lastCandleTime;
+
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
+
+    if (waitingForSell) return;
+
+    const reenterTrade = waitingTrades.find((t) => t.symbol === signalSymbol)
+      ?? (activeForSymbol && !activeForSymbol.inPosition ? activeForSymbol : null);
+
+    if (!reenterTrade) return;
+
+    const hasPendingSkip = reenterTrade.pendingSkippedBuy === true;
+    const hasSignalReEntry = ("signalReEntryArmed" in reenterTrade) && (reenterTrade as ActiveTrade).signalReEntryArmed === true && (reenterTrade as ActiveTrade).signalReEntryEnabled;
+
+    if (!hasPendingSkip && !hasSignalReEntry) {
+      const ignoreLog = `REENTER ignored – no pending skipped BUY or signal re-entry at ${fmtTime(signal.lastCandleTime)}`;
+      if (waitingTrades.find((t) => t.symbol === signalSymbol)) {
+        addLogToWaiting(signalSymbol, ignoreLog);
+      } else {
+        addLogToActive(signalSymbol, ignoreLog);
+      }
+      lastHandledSignalKey[signalSymbol] = signalKey;
+      return;
+    }
+
+    // Apply guards if they are enabled on the trade
+    const reCandles = signal.candles;
+    const rePrevCandle = Array.isArray(reCandles) && reCandles.length > 0 ? reCandles[reCandles.length - 1] : null;
+    const reCandleSize = rePrevCandle ? Math.abs(Number(rePrevCandle.close) - Number(rePrevCandle.open)) : 0;
+
+    // Time range guard
+    if (reenterTrade.rangeEnabled) {
+      const rangeStart = toMinutes12h(reenterTrade.timeFrom, reenterTrade.timeFromAmpm);
+      const rangeEnd = toMinutes12h(reenterTrade.timeTo, reenterTrade.timeToAmpm);
+      const cMin = toMinutes(signal.lastCandleTime);
+      if (cMin >= 0 && (cMin < rangeStart || cMin > rangeEnd)) {
+        const skipLog = `REENTER skipped – outside time range at ${fmtTime(signal.lastCandleTime)}`;
+        if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, skipLog); } else { addLogToActive(signalSymbol, skipLog); }
+        lastHandledSignalKey[signalSymbol] = signalKey;
+        return;
+      }
+    }
+
+    // Wait-after-sell guard
+    if (reenterTrade.waitAfterSellEnabled && activeForSymbol?.lastSellCandleTime) {
+      const lastSellMin = toMinutes(activeForSymbol.lastSellCandleTime);
+      const currentMin = toMinutes(signal.lastCandleTime);
+      if (lastSellMin >= 0 && currentMin >= 0 && (currentMin - lastSellMin) < reenterTrade.waitAfterSellCandles) {
+        const waitLog = `REENTER skipped – waiting ${reenterTrade.waitAfterSellCandles} candles after SELL at ${fmtTime(signal.lastCandleTime)}`;
+        if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, waitLog); } else { addLogToActive(signalSymbol, waitLog); }
+        lastHandledSignalKey[signalSymbol] = signalKey;
+        return;
+      }
+    }
+
+    // Candle size guard
+    const reOverrideValue = reenterTrade.buyOverride;
+    if (reOverrideValue != null && reOverrideValue > 0 && reCandleSize >= reOverrideValue) {
+      const sizeLog = `REENTER skipped – candle size ${reCandleSize.toFixed(2)} >= ${reOverrideValue} at ${fmtTime(signal.lastCandleTime)}`;
+      if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, sizeLog); } else { addLogToActive(signalSymbol, sizeLog); }
+      lastHandledSignalKey[signalSymbol] = signalKey;
+      return;
+    }
+
+    // All guards passed — enter
+    const reenterLabel = hasPendingSkip ? "REENTER (skipped candle re-entry)" : "SIGNAL RE-ENTRY";
+    const reenterLog = `${reenterLabel} triggered for ₹${latestClose ?? ""} at ${fmtTime(signal.lastCandleTime)}`;
+    if (waitingTrades.find((t) => t.symbol === signalSymbol)) {
+      activateWaitingTrade(signalSymbol, String(latestClose ?? ""), reenterLog);
+    } else if (activeForSymbol && !activeForSymbol.inPosition) {
+      updateActiveTradeBuy(signalSymbol, String(latestClose ?? ""), reenterLog);
+    }
+    setPendingSkippedBuy(signalSymbol, false);
+    lastHandledSignalKey[signalSymbol] = signalKey;
+    return;
 
   }
 

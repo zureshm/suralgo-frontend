@@ -98,6 +98,7 @@ export default function TradePage() {
     if ('reEntryAfterTargetEnabled' in defaults) setReEntryAfterTargetEnabled((defaults as any).reEntryAfterTargetEnabled);
     if ('reEntryCandles' in defaults) setReEntryCandles((defaults as any).reEntryCandles);
     if ('reEntryPoints' in defaults) setReEntryPoints((defaults as any).reEntryPoints);
+    if ('signalReEntryEnabled' in defaults) setSignalReEntryEnabled((defaults as any).signalReEntryEnabled ?? true);
   };
 
   // Handle strategy change
@@ -138,6 +139,8 @@ export default function TradePage() {
   const [reEntryCandles, setReEntryCandles] = useState(5);
   const [reEntryPoints, setReEntryPoints] = useState(3);
   const [isReEntryInfoOpen, setIsReEntryInfoOpen] = useState(false);
+  const [signalReEntryEnabled, setSignalReEntryEnabled] = useState(true);
+  const [isSignalReEntryInfoOpen, setIsSignalReEntryInfoOpen] = useState(false);
   const [targetMode, setTargetMode] = useState<"live" | "candleClose">("live");
   const [trailingMode, setTrailingMode] = useState<"live" | "candleClose">("live");
   const [priceMode, setPriceMode] = useState<"live" | "candleClose">("live");
@@ -228,6 +231,7 @@ export default function TradePage() {
       setReEntryAfterTargetEnabled(Boolean(data.reEntryAfterTargetEnabled ?? false));
       setReEntryCandles(data.reEntryCandles || 5);
       setReEntryPoints(data.reEntryPoints || 3);
+      setSignalReEntryEnabled(Boolean(data.signalReEntryEnabled ?? true));
       const savedTargetMode = data.targetMode === "candleClose" ? "candleClose" : "live";
       const savedTrailingMode = data.trailingMode === "candleClose" ? "candleClose" : "live";
       setTargetMode(savedTargetMode);
@@ -277,6 +281,7 @@ export default function TradePage() {
       reEntryAfterTargetEnabled,
       reEntryCandles,
       reEntryPoints,
+      signalReEntryEnabled,
       targetMode,
       trailingMode,
     };
@@ -660,7 +665,7 @@ export default function TradePage() {
                     onChange={(e) => setReEntryAfterTargetEnabled(e.target.checked)}
                     className="h-4 w-4"
                   />
-                  <label htmlFor="reEntryAfterTargetEnabled" className="text-sm font-medium" style={{color:'red'}}>Re-entry Condition</label>
+                  <label htmlFor="reEntryAfterTargetEnabled" className="text-sm font-medium" style={{color:'red'}}>Auto Re-entry Condition</label>
                 </div>
 
                 <div className="relative">
@@ -714,6 +719,41 @@ export default function TradePage() {
                   disabled={!reEntryAfterTargetEnabled}
                 />
                 <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Candles</span>
+              </div>
+            </div>
+
+            {/* Signal Re-entry */}
+            <div className="rounded-md border border-gray-200 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="signalReEntryEnabled"
+                    checked={signalReEntryEnabled}
+                    onChange={(e) => setSignalReEntryEnabled(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="signalReEntryEnabled" className="text-sm font-medium" style={{color:'red'}}>Signal Re-entry</label>
+                </div>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                    onClick={() => setIsSignalReEntryInfoOpen((prev) => !prev)}
+                    aria-label="Signal Re-entry info"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                  </button>
+                  {isSignalReEntryInfoOpen && (
+                    <div
+                      className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
+                      style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", fontSize: "11px", lineHeight: "18px" }}
+                    >
+                      After a profitable exit (Target, Trailing SL, or Minimum Target), if the strategy sends a REENTER signal, the trade will re-enter immediately. Applies configured guards (candle size, time range, wait-after-sell) if they are enabled. Does not apply for stop-loss or loss exits.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -914,6 +954,7 @@ export default function TradePage() {
                         reEntryAfterTargetEnabled,
                         reEntryCandles,
                         reEntryPoints,
+                        signalReEntryEnabled,
                       };
 
                       // PUT to update existing waiting trade, POST to add new one

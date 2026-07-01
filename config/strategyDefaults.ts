@@ -28,7 +28,8 @@ export const STRATEGY_DEFAULTS = {
     lotValue: 1,
     maxProfitLossEnabled: false,
     maxProfit: 5000,
-    maxLoss: 2000
+    maxLoss: 2000,
+    signalReEntryEnabled: true
   },
   allclear: {
     numberOfTrades: 5,
@@ -59,7 +60,8 @@ export const STRATEGY_DEFAULTS = {
     lotValue: 1,
     maxProfitLossEnabled: false,
     maxProfit: 1100,
-    maxLoss: 900
+    maxLoss: 900,
+    signalReEntryEnabled: true
   },
   low: {
     numberOfTrades: 5,
@@ -90,7 +92,8 @@ export const STRATEGY_DEFAULTS = {
     lotValue: 1,
     maxProfitLossEnabled: true,
     maxProfit: 1400,
-    maxLoss: 900
+    maxLoss: 900,
+    signalReEntryEnabled: true
   },
   medium: {
     numberOfTrades: 10,
@@ -121,7 +124,8 @@ export const STRATEGY_DEFAULTS = {
     lotValue: 1,
     maxProfitLossEnabled: false,
     maxProfit: 1400,
-    maxLoss: 900
+    maxLoss: 900,
+    signalReEntryEnabled: true
   },
   high: {
     numberOfTrades: 5,
@@ -152,6 +156,7 @@ export const STRATEGY_DEFAULTS = {
     lotValue: 1,
     maxProfitLossEnabled: true,
     maxProfit: 4500,
-    maxLoss: 1500
+    maxLoss: 1500,
+    signalReEntryEnabled: true
   }
 };
