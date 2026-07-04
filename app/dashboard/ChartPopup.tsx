@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
-import { X, BarChart2, RefreshCw } from "lucide-react";
+import { X, BarChart2, RefreshCw, Loader2 } from "lucide-react";
 import { createChart, CandlestickSeries, IChartApi, UTCTimestamp, SeriesMarker, Time, createSeriesMarkers, LineSeries } from "lightweight-charts";
 import { useTradeStore } from "../store/TradeStore";
 
@@ -150,7 +150,6 @@ type Nifty50CandleData = {
 export default function ChartPopup({ open, onClose }: Props) {
   const { activeTrades, waitingTrades } = useTradeStore();
   const [symbolCandles, setSymbolCandles] = useState<SymbolCandles>({});
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -359,7 +358,6 @@ export default function ChartPopup({ open, onClose }: Props) {
     if (!open) return;
 
     const fetchCandles = () => {
-      setLoading(true);
       setSpinning(true);
       Promise.all([
         fetch(`${STRATEGY_URL}/chart-history`).then((r) => r.json()).catch(() => ({})),
@@ -403,7 +401,6 @@ export default function ChartPopup({ open, onClose }: Props) {
           setError("Failed to fetch from strategy server");
         })
         .finally(() => {
-          setLoading(false);
           setSpinning(false);
         });
     };
@@ -553,10 +550,6 @@ export default function ChartPopup({ open, onClose }: Props) {
 
   if (!open) return null;
 
-  const symbols = Object.keys(symbolCandles)
-    .filter((s) => activeSymbols.has(s))
-    .slice(0, 4);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -635,27 +628,38 @@ export default function ChartPopup({ open, onClose }: Props) {
             </div>
             {error ? (
               <div className="text-sm py-8 text-center" style={{ color: "var(--theme-status-loss)" }}>{error}</div>
-            ) : symbols.length === 0 && !loading ? (
-              <div className="text-sm py-8 text-center" style={{ color: "var(--theme-popup-label)" }}>No candle data available yet</div>
-            ) : symbols.length === 0 && loading ? (
-              <div className="text-sm py-8 text-center" style={{ color: "var(--theme-popup-label)" }}>Loading charts...</div>
             ) : (
               <div className="flex flex-col gap-4">
-                {symbols.map((symbol) => (
-                  <div key={symbol}>
-                    <div className="text-xs font-semibold mb-1 truncate" style={{ color: "var(--theme-popup-border)" }}>
-                      {symbol}
-                      <span className="ml-2 font-normal" style={{ color: "var(--theme-popup-label)" }}>
-                        ({symbolCandles[symbol]?.length || 0} candles)
-                      </span>
+                {[...activeSymbols].slice(0, 4).map((symbol) => {
+                  const hasData = symbolCandles[symbol] && symbolCandles[symbol].length > 0;
+                  return (
+                    <div key={symbol}>
+                      <div className="text-xs font-semibold mb-1 truncate" style={{ color: "var(--theme-popup-border)" }}>
+                        {symbol}
+                        {hasData && (
+                          <span className="ml-2 font-normal" style={{ color: "var(--theme-popup-label)" }}>
+                            ({symbolCandles[symbol]?.length || 0} candles)
+                          </span>
+                        )}
+                      </div>
+                      {hasData ? (
+                        <div
+                          ref={(el) => { chartRefs.current[symbol] = el; }}
+                          className="w-full rounded-lg overflow-hidden"
+                          style={{ height: 180, background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)" }}
+                        />
+                      ) : (
+                        <div
+                          className="w-full rounded-lg flex items-center justify-center gap-2"
+                          style={{ height: 180, background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)" }}
+                        >
+                          <Loader2 size={16} className="animate-spin" style={{ color: "var(--theme-popup-label)" }} />
+                          <span className="text-xs" style={{ color: "var(--theme-popup-label)" }}>Loading chart...</span>
+                        </div>
+                      )}
                     </div>
-                    <div
-                      ref={(el) => { chartRefs.current[symbol] = el; }}
-                      className="w-full rounded-lg overflow-hidden"
-                      style={{ height: 180, background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)" }}
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>

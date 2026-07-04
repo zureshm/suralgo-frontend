@@ -205,7 +205,14 @@ type TradeStoreValue = {
     activeTrades: ActiveTrade[];
     tradeHistory: TradeHistoryItem[];
     lastStrategyCandleTime: string;
+    symbolsWithFirstSignal?: string[];
+    symbolHistoryStatus?: Record<string, { status: string; candleCount: number }>;
   }) => void;
+
+  // symbols that have received at least one valid signal (loader tracking)
+  initializedSymbols: Set<string>;
+  // per-symbol history fetch status from feed server
+  symbolHistoryStatus: Record<string, { status: string; candleCount: number }>;
 };
 
 const TradeStoreContext = createContext<TradeStoreValue | null>(null);
@@ -248,6 +255,8 @@ export function TradeStoreProvider({
   const [waitingTrades, setWaitingTrades] = useState<WaitingTrade[]>([]);
   const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>([]);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
+  const [initializedSymbols, setInitializedSymbols] = useState<Set<string>>(new Set());
+  const [symbolHistoryStatus, setSymbolHistoryStatus] = useState<Record<string, { status: string; candleCount: number }>>({});
 
   // Track whether we've done the initial sync from server
   const initialSyncDone = useRef(false);
@@ -734,6 +743,8 @@ export function TradeStoreProvider({
     activeTrades: ActiveTrade[];
     tradeHistory: TradeHistoryItem[];
     lastStrategyCandleTime: string;
+    symbolsWithFirstSignal?: string[];
+    symbolHistoryStatus?: Record<string, { status: string; candleCount: number }>;
   }) => {
     // On first sync (page load/refresh), populate waitingTrades from server.
     // After that, waitingTrades is frontend-owned — only remove trades that
@@ -772,11 +783,23 @@ export function TradeStoreProvider({
     if (state.lastStrategyCandleTime) {
       lastStrategyCandleTimeRef.current = state.lastStrategyCandleTime;
     }
+    if (Array.isArray(state.symbolsWithFirstSignal) && state.symbolsWithFirstSignal.length > 0) {
+      setInitializedSymbols((prev) => {
+        const next = new Set(prev);
+        for (const sym of state.symbolsWithFirstSignal!) next.add(sym);
+        return next;
+      });
+    }
+    if (state.symbolHistoryStatus) {
+      setSymbolHistoryStatus(state.symbolHistoryStatus);
+    }
   }, []);
 
   const value = useMemo(
     () => ({
       selection,
+      initializedSymbols,
+      symbolHistoryStatus,
       setSelection,
       forceBuyEnabled,
       setForceBuyEnabled,
@@ -804,7 +827,7 @@ export function TradeStoreProvider({
       setLastStrategyCandleTime,
       syncFromServer,
     }),
-    [selection, forceBuyEnabled, waitingTrades, activeTrades, tradeHistory, syncFromServer]
+    [selection, forceBuyEnabled, waitingTrades, activeTrades, tradeHistory, syncFromServer, initializedSymbols, symbolHistoryStatus]
   );
 
   return (

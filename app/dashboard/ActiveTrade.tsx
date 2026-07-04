@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Activity, Zap, XCircle } from "lucide-react";
+import { Activity, Zap, XCircle, Loader2, AlertTriangle } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
@@ -90,7 +90,31 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const { removeTradeAndFreeSymbol, forceBuyEnabled } = useTradeStore();
+  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus } = useTradeStore();
+
+  // Track when each waiting symbol was first seen — for 30s loader timeout
+  // Stored in state (not ref) so it is safe to read during render.
+  const [addedAtMap, setAddedAtMap] = useState<Record<string, number>>({});
+
+  // Register add-time for new symbols; clean up removed ones
+  useEffect(() => {
+    setAddedAtMap((prev) => {
+      const now = Date.now();
+      const next: Record<string, number> = {};
+      for (const t of waitingTrades) {
+        next[t.symbol] = prev[t.symbol] ?? now;
+      }
+      return next;
+    });
+  }, [waitingTrades]);
+
+  // Stable "now" timestamp updated every second while any symbol is loading.
+  // Stored in state to avoid calling Date.now() during render (React Compiler impure-function).
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const ticker = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(ticker);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -212,10 +236,85 @@ export default function ActiveTrade({
             </div>
           ))}
 
-          {/* waiting trades */}
+          {/* Pending symbols — not yet initialized, shown as compact banners */}
+          {mounted && isHydrated && (() => {
+            const pending = safeWaitingTrades.filter((t) => !initializedSymbols.has(t.symbol));
+            if (pending.length === 0) return null;
+            return pending.map((t) => {
+              const addedAt = addedAtMap[t.symbol] ?? nowMs;
+              const elapsedMs = nowMs - addedAt;
+              const histStatus = symbolHistoryStatus[t.symbol];
+              const historyFailed = histStatus?.status === "failed";
+              const isTimedOut = elapsedMs >= 30000;
+              const showError = historyFailed || isTimedOut;
+
+              const errorMessage = historyFailed
+                ? "History fetch failed (0 candles). Strategy may not work correctly without history. Remove and re-add, or keep with limited accuracy."
+                : "Strategy engine did not respond. Check backend or remove and re-add.";
+
+              return showError ? (
+                <div key={`pending-${t.symbol}`} style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "8px 10px", borderRadius: "6px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", marginBottom: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                    <AlertTriangle className="w-4 h-4" style={{ color: "#f59e0b", flexShrink: 0, marginTop: "1px" }} />
+                    <div style={{ flex: 1, fontSize: "12px", lineHeight: "16px" }}>
+                      <span style={{ fontWeight: 600, color: "#f59e0b" }}>{t.symbol}</span>
+                      <span style={{ color: "var(--theme-text-gray-500)", marginLeft: "6px" }}>— {errorMessage}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "6px", marginLeft: "26px" }}>
+                    <button
+                      className={`${styles.waitingBtn} ${styles.danger}`}
+                      type="button"
+                      style={{ padding: "2px 8px", fontSize: "11px" }}
+                      onClick={() => {
+                        fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                        onCancelWaiting(t.symbol);
+                      }}
+                    >
+                      <XCircle className="w-3 h-3" />
+                      Remove
+                    </button>
+                    {historyFailed && (
+                      <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        style={{ padding: "2px 8px", fontSize: "11px" }}
+                        onClick={() => {
+                          // Force symbol into initialized set — user accepts limited accuracy
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
+                        }}
+                      >
+                        Keep anyway
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div key={`pending-${t.symbol}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "6px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", marginBottom: "6px" }}>
+                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#6366f1", flexShrink: 0 }} />
+                  <span style={{ fontSize: "12px", fontWeight: 500 }}>{t.symbol}</span>
+                  <span style={{ fontSize: "11px", color: "var(--theme-text-gray-500)" }}>Initializing strategy engine...</span>
+                  <button
+                    className={`${styles.waitingBtn} ${styles.danger}`}
+                    type="button"
+                    style={{ marginLeft: "auto", padding: "2px 8px", fontSize: "11px" }}
+                    onClick={() => {
+                      fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                      onCancelWaiting(t.symbol);
+                    }}
+                  >
+                    <XCircle className="w-3 h-3" />
+                    Cancel
+                  </button>
+                </div>
+              );
+            });
+          })()}
+
+          {/* waiting trades — only initialized symbols shown here */}
           {mounted &&
             isHydrated &&
-            safeWaitingTrades.map((t: WaitingTrade, index: number) => (
+            safeWaitingTrades.filter((t) => initializedSymbols.has(t.symbol)).map((t: WaitingTrade, index: number) => (
               <div key={index} className={styles.trade}>
                 <div className={styles.tradeRow}>
                   <div className={styles.tradeSymbol}>{t.symbol}</div>
