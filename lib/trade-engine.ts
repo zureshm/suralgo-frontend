@@ -426,6 +426,36 @@ export function flushSoundEvents(): SoundType[] {
 
 let engineRunning = false;
 
+// Tracks which waiting symbols have received at least one valid signal from the strategy server.
+// Used by the frontend to show a loader until the strategy engine is actually processing the symbol.
+// Not persisted — resets on server restart (correct: symbol needs to re-init after restart).
+const symbolsWithFirstSignal = new Set<string>();
+
+// Tracks per-symbol history fetch status from the feed server (angel-feed).
+// 'loading' = history fetch in progress, 'ready' = history loaded, 'failed' = 0 candles
+const symbolHistoryStatus: Record<string, { status: string; candleCount: number }> = {};
+
+// Check history status from angel-feed server for a symbol (one-time check with retries)
+async function checkSymbolHistoryStatus(symbol: string) {
+  const maxAttempts = 12; // ~60s total (every 5s)
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const res = await fetch(`${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
+      const data = await res.json();
+      if (data.status === "ready" || data.status === "failed") {
+        symbolHistoryStatus[symbol] = { status: data.status, candleCount: data.candleCount || 0 };
+        return;
+      }
+      // Still loading — wait and retry
+    } catch {
+      // Feed server unreachable — will retry
+    }
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+  // Timed out waiting — mark as failed
+  symbolHistoryStatus[symbol] = { status: "failed", candleCount: 0 };
+}
+
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
 
@@ -1307,7 +1337,19 @@ function handleStrategySignal(signal: any) {
 
   if (!signal) return;
 
-
+  // Mark symbol as initialized only when:
+  // 1. Its candle time is current (within 5 min of lastStrategyCandleTime)
+  // 2. History fetch status is "ready" (not "loading" or "failed")
+  if (signal.symbol && signal.signal) {
+    const sigMin = toMinutes(signal.lastCandleTime);
+    const refMin = toMinutes(lastStrategyCandleTime);
+    const isCurrent = refMin < 0 || sigMin < 0 || (refMin - sigMin) <= 5;
+    const histStatus = symbolHistoryStatus[signal.symbol];
+    const historyOk = histStatus?.status === "ready";
+    if (isCurrent && historyOk) {
+      symbolsWithFirstSignal.add(signal.symbol);
+    }
+  }
 
   const latestClose = signal.close ?? signal.candles?.[signal.candles.length - 1]?.close;
 
@@ -2045,17 +2087,33 @@ export function getEngineState() {
 
     engineRunning,
 
+    symbolsWithFirstSignal: [...symbolsWithFirstSignal],
+
+    symbolHistoryStatus,
+
   };
 
 }
 
 
 
+// Force a symbol into the initialized set — user accepts running without full history
+export function forceInitSymbol(symbol: string) {
+  symbolsWithFirstSignal.add(symbol);
+}
+
 export function addWaitingTrade(trade: WaitingTrade) {
 
   // Don't add duplicate
 
   if (waitingTrades.some((t) => t.symbol === trade.symbol)) return;
+
+  // Reset first-signal tracking so the loader shows correctly for this (re-)add
+  symbolsWithFirstSignal.delete(trade.symbol);
+
+  // Reset history status and kick off one-time check (non-blocking)
+  delete symbolHistoryStatus[trade.symbol];
+  checkSymbolHistoryStatus(trade.symbol);
 
   // Clean up stale state before adding new trade
   cleanupStaleState();
