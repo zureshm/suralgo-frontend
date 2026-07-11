@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { X, Grid2X2, Plus, Check } from "lucide-react";
 import { useWatchlist } from "../store/WatchlistContext";
 
-const OPTION_CHAIN_URL = process.env.NEXT_PUBLIC_OPTION_CHAIN_URL || "http://localhost:8080";
+const OPTION_CHAIN_URL = process.env.NEXT_PUBLIC_OPTION_CHAIN_URL || "http://localhost:8080/api/option-chain";
 
 type OptionSide = {
   oi: number;
@@ -42,16 +42,19 @@ type Props = {
   onClose: () => void;
 };
 
-function formatExpiryToSymbol(expiryDate: string, strike: number, type: "CE" | "PE"): string {
+function formatExpiryToSymbol(expiryDate: string, strike: number, type: "CE" | "PE", indexType: "NIFTY50" | "SENSEX"): string {
+  // expiryDate comes as "23-Jun-2026" → convert to "NIFTY23JUN2624000CE" or "SENSEX23JUN2624000CE"
   const parts = expiryDate.split("-");
   if (parts.length !== 3) return "";
   const day = parts[0];
   const month = parts[1].toUpperCase();
   const year = parts[2].slice(-2);
-  return `NIFTY${day}${month}${year}${strike}${type}`;
+  const prefix = indexType === "SENSEX" ? "SENSEX" : "NIFTY";
+  return `${prefix}${day}${month}${year}${strike}${type}`;
 }
 
 function formatExpiryLabel(expiryDate: string): string {
+  // "23-Jun-2026" → "23-Jun-2026"
   return expiryDate;
 }
 
@@ -60,13 +63,15 @@ export default function OptionChainPopup({ open, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"current" | "next">("current");
+  const [indexType, setIndexType] = useState<"NIFTY50" | "SENSEX">("NIFTY50");
   const { watchlist, addToWatchlist } = useWatchlist();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const atmRef = useRef<HTMLTableRowElement | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`${OPTION_CHAIN_URL}`);
+      const indexParam = indexType === "SENSEX" ? "SENSEX" : "NIFTY";
+      const res = await fetch(`${OPTION_CHAIN_URL}?index=${indexParam}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setData(json);
@@ -75,7 +80,7 @@ export default function OptionChainPopup({ open, onClose }: Props) {
       const msg = err instanceof Error ? err.message : "Failed to fetch";
       setError(msg);
     }
-  }, []);
+  }, [indexType]);
 
   useEffect(() => {
     if (!open) return;
@@ -84,7 +89,7 @@ export default function OptionChainPopup({ open, onClose }: Props) {
 
     const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
-  }, [open, fetchData]);
+  }, [open, fetchData, indexType]);
 
   // Scroll to ATM row when data loads or tab changes
   useEffect(() => {
@@ -101,7 +106,7 @@ export default function OptionChainPopup({ open, onClose }: Props) {
   };
 
   const handleAdd = (expiryDate: string, strike: number, type: "CE" | "PE") => {
-    const symbol = formatExpiryToSymbol(expiryDate, strike, type);
+    const symbol = formatExpiryToSymbol(expiryDate, strike, type, indexType);
     if (!symbol || isInWatchlist(symbol)) return;
     addToWatchlist({ symbol, ltp: null });
   };
@@ -137,9 +142,24 @@ export default function OptionChainPopup({ open, onClose }: Props) {
               </h2>
             </div>
             {data && (
-              <span className="text-xs font-mono mt-1" style={{ color: "var(--theme-popup-label)" }}>
-                SPOT: {data.underlyingValue.toFixed(2)}
-              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <select
+                  value={indexType}
+                  onChange={(e) => setIndexType(e.target.value as "NIFTY50" | "SENSEX")}
+                  className="text-xs px-2 py-0.5 rounded"
+                  style={{
+                    background: "var(--theme-popup-field-bg)",
+                    color: "var(--theme-popup-text)",
+                    border: "1px solid var(--theme-popup-field-border)",
+                  }}
+                >
+                  <option value="NIFTY50">NIFTY50</option>
+                  <option value="SENSEX">SENSEX</option>
+                </select>
+                <span className="text-xs font-mono" style={{ color: "var(--theme-popup-label)" }}>
+                  SPOT: {data.underlyingValue.toFixed(2)}
+                </span>
+              </div>
             )}
           </div>
           <button
@@ -221,8 +241,8 @@ export default function OptionChainPopup({ open, onClose }: Props) {
                 <tbody>
                   {activeExpiry.rows.map((row) => {
                     const isAtm = row.strikePrice === activeExpiry.atmStrike;
-                    const ceSymbol = formatExpiryToSymbol(activeExpiry.expiryDate, row.strikePrice, "CE");
-                    const peSymbol = formatExpiryToSymbol(activeExpiry.expiryDate, row.strikePrice, "PE");
+                    const ceSymbol = formatExpiryToSymbol(activeExpiry.expiryDate, row.strikePrice, "CE", indexType);
+                    const peSymbol = formatExpiryToSymbol(activeExpiry.expiryDate, row.strikePrice, "PE", indexType);
                     const ceInWatchlist = isInWatchlist(ceSymbol);
                     const peInWatchlist = isInWatchlist(peSymbol);
 
@@ -299,7 +319,7 @@ export default function OptionChainPopup({ open, onClose }: Props) {
 
             {/* Footer */}
             <div className="mt-3 text-[10px] text-center" style={{ color: "var(--theme-popup-label)" }}>
-              {data.timestamp && <>NSE: {data.timestamp} &middot; </>}
+              {data.timestamp && <>{indexType === "SENSEX" ? "Sensibull" : "NSE"}: {data.timestamp} &middot; </>}
               Cache age: {data.cacheAgeSeconds}s &middot; Refresh: {data.refreshIntervalSeconds}s
               {activeExpiry && <> &middot; ATM: {activeExpiry.atmStrike}</>}
             </div>
