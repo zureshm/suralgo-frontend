@@ -81,6 +81,7 @@ export default function TradePage() {
     setMinToHoldEnabled(defaults.minToHoldEnabled);
     setMinToHold(defaults.minToHold);
     if ('minToHoldTrigger' in defaults) setMinToHoldTrigger((defaults as any).minToHoldTrigger);
+    setMinToHoldTrailing(defaults.minToHoldTrailing ? "yes" : "no");
     setTrailingAfterTargetEnabled(defaults.trailingAfterTargetEnabled);
     setTrailingAfterTarget(defaults.trailingAfterTarget);
     setTargetMode(defaults.targetMode as "live" | "candleClose");
@@ -99,6 +100,12 @@ export default function TradePage() {
     if ('reEntryCandles' in defaults) setReEntryCandles((defaults as any).reEntryCandles);
     if ('reEntryPoints' in defaults) setReEntryPoints((defaults as any).reEntryPoints);
     if ('signalReEntryEnabled' in defaults) setSignalReEntryEnabled((defaults as any).signalReEntryEnabled ?? true);
+    if ('reEntryAsTrailingEnabled' in defaults) setReEntryAsTrailingEnabled((defaults as any).reEntryAsTrailingEnabled ?? true);
+    if ('reEntryTrailingPoints' in defaults) setReEntryTrailingPoints((defaults as any).reEntryTrailingPoints ?? defaults.trailingAfterTarget ?? 10);
+    if ('reEntryMinTargetEnabled' in defaults) setReEntryMinTargetEnabled((defaults as any).reEntryMinTargetEnabled ?? false);
+    if ('reEntryMinTargetPoints' in defaults) setReEntryMinTargetPoints((defaults as any).reEntryMinTargetPoints ?? 8);
+    if ('reEntryMinTargetTrigger' in defaults) setReEntryMinTargetTrigger((defaults as any).reEntryMinTargetTrigger ?? 2);
+    if ('reEntryMinTargetTrailing' in defaults) setReEntryMinTargetTrailing((defaults as any).reEntryMinTargetTrailing ? "yes" : "no");
   };
 
   // Handle strategy change
@@ -123,6 +130,7 @@ export default function TradePage() {
   const [minToHoldEnabled, setMinToHoldEnabled] = useState(false);
   const [minToHold, setMinToHold] = useState(8);
   const [minToHoldTrigger, setMinToHoldTrigger] = useState(2);
+  const [minToHoldTrailing, setMinToHoldTrailing] = useState("no");
   const [isMinToHoldInfoOpen, setIsMinToHoldInfoOpen] = useState(false);
   const [trailingAfterTargetEnabled, setTrailingAfterTargetEnabled] = useState(false);
   const [trailingAfterTarget, setTrailingAfterTarget] = useState(15);
@@ -141,6 +149,14 @@ export default function TradePage() {
   const [isReEntryInfoOpen, setIsReEntryInfoOpen] = useState(false);
   const [signalReEntryEnabled, setSignalReEntryEnabled] = useState(true);
   const [isSignalReEntryInfoOpen, setIsSignalReEntryInfoOpen] = useState(false);
+  const [reEntryAsTrailingEnabled, setReEntryAsTrailingEnabled] = useState(true);
+  const [reEntryTrailingPoints, setReEntryTrailingPoints] = useState(10);
+  const [isReEntryTrailingInfoOpen, setIsReEntryTrailingInfoOpen] = useState(false);
+  const [reEntryMinTargetEnabled, setReEntryMinTargetEnabled] = useState(false);
+  const [reEntryMinTargetPoints, setReEntryMinTargetPoints] = useState(8);
+  const [reEntryMinTargetTrigger, setReEntryMinTargetTrigger] = useState(2);
+  const [reEntryMinTargetTrailing, setReEntryMinTargetTrailing] = useState("no");
+  const [isReEntryMinTargetInfoOpen, setIsReEntryMinTargetInfoOpen] = useState(false);
   const [targetMode, setTargetMode] = useState<"live" | "candleClose">("live");
   const [trailingMode, setTrailingMode] = useState<"live" | "candleClose">("live");
   const [priceMode, setPriceMode] = useState<"live" | "candleClose">("live");
@@ -217,6 +233,7 @@ export default function TradePage() {
       setMinToHoldEnabled(Boolean(data.minToHoldEnabled ?? false));
       setMinToHold(data.minToHold || 8);
       setMinToHoldTrigger(data.minToHoldTrigger || 2);
+      setMinToHoldTrailing(data.minToHoldTrailing === true ? "yes" : "no");
       setTrailingAfterTargetEnabled(Boolean(data.trailingAfterTargetEnabled ?? false));
       setTrailingAfterTarget(data.trailingAfterTarget || 15);
       setRangeEnabled(Boolean(data.rangeEnabled ?? false));
@@ -232,6 +249,12 @@ export default function TradePage() {
       setReEntryCandles(data.reEntryCandles || 5);
       setReEntryPoints(data.reEntryPoints || 3);
       setSignalReEntryEnabled(Boolean(data.signalReEntryEnabled ?? true));
+      setReEntryAsTrailingEnabled(Boolean(data.reEntryAsTrailingEnabled ?? true));
+      setReEntryTrailingPoints(data.reEntryTrailingPoints || data.trailingAfterTarget || 10);
+      setReEntryMinTargetEnabled(Boolean(data.reEntryMinTargetEnabled ?? false));
+      setReEntryMinTargetPoints(data.reEntryMinTargetPoints || 8);
+      setReEntryMinTargetTrigger(data.reEntryMinTargetTrigger || 2);
+      setReEntryMinTargetTrailing(data.reEntryMinTargetTrailing === true ? "yes" : "no");
       const savedTargetMode = data.targetMode === "candleClose" ? "candleClose" : "live";
       const savedTrailingMode = data.trailingMode === "candleClose" ? "candleClose" : "live";
       setTargetMode(savedTargetMode);
@@ -282,6 +305,13 @@ export default function TradePage() {
       reEntryCandles,
       reEntryPoints,
       signalReEntryEnabled,
+      reEntryAsTrailingEnabled,
+      reEntryTrailingPoints,
+      reEntryMinTargetEnabled,
+      reEntryMinTargetPoints,
+      reEntryMinTargetTrigger,
+      reEntryMinTargetTrailing: reEntryMinTargetTrailing === "yes",
+      minToHoldTrailing: minToHoldTrailing === "yes",
       targetMode,
       trailingMode,
     };
@@ -540,6 +570,64 @@ export default function TradePage() {
                   <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
+                      id="trailingAfterTargetEnabled"
+                      checked={trailingAfterTargetEnabled}
+                      onChange={(e) => setTrailingAfterTargetEnabled(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="trailingAfterTargetEnabled" className="text-sm font-medium">
+                      Trailing SL <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span>
+                    </label>
+                  </div>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                      onClick={() => setIsTrailingAfterInfoOpen((prev) => !prev)}
+                      aria-label="Trailing SL info"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                    </button>
+                    {isTrailingAfterInfoOpen && (
+                      <div
+                        className="absolute right-0 mt-2 w-60 rounded-md p-2 text-white shadow-lg"
+                        style={{
+                          zIndex: 9,
+                          background: "rgba(0, 0, 0, 0.8)",
+                          fontSize: "11px",
+                          lineHeight: "18px",
+                        }}
+                      >
+                        Once your primary target is hit, this trailing stop-loss keeps following price by the number of points you set. If price reverses by that amount, profits are locked automatically.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 pl-6">
+                  <label
+                    htmlFor="trailingAfterTargetValue"
+                    className={`text-sm ${trailingAfterTargetEnabled ? "" : "text-gray-400"}`}
+                  >
+                    Points
+                  </label>
+                  <Input
+                    id="trailingAfterTargetValue"
+                    type="number"
+                    value={trailingAfterTarget}
+                    onChange={(e) => setTrailingAfterTarget(Number(e.target.value) || 0)}
+                    className="w-20 h-8"
+                    disabled={!trailingAfterTargetEnabled}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
                       id="minToHoldEnabled"
                       checked={minToHoldEnabled}
                       onChange={(e) => setMinToHoldEnabled(e.target.checked)}
@@ -593,63 +681,35 @@ export default function TradePage() {
                     disabled={!minToHoldEnabled}
                   />
                 </div>
-              </div>
 
-              <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4 pl-6">
+                  <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trailing</label>
                   <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="trailingAfterTargetEnabled"
-                      checked={trailingAfterTargetEnabled}
-                      onChange={(e) => setTrailingAfterTargetEnabled(e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                    <label htmlFor="trailingAfterTargetEnabled" className="text-sm font-medium">
-                      Trailing SL <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span>
+                    <label className="flex items-center space-x-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="minToHoldTrailing"
+                        value="yes"
+                        checked={minToHoldTrailing === "yes"}
+                        onChange={(e) => setMinToHoldTrailing(e.target.value)}
+                        disabled={!minToHoldEnabled}
+                        className="h-4 w-4"
+                      />
+                      <span className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Yes</span>
+                    </label>
+                    <label className="flex items-center space-x-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="minToHoldTrailing"
+                        value="no"
+                        checked={minToHoldTrailing === "no"}
+                        onChange={(e) => setMinToHoldTrailing(e.target.value)}
+                        disabled={!minToHoldEnabled}
+                        className="h-4 w-4"
+                      />
+                      <span className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>No</span>
                     </label>
                   </div>
-
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
-                      onClick={() => setIsTrailingAfterInfoOpen((prev) => !prev)}
-                      aria-label="Trailing SL info"
-                    >
-                      <HelpCircle className="h-3.5 w-3.5" />
-                    </button>
-                    {isTrailingAfterInfoOpen && (
-                      <div
-                        className="absolute right-0 mt-2 w-60 rounded-md p-2 text-white shadow-lg"
-                        style={{
-                          zIndex: 9,
-                          background: "rgba(0, 0, 0, 0.8)",
-                          fontSize: "11px",
-                          lineHeight: "18px",
-                        }}
-                      >
-                        Once your primary target is hit, this trailing stop-loss keeps following price by the number of points you set. If price reverses by that amount, profits are locked automatically.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2 pl-6">
-                  <label
-                    htmlFor="trailingAfterTargetValue"
-                    className={`text-sm ${trailingAfterTargetEnabled ? "" : "text-gray-400"}`}
-                  >
-                    Points
-                  </label>
-                  <Input
-                    id="trailingAfterTargetValue"
-                    type="number"
-                    value={trailingAfterTarget}
-                    onChange={(e) => setTrailingAfterTarget(Number(e.target.value) || 0)}
-                    className="w-20 h-8"
-                    disabled={!trailingAfterTargetEnabled}
-                  />
                 </div>
               </div>
             </div>
@@ -665,7 +725,7 @@ export default function TradePage() {
                     onChange={(e) => setReEntryAfterTargetEnabled(e.target.checked)}
                     className="h-4 w-4"
                   />
-                  <label htmlFor="reEntryAfterTargetEnabled" className="text-sm font-medium" style={{color:'red'}}>Auto Re-entry Condition</label>
+                  <label htmlFor="reEntryAfterTargetEnabled" className="text-sm font-medium" style={{color:'red'}}>Auto Re-entry</label>
                 </div>
 
                 <div className="relative">
@@ -687,7 +747,7 @@ export default function TradePage() {
                         lineHeight: "18px",
                       }}
                     >
-                      After a profitable exit (target, trailing SL, or minimum target), monitors if the price trends back up and exceeds the exit price within the specified number of candles. If so, triggers a re-entry BUY. Does not apply for stop-loss or loss exits.
+                      After exiting with a profit (target, trailing SL, or minimum target), if the price trends back up and exceeds the exit price within the specified candles, a new buy is triggered. Does not apply for stop-loss or loss exits.
                     </div>
                   )}
                 </div>
@@ -750,9 +810,149 @@ export default function TradePage() {
                       className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
                       style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", fontSize: "11px", lineHeight: "18px" }}
                     >
-                      After a profitable exit (Target, Trailing SL, or Minimum Target), if the strategy sends a REENTER signal, the trade will re-enter immediately. Applies configured guards (candle size, time range, wait-after-sell) if they are enabled. Does not apply for stop-loss or loss exits.
+                      After any exit (Target, Trailing SL, Stop-loss, or Minimum Target), if the strategy sends a REENTER signal, the trade will re-enter only if the current price is higher than the last exit price. Applies configured guards (candle size, time range, wait-after-sell) if they are enabled.
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+
+            {/* ReEnter as Trailing */}
+            <div className="rounded-md border border-gray-200 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="reEntryAsTrailingEnabled"
+                    checked={reEntryAsTrailingEnabled}
+                    onChange={(e) => setReEntryAsTrailingEnabled(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="reEntryAsTrailingEnabled" className="text-sm font-medium" style={{color:'red'}}>ReEnter as Trailing</label>
+                </div>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                    onClick={() => setIsReEntryTrailingInfoOpen((prev) => !prev)}
+                    aria-label="ReEnter as Trailing info"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                  </button>
+                  {isReEntryTrailingInfoOpen && (
+                    <div
+                      className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
+                      style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", fontSize: "11px", lineHeight: "18px" }}
+                    >
+                      When enabled, both Auto Re-entry and Signal Re-entry will immediately arm trailing SL at the re-entry price. If price drops by the trailing points from the highest point reached, the trade exits automatically.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pl-6">
+                <label className={`text-sm ${reEntryAsTrailingEnabled ? "" : "text-gray-400"}`}>Trail</label>
+                <input
+                  type="number"
+                  value={reEntryTrailingPoints}
+                  onChange={(e) => setReEntryTrailingPoints(Number(e.target.value))}
+                  className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                  min="1"
+                  max="99"
+                  disabled={!reEntryAsTrailingEnabled}
+                />
+                <span className={`text-sm ${reEntryAsTrailingEnabled ? "" : "text-gray-400"}`}>Points</span>
+              </div>
+            </div>
+
+            {/* ReEntry Minimum Target */}
+            <div className="rounded-md border border-gray-200 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="reEntryMinTargetEnabled"
+                    checked={reEntryMinTargetEnabled}
+                    onChange={(e) => setReEntryMinTargetEnabled(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="reEntryMinTargetEnabled" className="text-sm font-medium" style={{color:'green'}}>ReEntry Minimum Target</label>
+                </div>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                    onClick={() => setIsReEntryMinTargetInfoOpen((prev) => !prev)}
+                    aria-label="ReEntry Minimum Target info"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                  </button>
+                  {isReEntryMinTargetInfoOpen && (
+                    <div
+                      className="absolute right-0 mt-2 w-56 rounded-md p-2 text-white shadow-lg"
+                      style={{
+                        zIndex: 9,
+                        background: "rgba(0, 0, 0, 0.8)",
+                        fontSize: "11px",
+                        lineHeight: "18px",
+                      }}
+                    >
+                      Applies only to re-entry trades (Auto Re-entry and Signal Re-entry). When a re-entry occurs, this minimum target overrides the normal Minimum Target. Normal BUY entries continue to use the standard Minimum Target settings.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pl-6">
+                <label htmlFor="reEntryMinTargetPoints" className={`text-sm ${reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Points</label>
+                <Input
+                  id="reEntryMinTargetPoints"
+                  type="number"
+                  value={reEntryMinTargetPoints}
+                  onChange={(e) => setReEntryMinTargetPoints(Number(e.target.value) || 0)}
+                  className="w-20 h-8"
+                  disabled={!reEntryMinTargetEnabled}
+                />
+                <label htmlFor="reEntryMinTargetTrigger" className={`text-sm ${reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Trigger</label>
+                <Input
+                  id="reEntryMinTargetTrigger"
+                  type="number"
+                  value={reEntryMinTargetTrigger}
+                  onChange={(e) => setReEntryMinTargetTrigger(Number(e.target.value) || 0)}
+                  className="w-20 h-8"
+                  disabled={!reEntryMinTargetEnabled}
+                />
+              </div>
+
+              <div className="flex items-center space-x-4 pl-6">
+                <label className={`text-sm ${reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Trailing</label>
+                <div className="flex items-center space-x-2">
+                  <label className="flex items-center space-x-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="reEntryMinTargetTrailing"
+                      value="yes"
+                      checked={reEntryMinTargetTrailing === "yes"}
+                      onChange={(e) => setReEntryMinTargetTrailing(e.target.value)}
+                      disabled={!reEntryMinTargetEnabled}
+                      className="h-4 w-4"
+                    />
+                    <span className={`text-sm ${reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Yes</span>
+                  </label>
+                  <label className="flex items-center space-x-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="reEntryMinTargetTrailing"
+                      value="no"
+                      checked={reEntryMinTargetTrailing === "no"}
+                      onChange={(e) => setReEntryMinTargetTrailing(e.target.value)}
+                      disabled={!reEntryMinTargetEnabled}
+                      className="h-4 w-4"
+                    />
+                    <span className={`text-sm ${reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>No</span>
+                  </label>
                 </div>
               </div>
             </div>
@@ -936,6 +1136,7 @@ export default function TradePage() {
                         minToHoldEnabled,
                         minToHold,
                         minToHoldTrigger,
+                        minToHoldTrailing: minToHoldTrailing === "yes",
                         trailingAfterTargetEnabled,
                         trailingAfterTarget,
                         rangeEnabled,
@@ -954,6 +1155,12 @@ export default function TradePage() {
                         reEntryAfterTargetEnabled,
                         reEntryCandles,
                         reEntryPoints,
+                        reEntryAsTrailingEnabled,
+                        reEntryTrailingPoints,
+                        reEntryMinTargetEnabled,
+                        reEntryMinTargetPoints,
+                        reEntryMinTargetTrigger,
+                        reEntryMinTargetTrailing: reEntryMinTargetTrailing === "yes",
                         signalReEntryEnabled,
                       };
 

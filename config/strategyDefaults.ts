@@ -18,6 +18,7 @@ export const STRATEGY_DEFAULTS = {
     minToHoldEnabled: true,
     minToHold: 8,
     minToHoldTrigger: 2,
+    minToHoldTrailing: false,
     trailingAfterTargetEnabled: true,
     trailingAfterTarget: 10,
     rangeEnabled: true,
@@ -29,7 +30,13 @@ export const STRATEGY_DEFAULTS = {
     maxProfitLossEnabled: false,
     maxProfit: 5000,
     maxLoss: 2000,
-    signalReEntryEnabled: true
+    signalReEntryEnabled: true,
+    reEntryAsTrailingEnabled: true,
+    reEntryTrailingPoints: 10,
+    reEntryMinTargetEnabled: false,
+    reEntryMinTargetPoints: 8,
+    reEntryMinTargetTrigger: 2,
+    reEntryMinTargetTrailing: false
   },
   allclear: {
     numberOfTrades: 5,
@@ -50,6 +57,7 @@ export const STRATEGY_DEFAULTS = {
     minToHoldEnabled: false,
     minToHold: 5,
     minToHoldTrigger: 2,
+    minToHoldTrailing: false,
     trailingAfterTargetEnabled: false,
     trailingAfterTarget: 10,
     rangeEnabled: false,
@@ -61,7 +69,13 @@ export const STRATEGY_DEFAULTS = {
     maxProfitLossEnabled: false,
     maxProfit: 1100,
     maxLoss: 900,
-    signalReEntryEnabled: true
+    signalReEntryEnabled: true,
+    reEntryAsTrailingEnabled: true,
+    reEntryTrailingPoints: 10,
+    reEntryMinTargetEnabled: false,
+    reEntryMinTargetPoints: 8,
+    reEntryMinTargetTrigger: 2,
+    reEntryMinTargetTrailing: false
   },
   low: {
     numberOfTrades: 5,
@@ -82,6 +96,7 @@ export const STRATEGY_DEFAULTS = {
     minToHoldEnabled: true,
     minToHold: 4,
     minToHoldTrigger: 1.5,
+    minToHoldTrailing: false,
     trailingAfterTargetEnabled: true,
     trailingAfterTarget: 5,
     rangeEnabled: true,
@@ -93,7 +108,13 @@ export const STRATEGY_DEFAULTS = {
     maxProfitLossEnabled: true,
     maxProfit: 1400,
     maxLoss: 900,
-    signalReEntryEnabled: true
+    signalReEntryEnabled: true,
+    reEntryAsTrailingEnabled: true,
+    reEntryTrailingPoints: 5,
+    reEntryMinTargetEnabled: false,
+    reEntryMinTargetPoints: 8,
+    reEntryMinTargetTrigger: 2,
+    reEntryMinTargetTrailing: false
   },
   medium: {
     numberOfTrades: 10,
@@ -114,6 +135,7 @@ export const STRATEGY_DEFAULTS = {
     minToHoldEnabled: true,
     minToHold: 2,
     minToHoldTrigger: 4,
+    minToHoldTrailing: false,
     trailingAfterTargetEnabled: true,
     trailingAfterTarget: 5,
     rangeEnabled: false,
@@ -125,7 +147,13 @@ export const STRATEGY_DEFAULTS = {
     maxProfitLossEnabled: false,
     maxProfit: 1400,
     maxLoss: 900,
-    signalReEntryEnabled: true
+    signalReEntryEnabled: true,
+    reEntryAsTrailingEnabled: true,
+    reEntryTrailingPoints: 5,
+    reEntryMinTargetEnabled: false,
+    reEntryMinTargetPoints: 8,
+    reEntryMinTargetTrigger: 2,
+    reEntryMinTargetTrailing: false
   },
   high: {
     numberOfTrades: 5,
@@ -146,6 +174,7 @@ export const STRATEGY_DEFAULTS = {
     minToHoldEnabled: true,
     minToHold: 6,
     minToHoldTrigger: 4,
+    minToHoldTrailing: false,
     trailingAfterTargetEnabled: true,
     trailingAfterTarget: 12,
     rangeEnabled: true,
@@ -157,6 +186,12 @@ export const STRATEGY_DEFAULTS = {
     maxProfitLossEnabled: true,
     maxProfit: 4500,
     maxLoss: 1500,
-    signalReEntryEnabled: true
+    signalReEntryEnabled: true,
+    reEntryAsTrailingEnabled: true,
+    reEntryTrailingPoints: 12,
+    reEntryMinTargetEnabled: false,
+    reEntryMinTargetPoints: 8,
+    reEntryMinTargetTrigger: 2,
+    reEntryMinTargetTrailing: false
   }
 };
