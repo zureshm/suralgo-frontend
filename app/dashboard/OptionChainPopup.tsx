@@ -42,14 +42,34 @@ type Props = {
   onClose: () => void;
 };
 
+function isLastThursdayOfMonth(dateStr: string): boolean {
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return false;
+  const day = parseInt(parts[0], 10);
+  const year = parseInt(parts[2], 10);
+  const date = new Date(dateStr);
+  const month = date.getMonth();
+  if (date.getDay() !== 4) return false;
+  const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+  return day + 7 > lastDayOfMonth;
+}
+
 function formatExpiryToSymbol(expiryDate: string, strike: number, type: "CE" | "PE", indexType: "NIFTY50" | "SENSEX"): string {
-  // expiryDate comes as "23-Jun-2026" → convert to "NIFTY23JUN2624000CE" or "SENSEX23JUN2624000CE"
   const parts = expiryDate.split("-");
   if (parts.length !== 3) return "";
   const day = parts[0];
   const month = parts[1].toUpperCase();
   const year = parts[2].slice(-2);
   const prefix = indexType === "SENSEX" ? "SENSEX" : "NIFTY";
+
+  if (indexType === "SENSEX") {
+    const monthNum = new Date(expiryDate).getMonth() + 1;
+    if (isLastThursdayOfMonth(expiryDate)) {
+      return `${prefix}${year}${month}${strike}${type}`;
+    }
+    return `${prefix}${year}${monthNum}${day}${strike}${type}`;
+  }
+
   return `${prefix}${day}${month}${year}${strike}${type}`;
 }
 
