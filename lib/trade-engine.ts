@@ -477,6 +477,10 @@ async function checkSymbolHistoryStatus(symbol: string) {
       const data = await res.json();
       if (data.status === "ready" || data.status === "failed") {
         symbolHistoryStatus[symbol] = { status: data.status, candleCount: data.candleCount || 0 };
+        // Immediately mark initialized — don't wait for next strategy signal
+        if (data.status === "ready") {
+          symbolsWithFirstSignal.add(symbol);
+        }
         return;
       }
       // Still loading — wait and retry
