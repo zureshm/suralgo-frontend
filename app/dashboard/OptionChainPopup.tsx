@@ -46,11 +46,17 @@ function isLastThursdayOfMonth(dateStr: string): boolean {
   const parts = dateStr.split("-");
   if (parts.length !== 3) return false;
   const day = parseInt(parts[0], 10);
+  const monthStr = parts[1].toUpperCase();
   const year = parseInt(parts[2], 10);
-  const date = new Date(dateStr);
-  const month = date.getMonth();
+  const MONTH_IDX: Record<string, number> = {
+    JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+    JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+  };
+  const monthNum = MONTH_IDX[monthStr];
+  if (monthNum === undefined) return false;
+  const date = new Date(year, monthNum, day);
   if (date.getDay() !== 4) return false;
-  const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+  const lastDayOfMonth = new Date(year, monthNum + 1, 0).getDate();
   return day + 7 > lastDayOfMonth;
 }
 
@@ -63,11 +69,20 @@ function formatExpiryToSymbol(expiryDate: string, strike: number, type: "CE" | "
   const prefix = indexType === "SENSEX" ? "SENSEX" : "NIFTY";
 
   if (indexType === "SENSEX") {
-    const monthNum = new Date(expiryDate).getMonth() + 1;
+    const MONTH_MAP: Record<string, number> = {
+      JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6,
+      JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12,
+    };
+    const WEEKLY_CODES: Record<number, string> = {
+      1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6",
+      7: "7", 8: "8", 9: "9", 10: "O", 11: "N", 12: "D",
+    };
+    const monthIdx = MONTH_MAP[month] || 0;
     if (isLastThursdayOfMonth(expiryDate)) {
       return `${prefix}${year}${month}${strike}${type}`;
     }
-    return `${prefix}${year}${monthNum}${day}${strike}${type}`;
+    const monthCode = WEEKLY_CODES[monthIdx] || "";
+    return `${prefix}${year}${monthCode}${day}${strike}${type}`;
   }
 
   return `${prefix}${day}${month}${year}${strike}${type}`;

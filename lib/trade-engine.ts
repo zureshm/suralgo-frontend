@@ -105,12 +105,18 @@ async function syncActiveStrategySymbols() {
   }
 }
 
+// Infer exchange from symbol name: SENSEX options → BFO, everything else → NFO
+function getExchangeForSymbol(symbol: string): string {
+  return symbol && symbol.startsWith("SENSEX") ? "BFO" : "NFO";
+}
+
 // Send real broker order to trade-execution backend (fire-and-forget)
 function sendBrokerOrder(symbol: string, qty: number, side: "BUY" | "SELL") {
+  const exchange = getExchangeForSymbol(symbol);
   const endpoint = side === "BUY" ? "/orders/place" : "/orders/exit";
   const body = side === "BUY"
-    ? { symbol, qty, side: "BUY", orderType: "MARKET", productType: "INTRADAY" }
-    : { symbol, qty, side: "BUY" }; // exit a BUY position
+    ? { symbol, qty, side: "BUY", orderType: "MARKET", productType: "INTRADAY", exchange }
+    : { symbol, qty, side: "BUY", exchange }; // exit a BUY position
 
   fetch(`${activeBrokerUrl}${endpoint}`, {
     method: "POST",
@@ -665,7 +671,7 @@ interface PendingBuyBuffer {
   signalType: "BUY" | "REENTER";
   bufferedCandleTime: string;
   candlesElapsed: number;
-  originalSignal: any;
+  originalSignal: unknown;
 }
 const pendingBuyBuffer: Record<string, PendingBuyBuffer> = {};
 const AI_BUFFER_MAX_CANDLES = 5;
@@ -1457,6 +1463,7 @@ function lockMinTargetPrice(symbol: string, price: number) {
 
 
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function handleStrategySignal(signal: any) {
 
   if (!signal) return;
