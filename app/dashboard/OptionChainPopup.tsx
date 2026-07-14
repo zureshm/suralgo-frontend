@@ -121,9 +121,6 @@ export default function OptionChainPopup({ open, onClose }: Props) {
     if (!open) return;
     setLoading(true);
     fetchData().finally(() => setLoading(false));
-
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
   }, [open, fetchData, indexType]);
 
   // Scroll to ATM row when data loads or tab changes
