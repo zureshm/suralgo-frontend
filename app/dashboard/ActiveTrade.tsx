@@ -220,6 +220,16 @@ export default function ActiveTrade({
               <div className={styles.tradeRow}>
                 <div className={styles.tradeSymbol}>
                   {t.symbol}
+                  {t.symbol.endsWith("CE") && (
+                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                      <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
+                    </span>
+                  )}
+                  {t.symbol.endsWith("PE") && (
+                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                      <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
+                    </span>
+                  )}
                   {renderAiRegimeBadge(t.symbol)}
                 </div>
               </div>
@@ -529,7 +539,18 @@ export default function ActiveTrade({
               ) : (
                 <div key={`pending-${t.symbol}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "6px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", marginBottom: "6px" }}>
                   <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#6366f1", flexShrink: 0 }} />
-                  <span style={{ fontSize: "12px", fontWeight: 500 }}>{t.symbol}</span>
+                  <span style={{ fontSize: "12px", fontWeight: 500 }}>{t.symbol}
+                    {t.symbol.endsWith("CE") && (
+                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
+                      </span>
+                    )}
+                    {t.symbol.endsWith("PE") && (
+                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
+                      </span>
+                    )}
+                  </span>
                   <span style={{ fontSize: "11px", color: "var(--theme-text-gray-500)" }}>Initializing strategy engine...</span>
                   <button
                     className={`${styles.waitingBtn} ${styles.danger}`}
@@ -556,6 +577,16 @@ export default function ActiveTrade({
                 <div className={styles.tradeRow}>
                   <div className={styles.tradeSymbol}>
                     {t.symbol}
+                    {t.symbol.endsWith("CE") && (
+                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
+                      </span>
+                    )}
+                    {t.symbol.endsWith("PE") && (
+                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
+                      </span>
+                    )}
                     {renderAiRegimeBadge(t.symbol)}
                   </div>
                   {renderAiToggle(t.symbol)}
