@@ -157,6 +157,7 @@ export default function TradePage() {
   const [reEntryMinTargetTrigger, setReEntryMinTargetTrigger] = useState(2);
   const [reEntryMinTargetTrailing, setReEntryMinTargetTrailing] = useState("no");
   const [isReEntryMinTargetInfoOpen, setIsReEntryMinTargetInfoOpen] = useState(false);
+  const [isCandleSizeInfoOpen, setIsCandleSizeInfoOpen] = useState(false);
   const [targetMode, setTargetMode] = useState<"live" | "candleClose">("live");
   const [trailingMode, setTrailingMode] = useState<"live" | "candleClose">("live");
   const [priceMode, setPriceMode] = useState<"live" | "candleClose">("live");
@@ -443,6 +444,24 @@ export default function TradePage() {
                 <label htmlFor="waitStrategyEnabled" className="text-sm font-medium">
                   Wait when candle size ≥
                 </label>
+                <div className="relative inline-flex">
+                  <button
+                    type="button"
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                    onClick={() => setIsCandleSizeInfoOpen((prev) => !prev)}
+                    aria-label="Wait candle size info"
+                  >
+                    <HelpCircle className="h-3 w-3" />
+                  </button>
+                  {isCandleSizeInfoOpen && (
+                    <div
+                      className="absolute right-0 top-7 w-56 rounded-md p-3 text-white shadow-lg"
+                      style={{ zIndex: 9999, background: "rgba(0,0,0,0.9)", fontSize: "11px", lineHeight: "16px", maxHeight: "200px", overflowY: "auto" }}
+                    >
+                      When a BUY signal is skipped because the candle is too large, the trade remembers this. If the next signal before any other BUY is a REENTER from the strategy, it will enter at that point as if a BUY had occurred.
+                    </div>
+                  )}
+                </div>
                 <input
                   type="number"
                   value={buyOverrideSize}
@@ -810,7 +829,7 @@ export default function TradePage() {
                       className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
                       style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", fontSize: "11px", lineHeight: "18px" }}
                     >
-                      After any exit (Target, Trailing SL, Stop-loss, or Minimum Target), if the strategy sends a REENTER signal, the trade will re-enter only if the current price is higher than the last exit price. Applies configured guards (candle size, time range, wait-after-sell) if they are enabled.
+                      After any exit (Target, Trailing SL, Stop-loss, or Minimum Target), if the strategy sends a REENTER signal, the trade will re-enter only if the current price is higher than the last exit price. Applies configured guards (candle size, time range, wait-after-sell) if they are enabled. If the strategy sends a REEXIT signal while in a re-entry position, the trade will exit that cycle immediately.
                     </div>
                   )}
                 </div>

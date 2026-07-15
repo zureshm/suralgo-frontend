@@ -1745,6 +1745,32 @@ function handleStrategySignal(signal: any) {
 
 
 
+  // REEXIT signal — respects signal re-exit for trades entered via REENTER
+
+  if (signal.signal === "REEXIT") {
+
+    const signalKey = signal.signal + "-" + signal.lastCandleTime;
+
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
+
+    if (waitingForBuy) return;
+
+    if (!activeForSymbol || !activeForSymbol.inPosition) return;
+
+    setPendingSkippedBuy(signalSymbol, false);
+
+    completeActiveTrade(activeForSymbol.symbol, String(latestClose ?? ""), "REEXIT triggered for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+
+    updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime);
+
+    lastHandledSignalKey[signalSymbol] = signalKey;
+
+    return;
+
+  }
+
+
+
   // WAIT signal
 
   if (signal.signal === "WAIT") {
