@@ -1282,6 +1282,8 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
 function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: string) {
 
+  queueSound("enter");
+
   const matchedTrade = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
 
   activeTrades = activeTrades.map((trade) => {
