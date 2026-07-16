@@ -16,6 +16,52 @@ import styles from "./page.module.scss";
 const ANGELONE_API = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 const FLATTRADE_API = process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
 
+function NumericInput({ value, onChange, onBlur, fallback = "0", ...props }: any) {
+  const [local, setLocal] = useState<string>(value ? String(value) : "");
+  useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
+  return (
+    <Input
+      {...props}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={local}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/\D/g, "");
+        setLocal(cleaned);
+        onChange(cleaned === "" ? 0 : Number(cleaned));
+      }}
+      onBlur={(e: any) => {
+        if (!e.target.value) { setLocal(fallback); onChange(Number(fallback)); }
+        onBlur?.(e);
+      }}
+    />
+  );
+}
+
+function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: any) {
+  const [local, setLocal] = useState<string>(value ? String(value) : "");
+  useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
+  return (
+    <input
+      {...props}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={local}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/\D/g, "");
+        setLocal(cleaned);
+        onChange(cleaned === "" ? 0 : Number(cleaned));
+      }}
+      onBlur={(e: any) => {
+        if (!e.target.value) { setLocal(fallback); onChange(Number(fallback)); }
+        onBlur?.(e);
+      }}
+    />
+  );
+}
+
 export default function TradePage() {
   const router = useRouter();
   const { selection, addWaitingTradeFromSelection, waitingTrades, activeTrades } = useTradeStore();
@@ -385,11 +431,10 @@ export default function TradePage() {
 
                 <div className="flex items-center space-x-2 pl-6">
                   <label htmlFor="stopLossNumber" className={`text-sm ${stopLossNumberEnabled ? "" : "text-gray-400"}`}>Points</label>
-                  <Input 
+                  <NumericInput
                     id="stopLossNumber"
-                    type="number" 
-                    value={stopLossNumber} 
-                    onChange={(e) => setStopLossNumber(Number(e.target.value) || 0)}
+                    value={stopLossNumber}
+                    onChange={setStopLossNumber}
                     className="w-20 h-8"
                     disabled={!stopLossNumberEnabled && !stopLossPercentageEnabled}
                     readOnly={stopLossPercentageEnabled}
@@ -411,11 +456,10 @@ export default function TradePage() {
 
                 <div className="flex items-center space-x-2 pl-6">
                   <label htmlFor="stopLossPercentageValue" className={`text-sm ${stopLossPercentageEnabled ? "" : "text-gray-400"}`}>Percentage</label>
-                  <Input 
+                  <NumericInput
                     id="stopLossPercentageValue"
-                    type="number" 
-                    value={stopLossPercentage} 
-                    onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)}
+                    value={stopLossPercentage}
+                    onChange={setStopLossPercentage}
                     className="w-20 h-8"
                     disabled={!stopLossPercentageEnabled}
                   />
@@ -462,10 +506,9 @@ export default function TradePage() {
                     </div>
                   )}
                 </div>
-                <input
-                  type="number"
+                <NumericField
                   value={buyOverrideSize}
-                  onChange={(e) => setBuyOverrideSize(Number(e.target.value))}
+                  onChange={setBuyOverrideSize}
                   className="w-16 border rounded px-2 py-1 text-sm"
                 />
               </div>
@@ -479,10 +522,9 @@ export default function TradePage() {
                   className="h-4 w-4"
                 />
                 <label htmlFor="waitAfterSellEnabled" className="text-sm font-medium">After a SELL wait for</label>
-                <input
-                  type="number"
+                <NumericField
                   value={waitAfterSellCandles}
-                  onChange={(e) => setWaitAfterSellCandles(Number(e.target.value))}
+                  onChange={setWaitAfterSellCandles}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2"
                   min="1"
                   max="99"
@@ -500,10 +542,9 @@ export default function TradePage() {
                   className="h-4 w-4"
                 />
                 <label htmlFor="sellWhenLossCandlesEnabled" className="text-sm font-medium">SELL when in loss for</label>
-                <input
-                  type="number"
+                <NumericField
                   value={sellWhenLossCandles}
-                  onChange={(e) => setSellWhenLossCandles(Number(e.target.value))}
+                  onChange={setSellWhenLossCandles}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2"
                   min="1"
                   max="99"
@@ -535,11 +576,10 @@ export default function TradePage() {
 
                 <div className="flex items-center space-x-2 pl-6">
                   <label htmlFor="targetPoints" className={`text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>Points</label>
-                  <Input 
+                  <NumericInput
                     id="targetPoints"
-                    type="number" 
-                    value={targetPoints} 
-                    onChange={(e) => setTargetPoints(Number(e.target.value) || 0)}
+                    value={targetPoints}
+                    onChange={setTargetPoints}
                     className="w-20 h-8"
                     disabled={!targetPointsEnabled}
                   />
@@ -631,11 +671,10 @@ export default function TradePage() {
                   >
                     Points
                   </label>
-                  <Input
+                  <NumericInput
                     id="trailingAfterTargetValue"
-                    type="number"
                     value={trailingAfterTarget}
-                    onChange={(e) => setTrailingAfterTarget(Number(e.target.value) || 0)}
+                    onChange={setTrailingAfterTarget}
                     className="w-20 h-8"
                     disabled={!trailingAfterTargetEnabled}
                   />
@@ -682,20 +721,18 @@ export default function TradePage() {
 
                 <div className="flex items-center space-x-2 pl-6">
                   <label htmlFor="minToHoldValue" className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Points</label>
-                  <Input 
+                  <NumericInput
                     id="minToHoldValue"
-                    type="number" 
-                    value={minToHold} 
-                    onChange={(e) => setMinToHold(Number(e.target.value) || 0)}
+                    value={minToHold}
+                    onChange={setMinToHold}
                     className="w-20 h-8"
                     disabled={!minToHoldEnabled}
                   />
                   <label htmlFor="minToHoldTrigger" className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trigger @</label>
-                  <Input 
+                  <NumericInput
                     id="minToHoldTrigger"
-                    type="number" 
-                    value={minToHoldTrigger} 
-                    onChange={(e) => setMinToHoldTrigger(Number(e.target.value) || 0)}
+                    value={minToHoldTrigger}
+                    onChange={setMinToHoldTrigger}
                     className="w-16 h-8"
                     disabled={!minToHoldEnabled}
                   />
@@ -774,10 +811,9 @@ export default function TradePage() {
 
               <div className="flex items-center space-x-2 pl-6">
                 <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Plus</label>
-                <input
-                  type="number"
+                <NumericField
                   value={reEntryPoints}
-                  onChange={(e) => setReEntryPoints(Number(e.target.value) || 1)}
+                  onChange={setReEntryPoints}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                   min="1"
                   max="99"
@@ -788,10 +824,9 @@ export default function TradePage() {
 
               <div className="flex items-center space-x-2 pl-6">
                 <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Uptrend within</label>
-                <input
-                  type="number"
+                <NumericField
                   value={reEntryCandles}
-                  onChange={(e) => setReEntryCandles(Number(e.target.value) || 1)}
+                  onChange={setReEntryCandles}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                   min="1"
                   max="99"
@@ -872,10 +907,9 @@ export default function TradePage() {
 
               <div className="flex items-center space-x-2 pl-6">
                 <label className={`text-sm ${reEntryAsTrailingEnabled ? "" : "text-gray-400"}`}>Trail</label>
-                <input
-                  type="number"
+                <NumericField
                   value={reEntryTrailingPoints}
-                  onChange={(e) => setReEntryTrailingPoints(Number(e.target.value))}
+                  onChange={setReEntryTrailingPoints}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                   min="1"
                   max="99"
@@ -926,20 +960,18 @@ export default function TradePage() {
 
               <div className="flex items-center space-x-2 pl-6">
                 <label htmlFor="reEntryMinTargetPoints" className={`text-sm ${reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Points</label>
-                <Input
+                <NumericInput
                   id="reEntryMinTargetPoints"
-                  type="number"
                   value={reEntryMinTargetPoints}
-                  onChange={(e) => setReEntryMinTargetPoints(Number(e.target.value) || 0)}
+                  onChange={setReEntryMinTargetPoints}
                   className="w-20 h-8"
                   disabled={!reEntryMinTargetEnabled}
                 />
                 <label htmlFor="reEntryMinTargetTrigger" className={`text-sm ${reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Trigger</label>
-                <Input
+                <NumericInput
                   id="reEntryMinTargetTrigger"
-                  type="number"
                   value={reEntryMinTargetTrigger}
-                  onChange={(e) => setReEntryMinTargetTrigger(Number(e.target.value) || 0)}
+                  onChange={setReEntryMinTargetTrigger}
                   className="w-20 h-8"
                   disabled={!reEntryMinTargetEnabled}
                 />
@@ -1050,20 +1082,18 @@ export default function TradePage() {
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Profit</label>
-                <Input
-                  type="number"
+                <NumericInput
                   value={maxProfit}
-                  onChange={(e) => setMaxProfit(Number(e.target.value) || 0)}
+                  onChange={setMaxProfit}
                   className="w-24 h-8 text-sm"
                   disabled={!maxProfitLossEnabled}
                 />
               </div>
               <div className="flex items-center space-x-2">
                 <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Loss</label>
-                <Input
-                  type="number"
+                <NumericInput
                   value={maxLoss}
-                  onChange={(e) => setMaxLoss(Number(e.target.value) || 0)}
+                  onChange={setMaxLoss}
                   className="w-24 h-8 text-sm"
                   disabled={!maxProfitLossEnabled}
                 />
@@ -1102,10 +1132,10 @@ export default function TradePage() {
 
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm">LOT ({lotSize}):</label>
-                <Input 
-                  type="number" 
-                  value={lotValue} 
-                  onChange={(e) => setLotValue(Math.max(1, Number(e.target.value) || 1))}
+                <NumericInput
+                  value={lotValue}
+                  onChange={setLotValue}
+                  fallback="1"
                   className="w-16 h-8 text-sm"
                   min={1}
                 />
