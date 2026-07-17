@@ -26,6 +26,7 @@ function ClampedNumericField({ value, onChange, min, max, ...props }: any) {
       }}
       onBlur={(e: any) => {
         if (!e.target.value) { setLocal(String(min)); onChange(min); }
+        else { setLocal(String(value)); }
       }}
     />
   );
@@ -87,6 +88,21 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [isCandlesInfoOpen, setIsCandlesInfoOpen] = useState(false);
   const [isProviderInfoOpen, setIsProviderInfoOpen] = useState(false);
   const [isApiKeyInfoOpen, setIsApiKeyInfoOpen] = useState(false);
+
+  // Close tooltips when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button[aria-label*="info"]') || target.closest('[data-tooltip]')) return;
+      setIsEntryGuardInfoOpen(false);
+      setIsAutoExitInfoOpen(false);
+      setIsCandlesInfoOpen(false);
+      setIsProviderInfoOpen(false);
+      setIsApiKeyInfoOpen(false);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // AI Guard test connection
   const [aiTestStatus, setAiTestStatus] = useState<"idle" | "testing" | "connected" | "failed">("idle");
@@ -572,6 +588,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         </button>
                         {isEntryGuardInfoOpen && (
                           <div
+                            data-tooltip
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
@@ -626,6 +643,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         </button>
                         {isAutoExitInfoOpen && (
                           <div
+                            data-tooltip
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
@@ -680,6 +698,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         </button>
                         {isCandlesInfoOpen && (
                           <div
+                            data-tooltip
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
@@ -739,6 +758,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         </button>
                         {isProviderInfoOpen && (
                           <div
+                            data-tooltip
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
@@ -811,6 +831,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </button>
                       {isApiKeyInfoOpen && (
                         <div
+                          data-tooltip
                           className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                           style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                         >
