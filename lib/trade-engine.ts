@@ -2241,7 +2241,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
             trailingArmedPositions.delete(positionKey);
 
-            completeCycleWithoutExit(trade.symbol, String(ltp), `MINIMUM TARGET hit for â‚¹${ltp} at ${currentTime}`);
+            completeCycleWithoutExit(trade.symbol, String(ltp), `${useReEntryMinTarget ? "ReEntry " : ""}MINIMUM TARGET hit for â‚¹${ltp} at ${currentTime}`);
 
             continue;
 
