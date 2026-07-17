@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FocusEvent } from "react";
 import { HelpCircle } from "lucide-react";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useRouter } from "next/navigation";
@@ -16,8 +16,22 @@ import styles from "./page.module.scss";
 const ANGELONE_API = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 const FLATTRADE_API = process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
 
-function NumericInput({ value, onChange, onBlur, fallback = "0", ...props }: any) {
+interface NumericComponentProps {
+  value: number;
+  onChange: (value: number) => void;
+  onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
+  fallback?: string;
+  id?: string;
+  className?: string;
+  disabled?: boolean;
+  readOnly?: boolean;
+  min?: string | number;
+  max?: string | number;
+}
+
+function NumericInput({ value, onChange, onBlur, fallback = "0", ...props }: NumericComponentProps) {
   const [local, setLocal] = useState<string>(value ? String(value) : "");
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
   return (
     <Input
@@ -31,7 +45,7 @@ function NumericInput({ value, onChange, onBlur, fallback = "0", ...props }: any
         setLocal(cleaned);
         onChange(cleaned === "" ? 0 : Number(cleaned));
       }}
-      onBlur={(e: any) => {
+      onBlur={(e: FocusEvent<HTMLInputElement>) => {
         if (!e.target.value) { setLocal(fallback); onChange(Number(fallback)); }
         onBlur?.(e);
       }}
@@ -39,8 +53,9 @@ function NumericInput({ value, onChange, onBlur, fallback = "0", ...props }: any
   );
 }
 
-function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: any) {
+function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: NumericComponentProps) {
   const [local, setLocal] = useState<string>(value ? String(value) : "");
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
   return (
     <input
@@ -54,7 +69,7 @@ function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: any
         setLocal(cleaned);
         onChange(cleaned === "" ? 0 : Number(cleaned));
       }}
-      onBlur={(e: any) => {
+      onBlur={(e: FocusEvent<HTMLInputElement>) => {
         if (!e.target.value) { setLocal(fallback); onChange(Number(fallback)); }
         onBlur?.(e);
       }}
@@ -78,7 +93,7 @@ export default function TradePage() {
         const res = await fetch("/next-api/broker/active");
         const data = await res.json();
         if (data.url) brokerUrl = data.url;
-      } catch {}
+      } catch { /* ignore */ }
 
       // If no active broker set, check both brokers for a logged-in session
       if (!brokerUrl) {
@@ -87,7 +102,7 @@ export default function TradePage() {
             const res = await fetch(`${url}/auth/status`);
             const data = await res.json();
             if (data.isLoggedIn) { brokerUrl = url; break; }
-          } catch {}
+          } catch { /* ignore */ }
         }
       }
 
@@ -99,7 +114,7 @@ export default function TradePage() {
         if (data.success) {
           setAvailableBalance(data.availableCash ?? data.availableMargin ?? null);
         }
-      } catch {}
+      } catch { /* ignore */ }
     };
     fetchBalance();
     const interval = setInterval(fetchBalance, 30000);
@@ -122,11 +137,11 @@ export default function TradePage() {
     setBuyOverrideSize(defaults.buyOverrideSize);
     setWaitAfterSellEnabled(defaults.waitAfterSellEnabled);
     setWaitAfterSellCandles(defaults.waitAfterSellCandles);
-    if ('sellWhenLossCandlesEnabled' in defaults) setSellWhenLossCandlesEnabled((defaults as any).sellWhenLossCandlesEnabled);
-    if ('sellWhenLossCandles' in defaults) setSellWhenLossCandles((defaults as any).sellWhenLossCandles);
+    setSellWhenLossCandlesEnabled(defaults.sellWhenLossCandlesEnabled);
+    setSellWhenLossCandles(defaults.sellWhenLossCandles);
     setMinToHoldEnabled(defaults.minToHoldEnabled);
     setMinToHold(defaults.minToHold);
-    if ('minToHoldTrigger' in defaults) setMinToHoldTrigger((defaults as any).minToHoldTrigger);
+    setMinToHoldTrigger(defaults.minToHoldTrigger);
     setMinToHoldTrailing(defaults.minToHoldTrailing ? "yes" : "no");
     setTrailingAfterTargetEnabled(defaults.trailingAfterTargetEnabled);
     setTrailingAfterTarget(defaults.trailingAfterTarget);
@@ -139,19 +154,19 @@ export default function TradePage() {
     setTimeTo(defaults.timeTo);
     setTimeToAmpm(defaults.timeToAmpm);
     setLotValue(defaults.lotValue);
-    if ('maxProfitLossEnabled' in defaults) setMaxProfitLossEnabled((defaults as any).maxProfitLossEnabled);
-    if ('maxProfit' in defaults) setMaxProfit((defaults as any).maxProfit);
-    if ('maxLoss' in defaults) setMaxLoss((defaults as any).maxLoss);
-    if ('reEntryAfterTargetEnabled' in defaults) setReEntryAfterTargetEnabled((defaults as any).reEntryAfterTargetEnabled);
-    if ('reEntryCandles' in defaults) setReEntryCandles((defaults as any).reEntryCandles);
-    if ('reEntryPoints' in defaults) setReEntryPoints((defaults as any).reEntryPoints);
-    if ('signalReEntryEnabled' in defaults) setSignalReEntryEnabled((defaults as any).signalReEntryEnabled ?? true);
-    if ('reEntryAsTrailingEnabled' in defaults) setReEntryAsTrailingEnabled((defaults as any).reEntryAsTrailingEnabled ?? true);
-    if ('reEntryTrailingPoints' in defaults) setReEntryTrailingPoints((defaults as any).reEntryTrailingPoints ?? defaults.trailingAfterTarget ?? 10);
-    if ('reEntryMinTargetEnabled' in defaults) setReEntryMinTargetEnabled((defaults as any).reEntryMinTargetEnabled ?? false);
-    if ('reEntryMinTargetPoints' in defaults) setReEntryMinTargetPoints((defaults as any).reEntryMinTargetPoints ?? 8);
-    if ('reEntryMinTargetTrigger' in defaults) setReEntryMinTargetTrigger((defaults as any).reEntryMinTargetTrigger ?? 2);
-    if ('reEntryMinTargetTrailing' in defaults) setReEntryMinTargetTrailing((defaults as any).reEntryMinTargetTrailing ? "yes" : "no");
+    setMaxProfitLossEnabled(defaults.maxProfitLossEnabled);
+    setMaxProfit(defaults.maxProfit);
+    setMaxLoss(defaults.maxLoss);
+    setReEntryAfterTargetEnabled(defaults.reEntryAfterTargetEnabled);
+    setReEntryCandles(defaults.reEntryCandles);
+    setReEntryPoints(defaults.reEntryPoints);
+    setSignalReEntryEnabled(defaults.signalReEntryEnabled);
+    setReEntryAsTrailingEnabled(defaults.reEntryAsTrailingEnabled);
+    setReEntryTrailingPoints(defaults.reEntryTrailingPoints);
+    setReEntryMinTargetEnabled(defaults.reEntryMinTargetEnabled);
+    setReEntryMinTargetPoints(defaults.reEntryMinTargetPoints);
+    setReEntryMinTargetTrigger(defaults.reEntryMinTargetTrigger);
+    setReEntryMinTargetTrailing(defaults.reEntryMinTargetTrailing ? "yes" : "no");
   };
 
   // Handle strategy change
@@ -239,6 +254,7 @@ export default function TradePage() {
 
   useEffect(() => {
     if (!selection?.symbol) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentPrice(null);
       return;
     }
@@ -288,6 +304,7 @@ export default function TradePage() {
       setTimeFromAmpm(data.timeFromAmpm || 'am');
       setTimeTo(data.timeTo || '02:45');
       setTimeToAmpm(data.timeToAmpm || 'pm');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLotValue(data.lotValue || 1);
       setMaxProfitLossEnabled(Boolean(data.maxProfitLossEnabled ?? false));
       setMaxProfit(data.maxProfit || 1100);
@@ -1165,7 +1182,7 @@ export default function TradePage() {
                 onClick={() => {
                   if (!isButtonDisabled && selection?.symbol) {
                       // Tell angel-feed backend to add this symbol to active strategy symbols (max 2)
-                      addActiveStrategySymbol(selection.symbol).catch(() => {});
+                      addActiveStrategySymbol(selection.symbol).catch(() => { /* ignore */ });
 
                       saveForm();
                       addWaitingTradeFromSelection();
@@ -1218,7 +1235,7 @@ export default function TradePage() {
                         method: isAlreadyWaiting ? "PUT" : "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(tradePayload),
-                      }).catch(() => {});
+                      }).catch(() => { /* ignore */ });
 
                     router.push("/dashboard");
                   }

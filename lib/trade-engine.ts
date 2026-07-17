@@ -2195,7 +2195,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       if (!trailingArmedPositions.has(positionKey)) {
 
-        if (ltp >= activationLevel) { trailingArmedPositions.add(positionKey); }
+        if (ltp >= activationLevel) {
+          trailingArmedPositions.add(positionKey);
+          addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Minimum target armed at ₹${ltp.toFixed(2)} (activation: ₹${activationLevel.toFixed(2)}) at ${currentTime}`);
+          persistState();
+        }
 
       } else {
 
