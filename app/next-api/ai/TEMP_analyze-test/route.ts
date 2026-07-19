@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
     let userPrompt = `Symbol: ${displaySymbol}\n`;
     userPrompt += `${metrics}\n\n`;
-    userPrompt += `Candles (${Math.min(candles.length, candleCount)}, 1-min OHLC, format: time,open,high,low,close):\n${compactCandles}`;
+    userPrompt += `Candles (${Math.min(candles.length, candleCount)}, 1-min Heikin-Ashi OHLC, format: time,open,high,low,close):\n${compactCandles}`;
 
     // Call AI provider
     const controller = new AbortController();

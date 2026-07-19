@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FocusEvent } from "react";
 import { HelpCircle } from "lucide-react";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,67 @@ import styles from "./page.module.scss";
 
 const ANGELONE_API = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 const FLATTRADE_API = process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
+
+interface NumericComponentProps {
+  value: number;
+  onChange: (value: number) => void;
+  onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
+  fallback?: string;
+  id?: string;
+  className?: string;
+  disabled?: boolean;
+  readOnly?: boolean;
+  min?: string | number;
+  max?: string | number;
+}
+
+function NumericInput({ value, onChange, onBlur, fallback = "0", ...props }: NumericComponentProps) {
+  const [local, setLocal] = useState<string>(value ? String(value) : "");
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
+  return (
+    <Input
+      {...props}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={local}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/\D/g, "");
+        setLocal(cleaned);
+        onChange(cleaned === "" ? 0 : Number(cleaned));
+      }}
+      onBlur={(e: FocusEvent<HTMLInputElement>) => {
+        if (!e.target.value) { setLocal(fallback); onChange(Number(fallback)); }
+        onBlur?.(e);
+      }}
+    />
+  );
+}
+
+function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: NumericComponentProps) {
+  const [local, setLocal] = useState<string>(value ? String(value) : "");
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
+  return (
+    <input
+      {...props}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={local}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/\D/g, "");
+        setLocal(cleaned);
+        onChange(cleaned === "" ? 0 : Number(cleaned));
+      }}
+      onBlur={(e: FocusEvent<HTMLInputElement>) => {
+        if (!e.target.value) { setLocal(fallback); onChange(Number(fallback)); }
+        onBlur?.(e);
+      }}
+    />
+  );
+}
 
 export default function TradePage() {
   const router = useRouter();
@@ -32,7 +93,7 @@ export default function TradePage() {
         const res = await fetch("/next-api/broker/active");
         const data = await res.json();
         if (data.url) brokerUrl = data.url;
-      } catch {}
+      } catch { /* ignore */ }
 
       // If no active broker set, check both brokers for a logged-in session
       if (!brokerUrl) {
@@ -41,7 +102,7 @@ export default function TradePage() {
             const res = await fetch(`${url}/auth/status`);
             const data = await res.json();
             if (data.isLoggedIn) { brokerUrl = url; break; }
-          } catch {}
+          } catch { /* ignore */ }
         }
       }
 
@@ -53,7 +114,7 @@ export default function TradePage() {
         if (data.success) {
           setAvailableBalance(data.availableCash ?? data.availableMargin ?? null);
         }
-      } catch {}
+      } catch { /* ignore */ }
     };
     fetchBalance();
     const interval = setInterval(fetchBalance, 30000);
@@ -76,11 +137,11 @@ export default function TradePage() {
     setBuyOverrideSize(defaults.buyOverrideSize);
     setWaitAfterSellEnabled(defaults.waitAfterSellEnabled);
     setWaitAfterSellCandles(defaults.waitAfterSellCandles);
-    if ('sellWhenLossCandlesEnabled' in defaults) setSellWhenLossCandlesEnabled((defaults as any).sellWhenLossCandlesEnabled);
-    if ('sellWhenLossCandles' in defaults) setSellWhenLossCandles((defaults as any).sellWhenLossCandles);
+    setSellWhenLossCandlesEnabled(defaults.sellWhenLossCandlesEnabled);
+    setSellWhenLossCandles(defaults.sellWhenLossCandles);
     setMinToHoldEnabled(defaults.minToHoldEnabled);
     setMinToHold(defaults.minToHold);
-    if ('minToHoldTrigger' in defaults) setMinToHoldTrigger((defaults as any).minToHoldTrigger);
+    setMinToHoldTrigger(defaults.minToHoldTrigger);
     setMinToHoldTrailing(defaults.minToHoldTrailing ? "yes" : "no");
     setTrailingAfterTargetEnabled(defaults.trailingAfterTargetEnabled);
     setTrailingAfterTarget(defaults.trailingAfterTarget);
@@ -93,19 +154,19 @@ export default function TradePage() {
     setTimeTo(defaults.timeTo);
     setTimeToAmpm(defaults.timeToAmpm);
     setLotValue(defaults.lotValue);
-    if ('maxProfitLossEnabled' in defaults) setMaxProfitLossEnabled((defaults as any).maxProfitLossEnabled);
-    if ('maxProfit' in defaults) setMaxProfit((defaults as any).maxProfit);
-    if ('maxLoss' in defaults) setMaxLoss((defaults as any).maxLoss);
-    if ('reEntryAfterTargetEnabled' in defaults) setReEntryAfterTargetEnabled((defaults as any).reEntryAfterTargetEnabled);
-    if ('reEntryCandles' in defaults) setReEntryCandles((defaults as any).reEntryCandles);
-    if ('reEntryPoints' in defaults) setReEntryPoints((defaults as any).reEntryPoints);
-    if ('signalReEntryEnabled' in defaults) setSignalReEntryEnabled((defaults as any).signalReEntryEnabled ?? true);
-    if ('reEntryAsTrailingEnabled' in defaults) setReEntryAsTrailingEnabled((defaults as any).reEntryAsTrailingEnabled ?? true);
-    if ('reEntryTrailingPoints' in defaults) setReEntryTrailingPoints((defaults as any).reEntryTrailingPoints ?? defaults.trailingAfterTarget ?? 10);
-    if ('reEntryMinTargetEnabled' in defaults) setReEntryMinTargetEnabled((defaults as any).reEntryMinTargetEnabled ?? false);
-    if ('reEntryMinTargetPoints' in defaults) setReEntryMinTargetPoints((defaults as any).reEntryMinTargetPoints ?? 8);
-    if ('reEntryMinTargetTrigger' in defaults) setReEntryMinTargetTrigger((defaults as any).reEntryMinTargetTrigger ?? 2);
-    if ('reEntryMinTargetTrailing' in defaults) setReEntryMinTargetTrailing((defaults as any).reEntryMinTargetTrailing ? "yes" : "no");
+    setMaxProfitLossEnabled(defaults.maxProfitLossEnabled);
+    setMaxProfit(defaults.maxProfit);
+    setMaxLoss(defaults.maxLoss);
+    setReEntryAfterTargetEnabled(defaults.reEntryAfterTargetEnabled);
+    setReEntryCandles(defaults.reEntryCandles);
+    setReEntryPoints(defaults.reEntryPoints);
+    setSignalReEntryEnabled(defaults.signalReEntryEnabled);
+    setReEntryAsTrailingEnabled(defaults.reEntryAsTrailingEnabled);
+    setReEntryTrailingPoints(defaults.reEntryTrailingPoints);
+    setReEntryMinTargetEnabled(defaults.reEntryMinTargetEnabled);
+    setReEntryMinTargetPoints(defaults.reEntryMinTargetPoints);
+    setReEntryMinTargetTrigger(defaults.reEntryMinTargetTrigger);
+    setReEntryMinTargetTrailing(defaults.reEntryMinTargetTrailing ? "yes" : "no");
   };
 
   // Handle strategy change
@@ -157,6 +218,7 @@ export default function TradePage() {
   const [reEntryMinTargetTrigger, setReEntryMinTargetTrigger] = useState(2);
   const [reEntryMinTargetTrailing, setReEntryMinTargetTrailing] = useState("no");
   const [isReEntryMinTargetInfoOpen, setIsReEntryMinTargetInfoOpen] = useState(false);
+  const [isCandleSizeInfoOpen, setIsCandleSizeInfoOpen] = useState(false);
   const [targetMode, setTargetMode] = useState<"live" | "candleClose">("live");
   const [trailingMode, setTrailingMode] = useState<"live" | "candleClose">("live");
   const [priceMode, setPriceMode] = useState<"live" | "candleClose">("live");
@@ -192,6 +254,7 @@ export default function TradePage() {
 
   useEffect(() => {
     if (!selection?.symbol) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentPrice(null);
       return;
     }
@@ -241,6 +304,7 @@ export default function TradePage() {
       setTimeFromAmpm(data.timeFromAmpm || 'am');
       setTimeTo(data.timeTo || '02:45');
       setTimeToAmpm(data.timeToAmpm || 'pm');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLotValue(data.lotValue || 1);
       setMaxProfitLossEnabled(Boolean(data.maxProfitLossEnabled ?? false));
       setMaxProfit(data.maxProfit || 1100);
@@ -384,11 +448,10 @@ export default function TradePage() {
 
                 <div className="flex items-center space-x-2 pl-6">
                   <label htmlFor="stopLossNumber" className={`text-sm ${stopLossNumberEnabled ? "" : "text-gray-400"}`}>Points</label>
-                  <Input 
+                  <NumericInput
                     id="stopLossNumber"
-                    type="number" 
-                    value={stopLossNumber} 
-                    onChange={(e) => setStopLossNumber(Number(e.target.value) || 0)}
+                    value={stopLossNumber}
+                    onChange={setStopLossNumber}
                     className="w-20 h-8"
                     disabled={!stopLossNumberEnabled && !stopLossPercentageEnabled}
                     readOnly={stopLossPercentageEnabled}
@@ -410,11 +473,10 @@ export default function TradePage() {
 
                 <div className="flex items-center space-x-2 pl-6">
                   <label htmlFor="stopLossPercentageValue" className={`text-sm ${stopLossPercentageEnabled ? "" : "text-gray-400"}`}>Percentage</label>
-                  <Input 
+                  <NumericInput
                     id="stopLossPercentageValue"
-                    type="number" 
-                    value={stopLossPercentage} 
-                    onChange={(e) => setStopLossPercentage(Number(e.target.value) || 0)}
+                    value={stopLossPercentage}
+                    onChange={setStopLossPercentage}
                     className="w-20 h-8"
                     disabled={!stopLossPercentageEnabled}
                   />
@@ -443,10 +505,27 @@ export default function TradePage() {
                 <label htmlFor="waitStrategyEnabled" className="text-sm font-medium">
                   Wait when candle size ≥
                 </label>
-                <input
-                  type="number"
+                <div className="relative inline-flex">
+                  <button
+                    type="button"
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                    onClick={() => setIsCandleSizeInfoOpen((prev) => !prev)}
+                    aria-label="Wait candle size info"
+                  >
+                    <HelpCircle className="h-3 w-3" />
+                  </button>
+                  {isCandleSizeInfoOpen && (
+                    <div
+                      className="absolute right-0 top-7 w-56 rounded-md p-3 text-white shadow-lg"
+                      style={{ zIndex: 9999, background: "rgba(0,0,0,0.9)", fontSize: "11px", lineHeight: "16px", maxHeight: "200px", overflowY: "auto" }}
+                    >
+                      When a BUY signal is skipped because the candle is too large, the trade remembers this. If the next signal before any other BUY is a REENTER from the strategy, it will enter at that point as if a BUY had occurred.
+                    </div>
+                  )}
+                </div>
+                <NumericField
                   value={buyOverrideSize}
-                  onChange={(e) => setBuyOverrideSize(Number(e.target.value))}
+                  onChange={setBuyOverrideSize}
                   className="w-16 border rounded px-2 py-1 text-sm"
                 />
               </div>
@@ -460,10 +539,9 @@ export default function TradePage() {
                   className="h-4 w-4"
                 />
                 <label htmlFor="waitAfterSellEnabled" className="text-sm font-medium">After a SELL wait for</label>
-                <input
-                  type="number"
+                <NumericField
                   value={waitAfterSellCandles}
-                  onChange={(e) => setWaitAfterSellCandles(Number(e.target.value))}
+                  onChange={setWaitAfterSellCandles}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2"
                   min="1"
                   max="99"
@@ -481,10 +559,9 @@ export default function TradePage() {
                   className="h-4 w-4"
                 />
                 <label htmlFor="sellWhenLossCandlesEnabled" className="text-sm font-medium">SELL when in loss for</label>
-                <input
-                  type="number"
+                <NumericField
                   value={sellWhenLossCandles}
-                  onChange={(e) => setSellWhenLossCandles(Number(e.target.value))}
+                  onChange={setSellWhenLossCandles}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2"
                   min="1"
                   max="99"
@@ -516,11 +593,10 @@ export default function TradePage() {
 
                 <div className="flex items-center space-x-2 pl-6">
                   <label htmlFor="targetPoints" className={`text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>Points</label>
-                  <Input 
+                  <NumericInput
                     id="targetPoints"
-                    type="number" 
-                    value={targetPoints} 
-                    onChange={(e) => setTargetPoints(Number(e.target.value) || 0)}
+                    value={targetPoints}
+                    onChange={setTargetPoints}
                     className="w-20 h-8"
                     disabled={!targetPointsEnabled}
                   />
@@ -612,11 +688,10 @@ export default function TradePage() {
                   >
                     Points
                   </label>
-                  <Input
+                  <NumericInput
                     id="trailingAfterTargetValue"
-                    type="number"
                     value={trailingAfterTarget}
-                    onChange={(e) => setTrailingAfterTarget(Number(e.target.value) || 0)}
+                    onChange={setTrailingAfterTarget}
                     className="w-20 h-8"
                     disabled={!trailingAfterTargetEnabled}
                   />
@@ -663,20 +738,18 @@ export default function TradePage() {
 
                 <div className="flex items-center space-x-2 pl-6">
                   <label htmlFor="minToHoldValue" className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Points</label>
-                  <Input 
+                  <NumericInput
                     id="minToHoldValue"
-                    type="number" 
-                    value={minToHold} 
-                    onChange={(e) => setMinToHold(Number(e.target.value) || 0)}
+                    value={minToHold}
+                    onChange={setMinToHold}
                     className="w-20 h-8"
                     disabled={!minToHoldEnabled}
                   />
                   <label htmlFor="minToHoldTrigger" className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trigger @</label>
-                  <Input 
+                  <NumericInput
                     id="minToHoldTrigger"
-                    type="number" 
-                    value={minToHoldTrigger} 
-                    onChange={(e) => setMinToHoldTrigger(Number(e.target.value) || 0)}
+                    value={minToHoldTrigger}
+                    onChange={setMinToHoldTrigger}
                     className="w-16 h-8"
                     disabled={!minToHoldEnabled}
                   />
@@ -755,10 +828,9 @@ export default function TradePage() {
 
               <div className="flex items-center space-x-2 pl-6">
                 <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Plus</label>
-                <input
-                  type="number"
+                <NumericField
                   value={reEntryPoints}
-                  onChange={(e) => setReEntryPoints(Number(e.target.value) || 1)}
+                  onChange={setReEntryPoints}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                   min="1"
                   max="99"
@@ -769,10 +841,9 @@ export default function TradePage() {
 
               <div className="flex items-center space-x-2 pl-6">
                 <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Uptrend within</label>
-                <input
-                  type="number"
+                <NumericField
                   value={reEntryCandles}
-                  onChange={(e) => setReEntryCandles(Number(e.target.value) || 1)}
+                  onChange={setReEntryCandles}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                   min="1"
                   max="99"
@@ -810,7 +881,7 @@ export default function TradePage() {
                       className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
                       style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", fontSize: "11px", lineHeight: "18px" }}
                     >
-                      After any exit (Target, Trailing SL, Stop-loss, or Minimum Target), if the strategy sends a REENTER signal, the trade will re-enter only if the current price is higher than the last exit price. Applies configured guards (candle size, time range, wait-after-sell) if they are enabled.
+                      After any exit (Target, Trailing SL, Stop-loss, or Minimum Target), if the strategy sends a REENTER signal, the trade will re-enter only if the current price is higher than the last exit price. Applies configured guards (candle size, time range, wait-after-sell) if they are enabled. If the strategy sends a REEXIT signal while in a re-entry position, the trade will exit that cycle immediately.
                     </div>
                   )}
                 </div>
@@ -853,10 +924,9 @@ export default function TradePage() {
 
               <div className="flex items-center space-x-2 pl-6">
                 <label className={`text-sm ${reEntryAsTrailingEnabled ? "" : "text-gray-400"}`}>Trail</label>
-                <input
-                  type="number"
+                <NumericField
                   value={reEntryTrailingPoints}
-                  onChange={(e) => setReEntryTrailingPoints(Number(e.target.value))}
+                  onChange={setReEntryTrailingPoints}
                   className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                   min="1"
                   max="99"
@@ -907,20 +977,18 @@ export default function TradePage() {
 
               <div className="flex items-center space-x-2 pl-6">
                 <label htmlFor="reEntryMinTargetPoints" className={`text-sm ${reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Points</label>
-                <Input
+                <NumericInput
                   id="reEntryMinTargetPoints"
-                  type="number"
                   value={reEntryMinTargetPoints}
-                  onChange={(e) => setReEntryMinTargetPoints(Number(e.target.value) || 0)}
+                  onChange={setReEntryMinTargetPoints}
                   className="w-20 h-8"
                   disabled={!reEntryMinTargetEnabled}
                 />
                 <label htmlFor="reEntryMinTargetTrigger" className={`text-sm ${reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Trigger</label>
-                <Input
+                <NumericInput
                   id="reEntryMinTargetTrigger"
-                  type="number"
                   value={reEntryMinTargetTrigger}
-                  onChange={(e) => setReEntryMinTargetTrigger(Number(e.target.value) || 0)}
+                  onChange={setReEntryMinTargetTrigger}
                   className="w-20 h-8"
                   disabled={!reEntryMinTargetEnabled}
                 />
@@ -1031,20 +1099,18 @@ export default function TradePage() {
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Profit</label>
-                <Input
-                  type="number"
+                <NumericInput
                   value={maxProfit}
-                  onChange={(e) => setMaxProfit(Number(e.target.value) || 0)}
+                  onChange={setMaxProfit}
                   className="w-24 h-8 text-sm"
                   disabled={!maxProfitLossEnabled}
                 />
               </div>
               <div className="flex items-center space-x-2">
                 <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Loss</label>
-                <Input
-                  type="number"
+                <NumericInput
                   value={maxLoss}
-                  onChange={(e) => setMaxLoss(Number(e.target.value) || 0)}
+                  onChange={setMaxLoss}
                   className="w-24 h-8 text-sm"
                   disabled={!maxProfitLossEnabled}
                 />
@@ -1083,10 +1149,10 @@ export default function TradePage() {
 
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm">LOT ({lotSize}):</label>
-                <Input 
-                  type="number" 
-                  value={lotValue} 
-                  onChange={(e) => setLotValue(Math.max(1, Number(e.target.value) || 1))}
+                <NumericInput
+                  value={lotValue}
+                  onChange={setLotValue}
+                  fallback="1"
                   className="w-16 h-8 text-sm"
                   min={1}
                 />
@@ -1116,7 +1182,7 @@ export default function TradePage() {
                 onClick={() => {
                   if (!isButtonDisabled && selection?.symbol) {
                       // Tell angel-feed backend to add this symbol to active strategy symbols (max 2)
-                      addActiveStrategySymbol(selection.symbol).catch(() => {});
+                      addActiveStrategySymbol(selection.symbol).catch(() => { /* ignore */ });
 
                       saveForm();
                       addWaitingTradeFromSelection();
@@ -1169,7 +1235,7 @@ export default function TradePage() {
                         method: isAlreadyWaiting ? "PUT" : "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(tradePayload),
-                      }).catch(() => {});
+                      }).catch(() => { /* ignore */ });
 
                     router.push("/dashboard");
                   }

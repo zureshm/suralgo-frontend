@@ -18,7 +18,7 @@ const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
 const ANGELONE_EXECUTION_URL = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 const FLATTRADE_EXECUTION_URL = process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
 
-// Active broker execution URL — updated when user connects/disconnects a broker
+// Active broker execution URL â€” updated when user connects/disconnects a broker
 let activeBrokerUrl: string = ANGELONE_EXECUTION_URL;
 
 export function setActiveBrokerUrl(url: string) {
@@ -45,7 +45,7 @@ async function detectActiveBroker() {
       // server not reachable
     }
   }
-  console.log(`[trade-engine] No broker logged in — defaulting to Angel One URL`);
+  console.log(`[trade-engine] No broker logged in â€” defaulting to Angel One URL`);
 }
 
 
@@ -105,7 +105,7 @@ async function syncActiveStrategySymbols() {
   }
 }
 
-// Infer exchange from symbol name: SENSEX options → BFO, everything else → NFO
+// Infer exchange from symbol name: SENSEX options â†’ BFO, everything else â†’ NFO
 function getExchangeForSymbol(symbol: string): string {
   return symbol && symbol.startsWith("SENSEX") ? "BFO" : "NFO";
 }
@@ -142,7 +142,7 @@ function sendBrokerOrder(symbol: string, qty: number, side: "BUY" | "SELL") {
       persistState();
     })
     .catch((err) => {
-      // Network errors (broker unreachable) are NOT reverted — keeps backtest mode working
+      // Network errors (broker unreachable) are NOT reverted â€” keeps backtest mode working
       const logMsg = `[BROKER] ${side} order ERROR for ${symbol}: ${err.message || err}`;
       console.error(`[trade-engine] ${logMsg}`);
       addLogToActive(symbol, logMsg);
@@ -161,7 +161,7 @@ function revertRejectedBuy(symbol: string) {
     return {
       ...trade,
       inPosition: false,
-      logs: [...trade.logs, `BUY rejected by broker — position reverted, waiting for next signal`],
+      logs: [...trade.logs, `BUY rejected by broker â€” position reverted, waiting for next signal`],
       trailingTrailActive: false,
       trailingHighWatermark: undefined,
     };
@@ -429,7 +429,7 @@ type TradeHistoryItem = {
 
 
 
-// ─── In-memory state ───
+// â”€â”€â”€ In-memory state â”€â”€â”€
 
 let waitingTrades: WaitingTrade[] = [];
 
@@ -443,7 +443,7 @@ let lastStrategyCandleTime = "";
 
 let lastHandledSignalKey: Record<string, string> = {};
 
-// ─── Sound event queue (consumed by client via polling) ───
+// â”€â”€â”€ Sound event queue (consumed by client via polling) â”€â”€â”€
 type SoundType = "enter" | "exit" | "profit" | "loss";
 let pendingSoundEvents: SoundType[] = [];
 
@@ -461,7 +461,7 @@ let engineRunning = false;
 
 // Tracks which waiting symbols have received at least one valid signal from the strategy server.
 // Used by the frontend to show a loader until the strategy engine is actually processing the symbol.
-// Not persisted — resets on server restart (correct: symbol needs to re-init after restart).
+// Not persisted â€” resets on server restart (correct: symbol needs to re-init after restart).
 const symbolsWithFirstSignal = new Set<string>();
 
 // Tracks per-symbol history fetch status from the feed server (angel-feed).
@@ -477,19 +477,19 @@ async function checkSymbolHistoryStatus(symbol: string) {
       const data = await res.json();
       if (data.status === "ready" || data.status === "failed") {
         symbolHistoryStatus[symbol] = { status: data.status, candleCount: data.candleCount || 0 };
-        // Immediately mark initialized — don't wait for next strategy signal
+        // Immediately mark initialized â€” don't wait for next strategy signal
         if (data.status === "ready") {
           symbolsWithFirstSignal.add(symbol);
         }
         return;
       }
-      // Still loading — wait and retry
+      // Still loading â€” wait and retry
     } catch {
-      // Feed server unreachable — will retry
+      // Feed server unreachable â€” will retry
     }
     await new Promise((r) => setTimeout(r, 5000));
   }
-  // Timed out waiting — mark as failed
+  // Timed out waiting â€” mark as failed
   symbolHistoryStatus[symbol] = { status: "failed", candleCount: 0 };
 }
 
@@ -521,7 +521,7 @@ const TRAILING_ARM_GRACE_MS = 5000;
 
 
 
-// ─── JSON file persistence ───
+// â”€â”€â”€ JSON file persistence â”€â”€â”€
 
 
 
@@ -615,7 +615,7 @@ function persistState() {
 
 
 
-// ─── State Cleanup ───
+// â”€â”€â”€ State Cleanup â”€â”€â”€
 
 function cleanupStaleState() {
   const validPositionKeys = new Set();
@@ -651,7 +651,7 @@ export function clearAiResults() {
   aiSuggestions.length = 0;
 }
 
-// Per-symbol AI Guard toggle — AI only analyzes symbols explicitly enabled (default OFF)
+// Per-symbol AI Guard toggle â€” AI only analyzes symbols explicitly enabled (default OFF)
 const aiSymbolEnabled: Record<string, boolean> = {};
 
 export function setAiSymbolEnabled(symbol: string, enabled: boolean) {
@@ -669,7 +669,7 @@ export function setAiSymbolEnabled(symbol: string, enabled: boolean) {
   }
 }
 
-// AI Guard BUY buffer — holds BUY/REENTER signals waiting for AI trending confirmation
+// AI Guard BUY buffer â€” holds BUY/REENTER signals waiting for AI trending confirmation
 // Keyed by symbol. Each entry: { signalType, bufferedCandleTime, candlesElapsed, originalSignal }
 interface PendingBuyBuffer {
   signalType: "BUY" | "REENTER";
@@ -678,9 +678,9 @@ interface PendingBuyBuffer {
   originalSignal: unknown;
 }
 const pendingBuyBuffer: Record<string, PendingBuyBuffer> = {};
-const AI_BUFFER_MAX_CANDLES = 5;
+const AI_BUFFER_MAX_CANDLES = 1;
 
-// ─── Helpers ───
+// â”€â”€â”€ Helpers â”€â”€â”€
 
 
 
@@ -693,7 +693,7 @@ function fmtTime(candleTime?: string): string {
     const hhmm = String(candleTime).match(/(\d{1,2}:\d{2})/);
     if (hhmm) return hhmm[1];
   }
-  // Fallback (Force Buy, manual exit, etc.) — use system time
+  // Fallback (Force Buy, manual exit, etc.) â€” use system time
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, "0");
   const mm = String(now.getMinutes()).padStart(2, "0");
@@ -813,7 +813,7 @@ function addHistoryEntry(symbol: string, pnl: number, logs: string[], config?: T
 
 
 
-// ─── Trade lifecycle (mirrors TradeStore functions) ───
+// â”€â”€â”€ Trade lifecycle (mirrors TradeStore functions) â”€â”€â”€
 
 
 
@@ -956,7 +956,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     lastCandleCloseMap[symbol] = ep;
   }
 
-  // Mark buy timestamp — during grace period, LTP monitoring ignores stale candle low/high
+  // Mark buy timestamp â€” during grace period, LTP monitoring ignores stale candle low/high
   lastBuyTimestamp[symbol] = Date.now();
 
   // Send real BUY order to broker
@@ -1032,7 +1032,7 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
 
 
 
-    // Check max loss/profit immediately after cycle — don't wait for next tick
+    // Check max loss/profit immediately after cycle â€” don't wait for next tick
     if (trade.maxProfitLossEnabled) {
       if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
         queueSound("exit");
@@ -1040,7 +1040,7 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
           ...trade.logs, logLine,
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
           `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
-          `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+          `MAX LOSS â‚¹${trade.maxLoss} reached (P/L: â‚¹${totalPnl.toFixed(2)}) - Auto-exiting`,
         ];
         addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
         return {
@@ -1055,7 +1055,7 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
           ...trade.logs, logLine,
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
           `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
-          `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+          `MAX PROFIT â‚¹${trade.maxProfit} reached (P/L: â‚¹${totalPnl.toFixed(2)}) - Auto-exiting`,
         ];
         addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
         return {
@@ -1096,7 +1096,7 @@ function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, log
     if (trade.symbol !== symbol || trade.status !== "ACTIVE") return trade;
 
     const currentTime = logLine.split(" at ").pop() || "";
-    const sellLog = trade.inPosition ? `SELL triggered for ₹${exitPrice} at ${currentTime}` : "";
+    const sellLog = trade.inPosition ? `SELL triggered for â‚¹${exitPrice} at ${currentTime}` : "";
 
     const entry = Number(trade.entryPrice);
     const exit = Number(exitPrice);
@@ -1167,7 +1167,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
     queueSound(cyclePnl >= 0 ? "profit" : "loss");
 
     const currentTime = logLine.split(" at ").pop() || "";
-    const sellLog = `SELL triggered for ₹${exitPrice} at ${currentTime}`;
+    const sellLog = `SELL triggered for â‚¹${exitPrice} at ${currentTime}`;
 
     if (newCompletedCycles >= trade.numberOfTrades) {
 
@@ -1199,7 +1199,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
 
 
-    // Check max loss/profit immediately after cycle — don't wait for next tick
+    // Check max loss/profit immediately after cycle â€” don't wait for next tick
     if (trade.maxProfitLossEnabled) {
       if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
         queueSound("exit");
@@ -1207,7 +1207,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
           ...trade.logs, sellLog, logLine,
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
           `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
-          `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+          `MAX LOSS â‚¹${trade.maxLoss} reached (P/L: â‚¹${totalPnl.toFixed(2)}) - Auto-exiting`,
         ];
         addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
         return {
@@ -1222,7 +1222,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
           ...trade.logs, sellLog, logLine,
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
           `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
-          `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
+          `MAX PROFIT â‚¹${trade.maxProfit} reached (P/L: â‚¹${totalPnl.toFixed(2)}) - Auto-exiting`,
         ];
         addHistoryEntry(trade.symbol, totalPnl, finalLogs, buildConfigSnapshot(trade));
         return {
@@ -1248,7 +1248,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
     let reEntryMsg = `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`;
     if (trade.reEntryAfterTargetEnabled && isProfitableExit) {
-      reEntryMsg = `ReEntry armed: watching for price > ₹${exitPrice} within ${trade.reEntryCandles} candles`;
+      reEntryMsg = `ReEntry armed: watching for price > â‚¹${exitPrice} within ${trade.reEntryCandles} candles`;
     } else if (trade.reEntryAfterTargetEnabled && !isProfitableExit) {
       reEntryMsg += ` [ReEntry skipped: not a profitable exit]`;
     } else if (!trade.reEntryAfterTargetEnabled) {
@@ -1282,6 +1282,8 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
 function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: string) {
 
+  queueSound("enter");
+
   const matchedTrade = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
 
   activeTrades = activeTrades.map((trade) => {
@@ -1292,7 +1294,7 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
     const armTrailing = isReEntry && trade.reEntryAsTrailingEnabled && trade.trailingAfterTargetEnabled;
     const reEntryLogs = [...trade.logs, logLine];
     if (armTrailing) {
-      reEntryLogs.push(`Trailing SL armed at re-entry ₹${entryPrice} (trail: ${trade.reEntryTrailingPoints} pts)`);
+      reEntryLogs.push(`Trailing SL armed at re-entry â‚¹${entryPrice} (trail: ${trade.reEntryTrailingPoints} pts)`);
     }
 
     return {
@@ -1326,7 +1328,7 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
     lastCandleCloseMap[symbol] = ep;
   }
 
-  // Mark buy timestamp — during grace period, LTP monitoring ignores stale candle low/high
+  // Mark buy timestamp â€” during grace period, LTP monitoring ignores stale candle low/high
   lastBuyTimestamp[symbol] = Date.now();
 
   // Send real BUY order to broker (re-entry)
@@ -1403,7 +1405,7 @@ function activateTrailing(symbol: string, price: number, timeLabel: string) {
 
       ...t, trailingTrailActive: true, trailingHighWatermark: price,
 
-      logs: [...t.logs, `Trailing target armed at ₹${price.toFixed(2)} on ${timeLabel}`],
+      logs: [...t.logs, `Trailing target armed at â‚¹${price.toFixed(2)} on ${timeLabel}`],
 
     };
 
@@ -1463,7 +1465,7 @@ function lockMinTargetPrice(symbol: string, price: number) {
 
 
 
-// ─── Strategy signal handling (from StrategyTimerProvider) ───
+// â”€â”€â”€ Strategy signal handling (from StrategyTimerProvider) â”€â”€â”€
 
 
 
@@ -1520,7 +1522,7 @@ function handleStrategySignal(signal: any) {
 
 
 
-  // AI Guard — combined analysis once per new candle per symbol (only for symbols with AI toggle ON)
+  // AI Guard â€” combined analysis once per new candle per symbol (only for symbols with AI toggle ON)
   if (isAiGuardActive() && signalSymbol && aiSymbolEnabled[signalSymbol] === true && candleTime && candleTime !== lastAiCandleTime[signalSymbol]) {
     lastAiCandleTime[signalSymbol] = candleTime;
     const settings = getAiGuardSettings();
@@ -1551,21 +1553,21 @@ function handleStrategySignal(signal: any) {
         lastAiResult[signalSymbol] = result;
         const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
 
-        // EntryGuard — block BUY if sideways/reversing
+        // EntryGuard â€” block BUY if sideways/reversing
         if (settings.entryGuardEnabled && result.blockEntry) {
           // If there's a buffered BUY, increment its candle count
           const buffered = pendingBuyBuffer[signalSymbol];
           if (buffered) {
             buffered.candlesElapsed++;
             if (buffered.candlesElapsed >= AI_BUFFER_MAX_CANDLES) {
-              // Buffer expired — AI never confirmed trending within 5 candles
+              // Buffer expired â€” AI never confirmed trending within 5 candles
               delete pendingBuyBuffer[signalSymbol];
-              const expireLog = `BUY buffer expired after ${AI_BUFFER_MAX_CANDLES} candles — AI never confirmed trending at ${now}`;
+              const expireLog = `BUY buffer expired after ${AI_BUFFER_MAX_CANDLES} candles â€” AI never confirmed trending at ${now}`;
               if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, expireLog); }
               else if (activeTrades.find((t) => t.symbol === signalSymbol)) { addLogToActive(signalSymbol, expireLog); }
               addAiLog(`[ai-guard] BUY buffer expired for ${signalSymbol} after ${AI_BUFFER_MAX_CANDLES} candles`);
             } else {
-              const waitLog = `BUY buffer waiting — AI still sideways (${result.reason}, ${result.confidence}%) — candle ${buffered.candlesElapsed}/${AI_BUFFER_MAX_CANDLES} at ${now}`;
+              const waitLog = `BUY buffer waiting â€” AI still sideways (${result.reason}, ${result.confidence}%) â€” candle ${buffered.candlesElapsed}/${AI_BUFFER_MAX_CANDLES} at ${now}`;
               if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, waitLog); }
               else if (activeTrades.find((t) => t.symbol === signalSymbol)) { addLogToActive(signalSymbol, waitLog); }
               addAiLog(`[ai-guard] BUY buffer waiting for ${signalSymbol}: candle ${buffered.candlesElapsed}/${AI_BUFFER_MAX_CANDLES}`);
@@ -1588,12 +1590,12 @@ function handleStrategySignal(signal: any) {
           });
           addAiLog(`[ai-guard] Entry blocked for ${signalSymbol}: ${result.reason} (${result.confidence}%)`);
         } else if (settings.entryGuardEnabled && !result.blockEntry) {
-          // AI says trending — if there's a buffered BUY, fire it now
+          // AI says trending â€” if there's a buffered BUY, fire it now
           const buffered = pendingBuyBuffer[signalSymbol];
           if (buffered) {
             const currentClose = lastCandleCloseMap[signalSymbol];
             const entryPrice = String(currentClose ?? latestClose ?? "");
-            const fireLog = `BUY fired from buffer — AI confirmed trending (${result.marketRegime}, ${result.confidence}%) after ${buffered.candlesElapsed} candle(s) at ${now}`;
+            const fireLog = `BUY fired from buffer â€” AI confirmed trending (${result.marketRegime}, ${result.confidence}%) after ${buffered.candlesElapsed} candle(s) at ${now}`;
             const matchingTrade = waitingTrades.find((t) => t.symbol === signalSymbol);
             const activeTrade2 = activeTrades.find((t) => t.symbol === signalSymbol && t.status === "ACTIVE");
             if (matchingTrade) {
@@ -1607,7 +1609,7 @@ function handleStrategySignal(signal: any) {
           }
         }
 
-        // Exit Guard — suggest or auto-execute exit
+        // Exit Guard â€” suggest or auto-execute exit
         if (result.suggestExit && activeTrade && activeTrade.inPosition) {
           if (settings.autoExitEnabled) {
             completeActiveTrade(
@@ -1631,7 +1633,7 @@ function handleStrategySignal(signal: any) {
                 timestamp: now,
                 dismissed: false,
               });
-              addLogToActive(signalSymbol, `AI Guard: exit suggested — ${result.reason} (${result.confidence}%) at ${now}`);
+              addLogToActive(signalSymbol, `AI Guard: exit suggested â€” ${result.reason} (${result.confidence}%) at ${now}`);
               addAiLog(`[ai-guard] Exit suggested for ${signalSymbol}: ${result.reason} (${result.confidence}%)`);
             }
           }
@@ -1659,7 +1661,7 @@ function handleStrategySignal(signal: any) {
 
       String(latestClose ?? ""),
 
-      `AUTO SELL triggered post 02:55 pm cut-off at ₹${String(latestClose ?? "")} (${fmtTime(signal.lastCandleTime)})`
+      `AUTO SELL triggered post 02:55 pm cut-off at â‚¹${String(latestClose ?? "")} (${fmtTime(signal.lastCandleTime)})`
 
     );
 
@@ -1681,7 +1683,7 @@ function handleStrategySignal(signal: any) {
 
     if (!activeForSymbol || !activeForSymbol.inPosition) return;
 
-    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "STOPLOSS hit for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "STOPLOSS hit for â‚¹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     lastHandledSignalKey[signalSymbol] = signalKey;
 
@@ -1709,7 +1711,7 @@ function handleStrategySignal(signal: any) {
 
     }
 
-    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "TARGET hit for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "TARGET hit for â‚¹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     lastHandledSignalKey[signalSymbol] = signalKey;
 
@@ -1731,7 +1733,35 @@ function handleStrategySignal(signal: any) {
 
     if (!activeForSymbol || !activeForSymbol.inPosition) return;
 
-    completeActiveTrade(activeForSymbol.symbol, String(latestClose ?? ""), "SELL triggered for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+    completeActiveTrade(activeForSymbol.symbol, String(latestClose ?? ""), "SELL triggered for â‚¹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+
+    updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime);
+
+    lastHandledSignalKey[signalSymbol] = signalKey;
+
+    return;
+
+  }
+
+
+
+  // REEXIT signal — respects signal re-exit for trades entered via REENTER
+
+  if (signal.signal === "REEXIT") {
+
+    const signalKey = signal.signal + "-" + signal.lastCandleTime;
+
+    if (signalKey === lastHandledSignalKey[signalSymbol]) return;
+
+    if (waitingForBuy) return;
+
+    if (!activeForSymbol || !activeForSymbol.inPosition) return;
+
+    if (!activeForSymbol.isReEntryCycle) return;
+
+    setPendingSkippedBuy(signalSymbol, false);
+
+    completeActiveTrade(activeForSymbol.symbol, String(latestClose ?? ""), "REEXIT triggered for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime);
 
@@ -1799,7 +1829,7 @@ function handleStrategySignal(signal: any) {
 
       if (cMin >= 0 && (cMin < rangeStart || cMin > rangeEnd)) {
 
-        const skippedLog = `BUY skipped – outside time range (${tradeForRange.timeFrom} ${tradeForRange.timeFromAmpm} – ${tradeForRange.timeTo} ${tradeForRange.timeToAmpm}) for ₹${latestClose ?? ""} at ${fmtTime(signal.lastCandleTime)}`;
+        const skippedLog = `BUY skipped â€“ outside time range (${tradeForRange.timeFrom} ${tradeForRange.timeFromAmpm} â€“ ${tradeForRange.timeTo} ${tradeForRange.timeToAmpm}) for â‚¹${latestClose ?? ""} at ${fmtTime(signal.lastCandleTime)}`;
 
         if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, skippedLog); }
 
@@ -1831,7 +1861,7 @@ function handleStrategySignal(signal: any) {
 
         if (candlesPassed < tradeForWaitCheck.waitAfterSellCandles) {
 
-          const waitLog = `BUY skipped – waiting ${tradeForWaitCheck.waitAfterSellCandles} candles after SELL (${candlesPassed} passed) at ${fmtTime(signal.lastCandleTime)}`;
+          const waitLog = `BUY skipped â€“ waiting ${tradeForWaitCheck.waitAfterSellCandles} candles after SELL (${candlesPassed} passed) at ${fmtTime(signal.lastCandleTime)}`;
 
           if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, waitLog); }
 
@@ -1855,7 +1885,7 @@ function handleStrategySignal(signal: any) {
 
     if (overrideValue != null && overrideValue > 0 && candleSize >= overrideValue) {
 
-      const ignoredLog = `BUY ignored – candle size ${candleSize.toFixed(2)} >= buyOverride ${overrideValue} at ${fmtTime(signal.lastCandleTime)} (waiting for REENTER signal)`;
+      const ignoredLog = `BUY ignored â€“ candle size ${candleSize.toFixed(2)} >= buyOverride ${overrideValue} at ${fmtTime(signal.lastCandleTime)} (waiting for REENTER signal)`;
 
       if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, ignoredLog); }
 
@@ -1871,18 +1901,18 @@ function handleStrategySignal(signal: any) {
 
 
 
-    // AI Guard EntryGuard — check if AI blocked entry for this symbol
+    // AI Guard EntryGuard â€” check if AI blocked entry for this symbol
     const aiResult = lastAiResult[signalSymbol];
     const aiSettings = getAiGuardSettings();
     if (aiSettings.entryGuardEnabled && aiResult && aiResult.blockEntry) {
-      // Buffer the BUY instead of permanently blocking — wait up to 5 candles for trending
+      // Buffer the BUY instead of permanently blocking â€” wait up to 5 candles for trending
       pendingBuyBuffer[signalSymbol] = {
         signalType: "BUY",
         bufferedCandleTime: candleTime ?? "",
         candlesElapsed: 0,
         originalSignal: signal,
       };
-      const blockedLog = `BUY buffered by AI Guard — ${aiResult.reason} (${aiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for trending, up to ${AI_BUFFER_MAX_CANDLES} candles)`;
+      const blockedLog = `BUY buffered by AI Guard â€” ${aiResult.reason} (${aiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for trending, up to ${AI_BUFFER_MAX_CANDLES} candles)`;
       if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, blockedLog); }
       else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, blockedLog); }
       addAiLog(`[ai-guard] BUY buffered for ${signalSymbol}: ${aiResult.reason} (${aiResult.confidence}%)`);
@@ -1892,11 +1922,11 @@ function handleStrategySignal(signal: any) {
 
     if (matchingTrade) {
 
-      activateWaitingTrade(matchingTrade.symbol, String(latestClose ?? ""), "BUY triggered for ₹ " + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+      activateWaitingTrade(matchingTrade.symbol, String(latestClose ?? ""), "BUY triggered for â‚¹ " + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     } else if (activeForSymbol && !activeForSymbol.inPosition) {
 
-      updateActiveTradeBuy(activeForSymbol.symbol, String(latestClose ?? ""), "BUY triggered for ₹ " + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+      updateActiveTradeBuy(activeForSymbol.symbol, String(latestClose ?? ""), "BUY triggered for â‚¹ " + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     }
 
@@ -1929,7 +1959,7 @@ function handleStrategySignal(signal: any) {
     const hasSignalReEntry = ("signalReEntryArmed" in reenterTrade) && (reenterTrade as ActiveTrade).signalReEntryArmed === true && (reenterTrade as ActiveTrade).signalReEntryEnabled;
 
     if (!hasPendingSkip && !hasSignalReEntry) {
-      const ignoreLog = `REENTER ignored – no pending skipped BUY or signal re-entry at ${fmtTime(signal.lastCandleTime)}`;
+      const ignoreLog = `REENTER ignored â€“ no pending skipped BUY or signal re-entry at ${fmtTime(signal.lastCandleTime)}`;
       if (waitingTrades.find((t) => t.symbol === signalSymbol)) {
         addLogToWaiting(signalSymbol, ignoreLog);
       } else {
@@ -1950,7 +1980,7 @@ function handleStrategySignal(signal: any) {
       const rangeEnd = toMinutes12h(reenterTrade.timeTo, reenterTrade.timeToAmpm);
       const cMin = toMinutes(signal.lastCandleTime);
       if (cMin >= 0 && (cMin < rangeStart || cMin > rangeEnd)) {
-        const skipLog = `REENTER skipped – outside time range at ${fmtTime(signal.lastCandleTime)}`;
+        const skipLog = `REENTER skipped â€“ outside time range at ${fmtTime(signal.lastCandleTime)}`;
         if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, skipLog); } else { addLogToActive(signalSymbol, skipLog); }
         lastHandledSignalKey[signalSymbol] = signalKey;
         return;
@@ -1962,7 +1992,7 @@ function handleStrategySignal(signal: any) {
       const lastSellMin = toMinutes(activeForSymbol.lastSellCandleTime);
       const currentMin = toMinutes(signal.lastCandleTime);
       if (lastSellMin >= 0 && currentMin >= 0 && (currentMin - lastSellMin) < reenterTrade.waitAfterSellCandles) {
-        const waitLog = `REENTER skipped – waiting ${reenterTrade.waitAfterSellCandles} candles after SELL at ${fmtTime(signal.lastCandleTime)}`;
+        const waitLog = `REENTER skipped â€“ waiting ${reenterTrade.waitAfterSellCandles} candles after SELL at ${fmtTime(signal.lastCandleTime)}`;
         if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, waitLog); } else { addLogToActive(signalSymbol, waitLog); }
         lastHandledSignalKey[signalSymbol] = signalKey;
         return;
@@ -1972,13 +2002,13 @@ function handleStrategySignal(signal: any) {
     // Candle size guard
     const reOverrideValue = reenterTrade.buyOverride;
     if (reOverrideValue != null && reOverrideValue > 0 && reCandleSize >= reOverrideValue) {
-      const sizeLog = `REENTER skipped – candle size ${reCandleSize.toFixed(2)} >= ${reOverrideValue} at ${fmtTime(signal.lastCandleTime)}`;
+      const sizeLog = `REENTER skipped â€“ candle size ${reCandleSize.toFixed(2)} >= ${reOverrideValue} at ${fmtTime(signal.lastCandleTime)}`;
       if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, sizeLog); } else { addLogToActive(signalSymbol, sizeLog); }
       lastHandledSignalKey[signalSymbol] = signalKey;
       return;
     }
 
-    // AI Guard EntryGuard for REENTER — same buffering logic as BUY
+    // AI Guard EntryGuard for REENTER â€” same buffering logic as BUY
     const reAiResult = lastAiResult[signalSymbol];
     const reAiSettings = getAiGuardSettings();
     if (reAiSettings.entryGuardEnabled && reAiResult && reAiResult.blockEntry) {
@@ -1988,7 +2018,7 @@ function handleStrategySignal(signal: any) {
         candlesElapsed: 0,
         originalSignal: signal,
       };
-      const blockedLog = `REENTER buffered by AI Guard — ${reAiResult.reason} (${reAiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for trending, up to ${AI_BUFFER_MAX_CANDLES} candles)`;
+      const blockedLog = `REENTER buffered by AI Guard â€” ${reAiResult.reason} (${reAiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for trending, up to ${AI_BUFFER_MAX_CANDLES} candles)`;
       if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, blockedLog); }
       else { addLogToActive(signalSymbol, blockedLog); }
       addAiLog(`[ai-guard] REENTER buffered for ${signalSymbol}: ${reAiResult.reason} (${reAiResult.confidence}%)`);
@@ -1996,18 +2026,18 @@ function handleStrategySignal(signal: any) {
       return;
     }
 
-    // Price guard — only re-enter if current price is higher than last exit price
+    // Price guard â€” only re-enter if current price is higher than last exit price
     const lastExitPrice = ("exitPrice" in reenterTrade && reenterTrade.exitPrice) ? Number(reenterTrade.exitPrice) : NaN;
     if (Number.isFinite(lastExitPrice) && Number.isFinite(latestClose) && latestClose <= lastExitPrice) {
-      const priceLog = `REENTER skipped – current price ₹${latestClose} <= last exit price ₹${lastExitPrice} at ${fmtTime(signal.lastCandleTime)}`;
+      const priceLog = `REENTER skipped â€“ current price â‚¹${latestClose} <= last exit price â‚¹${lastExitPrice} at ${fmtTime(signal.lastCandleTime)}`;
       if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, priceLog); } else { addLogToActive(signalSymbol, priceLog); }
       lastHandledSignalKey[signalSymbol] = signalKey;
       return;
     }
 
-    // All guards passed — enter
+    // All guards passed â€” enter
     const reenterLabel = hasPendingSkip ? "REENTER (skipped candle re-entry)" : "SIGNAL RE-ENTRY";
-    const reenterLog = `${reenterLabel} triggered for ₹${latestClose ?? ""} at ${fmtTime(signal.lastCandleTime)}`;
+    const reenterLog = `${reenterLabel} triggered for â‚¹${latestClose ?? ""} at ${fmtTime(signal.lastCandleTime)}`;
     if (waitingTrades.find((t) => t.symbol === signalSymbol)) {
       activateWaitingTrade(signalSymbol, String(latestClose ?? ""), reenterLog);
     } else if (activeForSymbol && !activeForSymbol.inPosition) {
@@ -2024,7 +2054,7 @@ function handleStrategySignal(signal: any) {
 
 
 
-// ─── LTP-based SL/Target/Trailing monitoring (from dashboard/page.tsx) ───
+// â”€â”€â”€ LTP-based SL/Target/Trailing monitoring (from dashboard/page.tsx) â”€â”€â”€
 
 
 
@@ -2044,8 +2074,8 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     const currentTime = marketTime || fmtTime();
 
-    // ── Max Profit / Max Loss check (runs even when NOT in position) ──
-    // This is the overall trade-level guard — takes priority over per-cycle SL/target.
+    // â”€â”€ Max Profit / Max Loss check (runs even when NOT in position) â”€â”€
+    // This is the overall trade-level guard â€” takes priority over per-cycle SL/target.
     if (trade.maxProfitLossEnabled) {
       const qty = trade.lotSize * trade.lotValue;
       const entry = Number(trade.entryPrice);
@@ -2056,13 +2086,13 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       if (trade.maxProfit > 0 && (trade.pnl + bestPnl) >= trade.maxProfit) {
         const exitPrice = (trade.pnl + ltpPnl) >= trade.maxProfit ? ltp : entry + (trade.maxProfit - trade.pnl) / qty;
-        forceExitTrade(trade.symbol, String(exitPrice), trade.pnl + bestPnl, `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${(trade.pnl + bestPnl).toFixed(2)}) at ${currentTime}`);
+        forceExitTrade(trade.symbol, String(exitPrice), trade.pnl + bestPnl, `MAX PROFIT â‚¹${trade.maxProfit} reached (P/L: â‚¹${(trade.pnl + bestPnl).toFixed(2)}) at ${currentTime}`);
         continue;
       }
 
       if (trade.maxLoss > 0 && (trade.pnl + worstPnl) <= -trade.maxLoss) {
         const exitPrice = (trade.pnl + ltpPnl) <= -trade.maxLoss ? ltp : entry + (-trade.maxLoss - trade.pnl) / qty;
-        forceExitTrade(trade.symbol, String(exitPrice), trade.pnl + worstPnl, `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${(trade.pnl + worstPnl).toFixed(2)}) at ${currentTime}`);
+        forceExitTrade(trade.symbol, String(exitPrice), trade.pnl + worstPnl, `MAX LOSS â‚¹${trade.maxLoss} reached (P/L: â‚¹${(trade.pnl + worstPnl).toFixed(2)}) at ${currentTime}`);
         continue;
       }
     }
@@ -2091,22 +2121,22 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
           const reEntryThreshold = trade.reEntryExitPrice + (trade.reEntryPoints || 5);
           if (candlesSinceSell <= trade.reEntryCandles) {
             if (ltp > reEntryThreshold) {
-              // AI Guard check — block re-entry if AI says sideways/reversing
+              // AI Guard check â€” block re-entry if AI says sideways/reversing
               const aiSettings = getAiGuardSettings();
               if (aiSettings.entryGuardEnabled && isAiGuardActive() && aiSymbolEnabled[trade.symbol] === true) {
                 const aiResult = lastAiResult[trade.symbol];
                 if (aiResult && aiResult.blockEntry) {
-                  addLogToActive(trade.symbol, `RE-ENTRY blocked by AI Guard — ${aiResult.marketRegime} (${aiResult.confidence}%) at ${currentTime}`);
+                  addLogToActive(trade.symbol, `RE-ENTRY blocked by AI Guard â€” ${aiResult.marketRegime} (${aiResult.confidence}%) at ${currentTime}`);
                   addAiLog(`[ai-guard] Auto re-entry blocked for ${trade.symbol}: ${aiResult.reason} (${aiResult.confidence}%)`);
                   continue;
                 }
               }
-              const reEntryLog = `RE-ENTRY triggered at ₹${ltp.toFixed(2)} (price exceeded exit+${trade.reEntryPoints || 5} ₹${reEntryThreshold.toFixed(2)} within ${candlesSinceSell}/${trade.reEntryCandles} candles) at ${currentTime}`;
+              const reEntryLog = `RE-ENTRY triggered at â‚¹${ltp.toFixed(2)} (price exceeded exit+${trade.reEntryPoints || 5} â‚¹${reEntryThreshold.toFixed(2)} within ${candlesSinceSell}/${trade.reEntryCandles} candles) at ${currentTime}`;
               updateActiveTradeBuy(trade.symbol, String(ltp), reEntryLog);
               continue;
             }
           } else {
-            // Window expired — clear re-entry state
+            // Window expired â€” clear re-entry state
             addLogToActive(trade.symbol, `ReEntry window expired (${trade.reEntryCandles} candles passed since exit)`);
             clearReEntryState(trade.symbol);
           }
@@ -2165,7 +2195,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       if (!trailingArmedPositions.has(positionKey)) {
 
-        if (ltp >= activationLevel) { trailingArmedPositions.add(positionKey); }
+        if (ltp >= activationLevel) {
+          trailingArmedPositions.add(positionKey);
+          addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Minimum target armed at ₹${ltp.toFixed(2)} (activation: ₹${activationLevel.toFixed(2)}) at ${currentTime}`);
+          persistState();
+        }
 
       } else {
 
@@ -2174,11 +2208,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
           // Trailing min target mode
           if (trade.minTargetLockedPrice !== undefined) {
 
-            // Already locked at target — exit if price drops to locked price
+            // Already locked at target â€” exit if price drops to locked price
             if (ltp <= trade.minTargetLockedPrice) {
               triggeredPositions.add(positionKey);
               trailingArmedPositions.delete(positionKey);
-              completeCycleWithoutExit(trade.symbol, String(trade.minTargetLockedPrice), `${useReEntryMinTarget ? "ReEntry " : ""}TRAILING MIN TARGET hit for ₹${trade.minTargetLockedPrice.toFixed(2)} at ${currentTime}`);
+              completeCycleWithoutExit(trade.symbol, String(trade.minTargetLockedPrice), `${useReEntryMinTarget ? "ReEntry " : ""}TRAILING MIN TARGET hit for â‚¹${trade.minTargetLockedPrice.toFixed(2)} at ${currentTime}`);
               continue;
             }
 
@@ -2192,7 +2226,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
             if (ltp <= floor) {
               triggeredPositions.add(positionKey);
               trailingArmedPositions.delete(positionKey);
-              completeCycleWithoutExit(trade.symbol, String(floor), `${useReEntryMinTarget ? "ReEntry " : ""}TRAILING MIN TARGET hit for ₹${floor.toFixed(2)} at ${currentTime}`);
+              completeCycleWithoutExit(trade.symbol, String(floor), `${useReEntryMinTarget ? "ReEntry " : ""}TRAILING MIN TARGET hit for â‚¹${floor.toFixed(2)} at ${currentTime}`);
               continue;
             }
 
@@ -2207,7 +2241,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
             trailingArmedPositions.delete(positionKey);
 
-            completeCycleWithoutExit(trade.symbol, String(ltp), `MINIMUM TARGET hit for ₹${ltp} at ${currentTime}`);
+            completeCycleWithoutExit(trade.symbol, String(ltp), `${useReEntryMinTarget ? "ReEntry " : ""}MINIMUM TARGET hit for â‚¹${ltp} at ${currentTime}`);
 
             continue;
 
@@ -2252,7 +2286,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
         triggeredPositions.add(positionKey);
 
-        completeCycleWithoutExit(trade.symbol, String(exitPrice), `Trailing target hit for ₹${exitPrice} at ${currentTime}`);
+        completeCycleWithoutExit(trade.symbol, String(exitPrice), `Trailing target hit for â‚¹${exitPrice} at ${currentTime}`);
 
         continue;
 
@@ -2280,7 +2314,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
           if (effectiveMinEnabled && effectiveMinTrailing && trailingArmedPositions.has(positionKey)) {
             const lockedPrice = targetLevel - effectiveMinTrigger;
             lockMinTargetPrice(trade.symbol, lockedPrice);
-            addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Trailing min target locked at ₹${lockedPrice.toFixed(2)} at ${currentTime}`);
+            addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Trailing min target locked at â‚¹${lockedPrice.toFixed(2)} at ${currentTime}`);
           }
 
         }
@@ -2291,7 +2325,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       triggeredPositions.add(positionKey);
 
-      completeCycleWithoutExit(trade.symbol, String(tgtExit), `TARGET hit for ₹${tgtExit} at ${currentTime}`);
+      completeCycleWithoutExit(trade.symbol, String(tgtExit), `TARGET hit for â‚¹${tgtExit} at ${currentTime}`);
 
       continue;
 
@@ -2308,7 +2342,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
       triggeredPositions.add(positionKey);
 
-      completeCycleWithoutExit(trade.symbol, String(slExit), `STOPLOSS hit for ₹${slExit} at ${currentTime}`);
+      completeCycleWithoutExit(trade.symbol, String(slExit), `STOPLOSS hit for â‚¹${slExit} at ${currentTime}`);
 
       continue;
 
@@ -2322,7 +2356,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         const candlesSinceEntry = currentMin - entryMin;
         if (candlesSinceEntry >= trade.sellWhenLossCandles) {
           triggeredPositions.add(positionKey);
-          completeCycleWithoutExit(trade.symbol, String(ltp), `SELL (in loss for ${candlesSinceEntry} candles) at ₹${ltp} at ${currentTime}`);
+          completeCycleWithoutExit(trade.symbol, String(ltp), `SELL (in loss for ${candlesSinceEntry} candles) at â‚¹${ltp} at ${currentTime}`);
           continue;
         }
       }
@@ -2335,7 +2369,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
 
 
-// ─── Main tick: called every 1 second by the server-side setInterval ───
+// â”€â”€â”€ Main tick: called every 1 second by the server-side setInterval â”€â”€â”€
 
 
 
@@ -2435,7 +2469,7 @@ async function tick() {
 
 
 
-// ─── Public API ───
+// â”€â”€â”€ Public API â”€â”€â”€
 
 
 
@@ -2481,7 +2515,7 @@ export function getEngineState() {
 
 
 
-// Force a symbol into the initialized set — user accepts running without full history
+// Force a symbol into the initialized set â€” user accepts running without full history
 export function forceInitSymbol(symbol: string) {
   symbolsWithFirstSignal.add(symbol);
 }
@@ -2547,7 +2581,7 @@ export function activateWaitingTradeFromClient(symbol: string, entryPrice: strin
       const rangeStart = toMinutes12h(trade.timeFrom, trade.timeFromAmpm);
       const rangeEnd = toMinutes12h(trade.timeTo, trade.timeToAmpm);
       if (cMin >= 0 && (cMin < rangeStart || cMin > rangeEnd)) {
-        addLogToWaiting(symbol, `BUY skipped – outside time range (${trade.timeFrom} ${trade.timeFromAmpm} – ${trade.timeTo} ${trade.timeToAmpm}) for ₹${entryPrice} at ${timeMatch[1]}`);
+        addLogToWaiting(symbol, `BUY skipped â€“ outside time range (${trade.timeFrom} ${trade.timeFromAmpm} â€“ ${trade.timeTo} ${trade.timeToAmpm}) for â‚¹${entryPrice} at ${timeMatch[1]}`);
         persistState();
         return;
       }
@@ -2558,7 +2592,7 @@ export function activateWaitingTradeFromClient(symbol: string, entryPrice: strin
   if (trade.buyOverride != null && trade.buyOverride > 0 && typeof candleSize === "number" && candleSize >= trade.buyOverride) {
     const timeMatch = logLine.match(/at (.+)$/);
     const atTime = timeMatch ? timeMatch[1] : "";
-    addLogToWaiting(symbol, `BUY ignored – candle size ${candleSize.toFixed(2)} >= buyOverride ${trade.buyOverride} at ${atTime}`);
+    addLogToWaiting(symbol, `BUY ignored â€“ candle size ${candleSize.toFixed(2)} >= buyOverride ${trade.buyOverride} at ${atTime}`);
     persistState();
     return;
   }
@@ -2588,11 +2622,61 @@ export async function forceBuyWaitingTrade(symbol: string) {
   const mm = String(now.getMinutes()).padStart(2, "0");
   const ss = String(now.getSeconds()).padStart(2, "0");
   const timeStr = `${hh}:${mm}:${ss}`;
-  const logLine = `FORCE BUY triggered for ₹${entryPrice} at ${timeStr}`;
+  const logLine = `FORCE BUY triggered for â‚¹${entryPrice} at ${timeStr}`;
 
   activateWaitingTrade(symbol, entryPrice, logLine);
   delete pendingBuyBuffer[symbol];
   setPendingSkippedBuy(symbol, false);
+  persistState();
+}
+
+export async function forceBuyActiveTrade(symbol: string) {
+  const trade = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE" && !t.inPosition);
+  if (!trade) return;
+
+  let entryPrice = "0";
+  try {
+    const res = await fetch(`${API_URL}/prices?symbols=${encodeURIComponent(symbol)}`);
+    const prices = await res.json();
+    if (Array.isArray(prices) && prices.length > 0 && prices[0]?.ltp) {
+      entryPrice = String(prices[0].ltp);
+    }
+  } catch { /* fallback to 0 */ }
+
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  const timeStr = `${hh}:${mm}:${ss}`;
+  const logLine = `FORCE BUY triggered for ₹${entryPrice} at ${timeStr}`;
+
+  updateActiveTradeBuy(symbol, entryPrice, logLine);
+  delete pendingBuyBuffer[symbol];
+  setPendingSkippedBuy(symbol, false);
+  persistState();
+}
+
+export async function manualEndCycle(symbol: string) {
+  const trade = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
+  if (!trade) return;
+
+  let exitPrice = "0";
+  try {
+    const res = await fetch(`${API_URL}/prices?symbols=${encodeURIComponent(symbol)}`);
+    const prices = await res.json();
+    if (Array.isArray(prices) && prices.length > 0 && prices[0]?.ltp) {
+      exitPrice = String(prices[0].ltp);
+    }
+  } catch { /* fallback to 0 */ }
+
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  const timeStr = `${hh}:${mm}:${ss}`;
+  const logLine = `MANUAL END CYCLE — SELL for ₹${exitPrice} at ${timeStr}`;
+
+  completeCycleWithoutExit(symbol, exitPrice, logLine);
   persistState();
 }
 
@@ -2628,7 +2712,7 @@ export function manualExit(symbol: string, exitPrice: string, lastCandleTime: st
 
     const exitLog = trade.inPosition
 
-      ? `SELL manually for ₹${exitPrice} at ${lastCandleTime}`
+      ? `SELL manually for â‚¹${exitPrice} at ${lastCandleTime}`
 
       : `EXIT  at ${lastCandleTime}`;
 
@@ -2720,7 +2804,7 @@ export function removeHistoryEntry(id: string) {
 
 
 
-// ─── Watchlist (server-persisted) ───
+// â”€â”€â”€ Watchlist (server-persisted) â”€â”€â”€
 
 export function getWatchlist(): string[] {
   return watchlist;

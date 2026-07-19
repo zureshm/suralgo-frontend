@@ -6,6 +6,32 @@ import { playSound, setVolume } from "@/lib/sounds";
 import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
 
+function ClampedNumericField({ value, onChange, min, max, ...props }: any) {
+  const [local, setLocal] = useState<string>(value ? String(value) : "");
+  useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
+  return (
+    <input
+      {...props}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={local}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/\D/g, "");
+        setLocal(cleaned);
+        if (cleaned !== "") {
+          const val = parseInt(cleaned, 10);
+          if (!isNaN(val)) onChange(Math.min(max, Math.max(min, val)));
+        }
+      }}
+      onBlur={(e: any) => {
+        if (!e.target.value) { setLocal(String(min)); onChange(min); }
+        else { setLocal(String(value)); }
+      }}
+    />
+  );
+}
+
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL || "http://localhost:4000";
 
 // Friendly display names for strategy script names — edit these as needed
@@ -62,6 +88,21 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [isCandlesInfoOpen, setIsCandlesInfoOpen] = useState(false);
   const [isProviderInfoOpen, setIsProviderInfoOpen] = useState(false);
   const [isApiKeyInfoOpen, setIsApiKeyInfoOpen] = useState(false);
+
+  // Close tooltips when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button[aria-label*="info"]') || target.closest('[data-tooltip]')) return;
+      setIsEntryGuardInfoOpen(false);
+      setIsAutoExitInfoOpen(false);
+      setIsCandlesInfoOpen(false);
+      setIsProviderInfoOpen(false);
+      setIsApiKeyInfoOpen(false);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // AI Guard test connection
   const [aiTestStatus, setAiTestStatus] = useState<"idle" | "testing" | "connected" | "failed">("idle");
@@ -547,6 +588,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         </button>
                         {isEntryGuardInfoOpen && (
                           <div
+                            data-tooltip
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
@@ -601,6 +643,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         </button>
                         {isAutoExitInfoOpen && (
                           <div
+                            data-tooltip
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
@@ -655,6 +698,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         </button>
                         {isCandlesInfoOpen && (
                           <div
+                            data-tooltip
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
@@ -662,16 +706,11 @@ export default function SettingsPopup({ open, onClose }: Props) {
                           </div>
                         )}
                       </div>
-                      <input
-                        type="number"
-                        min="60"
-                        max="240"
-                        step="60"
+                      <ClampedNumericField
                         value={aiCandlesCount}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          if (!isNaN(val)) setAiCandlesCount(Math.min(240, Math.max(60, val)));
-                        }}
+                        onChange={setAiCandlesCount}
+                        min={60}
+                        max={240}
                         className="w-16 h-7 px-2 rounded-lg text-xs text-center"
                         style={{
                           background: "var(--theme-popup-field-bg)",
@@ -688,16 +727,11 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       <div className="relative flex items-center gap-1.5">
                         <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>Recent Candles Weight</label>
                       </div>
-                      <input
-                        type="number"
-                        min="10"
-                        max="60"
-                        step="5"
+                      <ClampedNumericField
                         value={aiRecentCandlesCount}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          if (!isNaN(val)) setAiRecentCandlesCount(Math.min(60, Math.max(10, val)));
-                        }}
+                        onChange={setAiRecentCandlesCount}
+                        min={10}
+                        max={60}
                         className="w-16 h-7 px-2 rounded-lg text-xs text-center"
                         style={{
                           background: "var(--theme-popup-field-bg)",
@@ -724,6 +758,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         </button>
                         {isProviderInfoOpen && (
                           <div
+                            data-tooltip
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
@@ -796,6 +831,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </button>
                       {isApiKeyInfoOpen && (
                         <div
+                          data-tooltip
                           className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                           style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                         >

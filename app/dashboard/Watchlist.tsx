@@ -102,8 +102,8 @@ export default function Watchlist() {
       <div key={row.symbol} className="flex items-center justify-between py-2 border-b last:border-b-0">
         <div className="w-[200px] flex-shrink-0">
           <button
-            className={`w-full px-3 py-1 rounded text-sm font-medium truncate text-left ${buttonClass}`}
-            style={isDisabled ? { ...buttonStyle, pointerEvents: "none" } : buttonStyle}
+            className={`w-full px-3 py-1 rounded text-sm font-medium truncate text-left flex items-center ${buttonClass}`}
+            style={isDisabled ? { ...buttonStyle, pointerEvents: "none", position: "relative" as const } : { ...buttonStyle, position: "relative" as const }}
             type="button"
             onClick={isDisabled ? undefined : () => {
               setSelection({
@@ -114,6 +114,16 @@ export default function Watchlist() {
             }}
           >
             {row.symbol}
+            {row.symbol.endsWith("CE") && (
+              <span style={{ position: "absolute", right: 2, top: "50%", transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)" }}>
+                <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#fff" /></svg>
+              </span>
+            )}
+            {row.symbol.endsWith("PE") && (
+              <span style={{ position: "absolute", right: 2, top: "50%", transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)" }}>
+                <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#fff" /></svg>
+              </span>
+            )}
           </button>
         </div>
 

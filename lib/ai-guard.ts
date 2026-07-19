@@ -193,6 +193,22 @@ export function getProviderConfig(provider: string): ProviderConfig {
   return PROVIDERS[provider] || PROVIDERS.groq;
 }
 
+export function convertToHeikinAshi(candles: { time?: string; open: number; high: number; low: number; close: number }[]): { time?: string; open: number; high: number; low: number; close: number }[] {
+  const ha: { time?: string; open: number; high: number; low: number; close: number }[] = [];
+  for (let i = 0; i < candles.length; i++) {
+    const o = Number(candles[i].open);
+    const h = Number(candles[i].high);
+    const l = Number(candles[i].low);
+    const c = Number(candles[i].close);
+    const haClose = (o + h + l + c) / 4;
+    const haOpen = i === 0 ? (o + c) / 2 : (ha[i - 1].open + ha[i - 1].close) / 2;
+    const haHigh = Math.max(h, haOpen, haClose);
+    const haLow = Math.min(l, haOpen, haClose);
+    ha.push({ time: candles[i].time, open: haOpen, high: haHigh, low: haLow, close: haClose });
+  }
+  return ha;
+}
+
 export function buildSystemPrompt(recentCandles: number): string {
   return `You are a market regime classifier for Nifty option symbols on 1-minute charts.
 
@@ -201,7 +217,9 @@ Classify the market into one of three regimes:
 - SIDEWAYS: Price oscillating in a range without clear direction. This is the default when there is no sustained trend. blockEntry=true, suggestExit=true.
 - REVERSING: A prior confirmed trend is now losing momentum or flipping direction. blockEntry=true, suggestExit=true.
 
-Primary analysis: Read the raw OHLC candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?
+Note: Candle data is in Heikin-Ashi format (smoothed OHLC). Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways.
+
+Primary analysis: Read the Heikin-Ashi candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?
 
 Secondary: Use the pre-computed metrics as supplementary context only. They are raw facts, not signals.
 
@@ -229,7 +247,8 @@ export const SYSTEM_PROMPT = buildSystemPrompt(30);
 
 export function buildCompactCandles(candles: any[], maxCount: number): string {
   if (!Array.isArray(candles) || candles.length === 0) return "";
-  const slice = candles.slice(-maxCount);
+  const haCandles = convertToHeikinAshi(candles);
+  const slice = haCandles.slice(-maxCount);
   return slice
     .map((c) => {
       const time = c.time || "";
@@ -244,7 +263,8 @@ export function buildCompactCandles(candles: any[], maxCount: number): string {
 
 export function buildMarketMetrics(candles: any[], maxCount: number, recentCandlesCount: number = 30): string {
   if (!Array.isArray(candles) || candles.length === 0) return "No data";
-  const slice = candles.slice(-maxCount);
+  const haCandles = convertToHeikinAshi(candles);
+  const slice = haCandles.slice(-maxCount);
   const n = slice.length;
 
   let high = -Infinity, low = Infinity;
@@ -392,7 +412,7 @@ export async function analyzeMarketRegime(
     userPrompt += "\n";
   }
   userPrompt += `${metrics}\n\n`;
-  userPrompt += `Candles (${candleCount}, 1-min OHLC, format: time,open,high,low,close):\n${compactCandles}`;
+  userPrompt += `Candles (${candleCount}, 1-min Heikin-Ashi OHLC, format: time,open,high,low,close):\n${compactCandles}`;
 
   try {
     const provider = settings.provider || "groq";

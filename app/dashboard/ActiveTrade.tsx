@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Activity, Zap, XCircle, Loader2, AlertTriangle } from "lucide-react";
+import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
@@ -91,6 +91,9 @@ export default function ActiveTrade({
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled } = useTradeStore();
+
+  // Track pending force-buy / end-cycle requests per symbol
+  const [pendingAction, setPendingAction] = useState<Record<string, "force-buy" | "end-cycle">>({});
 
   // Track when each waiting symbol was first seen — for 30s loader timeout
   // Stored in state (not ref) so it is safe to read during render.
@@ -217,6 +220,16 @@ export default function ActiveTrade({
               <div className={styles.tradeRow}>
                 <div className={styles.tradeSymbol}>
                   {t.symbol}
+                  {t.symbol.endsWith("CE") && (
+                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                      <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
+                    </span>
+                  )}
+                  {t.symbol.endsWith("PE") && (
+                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                      <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
+                    </span>
+                  )}
                   {renderAiRegimeBadge(t.symbol)}
                 </div>
               </div>
@@ -366,7 +379,99 @@ export default function ActiveTrade({
                 );
               })()}
 
-              {t.logs.length > 0 && <TradeLogsConsole logs={t.logs} />}
+              {t.logs.length > 0 && (
+                <div style={{ position: "relative" }}>
+                  <TradeLogsConsole logs={t.logs} />
+                  {forceBuyEnabled && t.status === "ACTIVE" && (() => {
+                    const pending = pendingAction[t.symbol];
+                    if (pending) {
+                      return (
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: 6,
+                            right: 26,
+                            width: 32,
+                            height: 32,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 6,
+                            border: "1px solid rgba(99,102,241,0.4)",
+                            background: "rgba(99,102,241,0.15)",
+                            color: "#6366f1",
+                            zIndex: 1,
+                          }}
+                        >
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                      );
+                    }
+                    if (!t.inPosition) {
+                      return (
+                        <button
+                          type="button"
+                          title="Force Buy"
+                          onClick={() => {
+                            setPendingAction((prev) => ({ ...prev, [t.symbol]: "force-buy" }));
+                            fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-buy-active`, { method: "POST" })
+                              .catch(() => {})
+                              .finally(() => setPendingAction((prev) => { const next = { ...prev }; delete next[t.symbol]; return next; }));
+                          }}
+                          style={{
+                            position: "absolute",
+                            bottom: 6,
+                            right: 26,
+                            width: 32,
+                            height: 32,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 6,
+                            border: "1px solid rgba(34,197,94,0.4)",
+                            background: "rgba(34,197,94,0.15)",
+                            color: "#22c55e",
+                            cursor: "pointer",
+                            zIndex: 1,
+                          }}
+                        >
+                          <Zap className="w-4 h-4" />
+                        </button>
+                      );
+                    }
+                    return (
+                      <button
+                        type="button"
+                        title="End Cycle"
+                        onClick={() => {
+                          setPendingAction((prev) => ({ ...prev, [t.symbol]: "end-cycle" }));
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/end-cycle`, { method: "POST" })
+                            .catch(() => {})
+                            .finally(() => setPendingAction((prev) => { const next = { ...prev }; delete next[t.symbol]; return next; }));
+                        }}
+                        style={{
+                          position: "absolute",
+                          bottom: 6,
+                          right: 26,
+                          width: 32,
+                          height: 32,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: 6,
+                          border: "1px solid rgba(245,158,11,0.4)",
+                          background: "rgba(245,158,11,0.15)",
+                          color: "#f59e0b",
+                          cursor: "pointer",
+                          zIndex: 1,
+                        }}
+                      >
+                        <SkipForward className="w-4 h-4" />
+                      </button>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/* Trade Configuration */}
               <div className={styles.tradeConfig}>
@@ -434,7 +539,18 @@ export default function ActiveTrade({
               ) : (
                 <div key={`pending-${t.symbol}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "6px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", marginBottom: "6px" }}>
                   <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#6366f1", flexShrink: 0 }} />
-                  <span style={{ fontSize: "12px", fontWeight: 500 }}>{t.symbol}</span>
+                  <span style={{ fontSize: "12px", fontWeight: 500 }}>{t.symbol}
+                    {t.symbol.endsWith("CE") && (
+                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
+                      </span>
+                    )}
+                    {t.symbol.endsWith("PE") && (
+                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
+                      </span>
+                    )}
+                  </span>
                   <span style={{ fontSize: "11px", color: "var(--theme-text-gray-500)" }}>Initializing strategy engine...</span>
                   <button
                     className={`${styles.waitingBtn} ${styles.danger}`}
@@ -461,6 +577,16 @@ export default function ActiveTrade({
                 <div className={styles.tradeRow}>
                   <div className={styles.tradeSymbol}>
                     {t.symbol}
+                    {t.symbol.endsWith("CE") && (
+                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
+                      </span>
+                    )}
+                    {t.symbol.endsWith("PE") && (
+                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
+                      </span>
+                    )}
                     {renderAiRegimeBadge(t.symbol)}
                   </div>
                   {renderAiToggle(t.symbol)}
