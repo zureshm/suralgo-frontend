@@ -7,8 +7,8 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
 
 function ClampedNumericField({ value, onChange, min, max, ...props }: any) {
-  const [local, setLocal] = useState<string>(value ? String(value) : "");
-  useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
+  const [local, setLocal] = useState<string>(value != null ? String(value) : "");
+  useEffect(() => { setLocal(value != null ? String(value) : ""); }, [value]);
   return (
     <input
       {...props}
@@ -21,12 +21,17 @@ function ClampedNumericField({ value, onChange, min, max, ...props }: any) {
         setLocal(cleaned);
         if (cleaned !== "") {
           const val = parseInt(cleaned, 10);
-          if (!isNaN(val)) onChange(Math.min(max, Math.max(min, val)));
+          if (!isNaN(val) && val >= min && val <= max) onChange(val);
         }
       }}
       onBlur={(e: any) => {
         if (!e.target.value) { setLocal(String(min)); onChange(min); }
-        else { setLocal(String(value)); }
+        else {
+          const val = parseInt(e.target.value, 10);
+          const clamped = Math.min(max, Math.max(min, val));
+          setLocal(String(clamped));
+          onChange(clamped);
+        }
       }}
     />
   );
