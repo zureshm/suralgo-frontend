@@ -30,9 +30,9 @@ interface NumericComponentProps {
 }
 
 function NumericInput({ value, onChange, onBlur, fallback = "0", ...props }: NumericComponentProps) {
-  const [local, setLocal] = useState<string>(value ? String(value) : "");
+  const [local, setLocal] = useState<string>(value != null ? String(value) : "");
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
+  useEffect(() => { setLocal(value != null ? String(value) : ""); }, [value]);
   return (
     <Input
       {...props}
@@ -54,9 +54,9 @@ function NumericInput({ value, onChange, onBlur, fallback = "0", ...props }: Num
 }
 
 function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: NumericComponentProps) {
-  const [local, setLocal] = useState<string>(value ? String(value) : "");
+  const [local, setLocal] = useState<string>(value != null ? String(value) : "");
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setLocal(value ? String(value) : ""); }, [value]);
+  useEffect(() => { setLocal(value != null ? String(value) : ""); }, [value]);
   return (
     <input
       {...props}
