@@ -511,6 +511,8 @@ const lastCandleHigh: Record<string, number> = {};
 
 const lastCandleLow: Record<string, number> = {};
 
+const lastTrending: Record<string, boolean> = {};
+
 // Grace period after BUY: use only real-time LTP (not stale candle low/high) for SL/Target checks
 const lastBuyTimestamp: Record<string, number> = {};
 const BUY_GRACE_PERIOD_MS = 5000;
@@ -1500,6 +1502,7 @@ function handleStrategySignal(signal: any) {
     const l = Number(signal.low ?? lastCandle?.low);
     if (Number.isFinite(h)) lastCandleHigh[signalSymbol] = h;
     if (Number.isFinite(l)) lastCandleLow[signalSymbol] = l;
+    if (typeof signal.trending === "boolean") lastTrending[signalSymbol] = signal.trending;
   }
 
   const activeForSymbol = activeTrades.find((t) => t.symbol === signalSymbol && t.status === "ACTIVE");
@@ -2121,6 +2124,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
           const reEntryThreshold = trade.reEntryExitPrice + (trade.reEntryPoints || 5);
           if (candlesSinceSell <= trade.reEntryCandles) {
             if (ltp > reEntryThreshold) {
+              // TRENDING gate â€” block re-entry if trending is false or unavailable
+              if (!lastTrending[trade.symbol]) {
+                addLogToActive(trade.symbol, `RE-ENTRY blocked â€” TRENDING is false or unavailable at ${currentTime}`);
+                continue;
+              }
               // AI Guard check â€” block re-entry if AI says sideways/reversing
               const aiSettings = getAiGuardSettings();
               if (aiSettings.entryGuardEnabled && isAiGuardActive() && aiSymbolEnabled[trade.symbol] === true) {
