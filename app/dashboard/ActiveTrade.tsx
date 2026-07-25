@@ -488,16 +488,11 @@ export default function ActiveTrade({
             const pending = safeWaitingTrades.filter((t) => !initializedSymbols.has(t.symbol));
             if (pending.length === 0) return null;
             return pending.map((t) => {
-              const addedAt = addedAtMap[t.symbol] ?? nowMs;
-              const elapsedMs = nowMs - addedAt;
               const histStatus = symbolHistoryStatus[t.symbol];
               const historyFailed = histStatus?.status === "failed";
-              const isTimedOut = elapsedMs >= 30000;
-              const showError = historyFailed || isTimedOut;
+              const showError = historyFailed;
 
-              const errorMessage = historyFailed
-                ? "History fetch failed (0 candles). Strategy may not work correctly without history. Remove and re-add, or keep with limited accuracy."
-                : "Strategy engine did not respond. Check backend or remove and re-add.";
+              const errorMessage = "History fetch failed (0 candles). Strategy may not work correctly without history. Remove and re-add, or keep with limited accuracy.";
 
               return showError ? (
                 <div key={`pending-${t.symbol}`} style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "8px 10px", borderRadius: "6px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", marginBottom: "6px" }}>
@@ -538,8 +533,7 @@ export default function ActiveTrade({
                 </div>
               ) : (
                 <div key={`pending-${t.symbol}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "6px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", marginBottom: "6px" }}>
-                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#6366f1", flexShrink: 0 }} />
-                  <span style={{ fontSize: "12px", fontWeight: 500 }}>{t.symbol}
+                  <span style={{ fontSize: "12px", fontWeight: 500, flexShrink: 0 }}>{t.symbol}
                     {t.symbol.endsWith("CE") && (
                       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
                         <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
@@ -551,11 +545,29 @@ export default function ActiveTrade({
                       </span>
                     )}
                   </span>
-                  <span style={{ fontSize: "11px", color: "var(--theme-text-gray-500)" }}>Initializing strategy engine...</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "11px", color: "var(--theme-text-gray-500)", marginBottom: "4px" }}>
+                      {historyFailed ? "Retrying history fetch..." : "Initializing strategy engine..."}
+                    </div>
+                    <div style={{ height: 3, borderRadius: 2, background: "rgba(99,102,241,0.15)", overflow: "hidden" }}>
+                      <div style={{
+                        height: "100%",
+                        borderRadius: 2,
+                        background: "#6366f1",
+                        width: `${(() => {
+                          const cycleMs = historyFailed ? 30000 : 5000;
+                          const elapsed = nowMs - (addedAtMap[t.symbol] ?? nowMs);
+                          const cycleProgress = (elapsed % cycleMs) / cycleMs;
+                          return Math.min(cycleProgress * 100, 100);
+                        })()}%`,
+                        transition: "width 0.3s linear",
+                      }} />
+                    </div>
+                  </div>
                   <button
                     className={`${styles.waitingBtn} ${styles.danger}`}
                     type="button"
-                    style={{ marginLeft: "auto", padding: "2px 8px", fontSize: "11px" }}
+                    style={{ flexShrink: 0, padding: "2px 8px", fontSize: "11px" }}
                     onClick={() => {
                       fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
                       onCancelWaiting(t.symbol);
