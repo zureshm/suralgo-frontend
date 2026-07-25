@@ -468,29 +468,52 @@ const symbolsWithFirstSignal = new Set<string>();
 // 'loading' = history fetch in progress, 'ready' = history loaded, 'failed' = 0 candles
 const symbolHistoryStatus: Record<string, { status: string; candleCount: number }> = {};
 
-// Check history status from angel-feed server for a symbol (one-time check with retries)
+// Check history status from angel-feed server for a symbol.
+// Phase 1: poll every 5s for up to 60s. If not ready, mark "failed".
+// Phase 2: keep re-checking every 30s for up to 10 min â€” angel-feed may
+// eventually succeed (e.g. morning history fetch delays). If found ready,
+// upgrade status and mark initialized so the frontend error banner clears.
 async function checkSymbolHistoryStatus(symbol: string) {
-  const maxAttempts = 12; // ~60s total (every 5s)
+  const maxAttempts = 12; // Phase 1: ~60s total (every 5s)
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const res = await fetch(`${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
       const data = await res.json();
-      if (data.status === "ready" || data.status === "failed") {
-        symbolHistoryStatus[symbol] = { status: data.status, candleCount: data.candleCount || 0 };
-        // Immediately mark initialized â€” don't wait for next strategy signal
-        if (data.status === "ready") {
-          symbolsWithFirstSignal.add(symbol);
-        }
+      if (data.status === "ready") {
+        symbolHistoryStatus[symbol] = { status: "ready", candleCount: data.candleCount || 0 };
+        symbolsWithFirstSignal.add(symbol);
         return;
       }
-      // Still loading â€” wait and retry
+      if (data.status === "failed") {
+        break;
+      }
     } catch {
       // Feed server unreachable â€” will retry
     }
     await new Promise((r) => setTimeout(r, 5000));
   }
-  // Timed out waiting â€” mark as failed
+  // Phase 1 ended without "ready" â€” mark as failed
   symbolHistoryStatus[symbol] = { status: "failed", candleCount: 0 };
+
+  // Phase 2: background re-checks every 30s for up to 10 min
+  const maxBgAttempts = 20;
+  for (let i = 0; i < maxBgAttempts; i++) {
+    if (!waitingTrades.some((t) => t.symbol === symbol)) return;
+    if (symbolHistoryStatus[symbol]?.status === "ready") return;
+    await new Promise((r) => setTimeout(r, 30000));
+    if (!waitingTrades.some((t) => t.symbol === symbol)) return;
+    try {
+      const res = await fetch(`${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
+      const data = await res.json();
+      if (data.status === "ready") {
+        symbolHistoryStatus[symbol] = { status: "ready", candleCount: data.candleCount || 0 };
+        symbolsWithFirstSignal.add(symbol);
+        return;
+      }
+    } catch {
+      // Feed server unreachable â€” will retry
+    }
+  }
 }
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -510,6 +533,8 @@ const lastCandleCloseMap: Record<string, number> = {};
 const lastCandleHigh: Record<string, number> = {};
 
 const lastCandleLow: Record<string, number> = {};
+
+const lastTrending: Record<string, boolean> = {};
 
 // Grace period after BUY: use only real-time LTP (not stale candle low/high) for SL/Target checks
 const lastBuyTimestamp: Record<string, number> = {};
@@ -1500,6 +1525,7 @@ function handleStrategySignal(signal: any) {
     const l = Number(signal.low ?? lastCandle?.low);
     if (Number.isFinite(h)) lastCandleHigh[signalSymbol] = h;
     if (Number.isFinite(l)) lastCandleLow[signalSymbol] = l;
+    if (typeof signal.trending === "boolean") lastTrending[signalSymbol] = signal.trending;
   }
 
   const activeForSymbol = activeTrades.find((t) => t.symbol === signalSymbol && t.status === "ACTIVE");
@@ -2121,6 +2147,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
           const reEntryThreshold = trade.reEntryExitPrice + (trade.reEntryPoints || 5);
           if (candlesSinceSell <= trade.reEntryCandles) {
             if (ltp > reEntryThreshold) {
+              // TRENDING gate â€” block re-entry if trending is false or unavailable
+              if (!lastTrending[trade.symbol]) {
+                addLogToActive(trade.symbol, `RE-ENTRY blocked â€” TRENDING is false or unavailable at ${currentTime}`);
+                continue;
+              }
               // AI Guard check â€” block re-entry if AI says sideways/reversing
               const aiSettings = getAiGuardSettings();
               if (aiSettings.entryGuardEnabled && isAiGuardActive() && aiSymbolEnabled[trade.symbol] === true) {
