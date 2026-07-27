@@ -2598,6 +2598,40 @@ export function updateWaitingTrade(trade: WaitingTrade) {
   return true;
 }
 
+// Override config of a running (active) trade — only merges safe fields, preserves all runtime state
+export function updateActiveTradeConfig(symbol: string, config: Record<string, unknown>) {
+  const idx = activeTrades.findIndex((t) => t.symbol === symbol && t.status === "ACTIVE");
+  if (idx === -1) return false;
+
+  const SAFE_FIELDS = [
+    "stopLossNumberEnabled", "stopLossNumber",
+    "targetPointsEnabled", "targetPoints", "targetMode",
+    "trailingAfterTarget", "trailingMode",
+    "minToHoldEnabled", "minToHold", "minToHoldTrigger", "minToHoldTrailing",
+    "maxProfitLossEnabled", "maxProfit", "maxLoss",
+    "sellWhenLossCandlesEnabled", "sellWhenLossCandles",
+    "reEntryAfterTargetEnabled", "reEntryCandles", "reEntryPoints",
+    "reEntryAsTrailingEnabled", "reEntryTrailingPoints",
+    "reEntryMinTargetEnabled", "reEntryMinTargetPoints", "reEntryMinTargetTrigger", "reEntryMinTargetTrailing",
+    "signalReEntryEnabled",
+    "rangeEnabled", "timeFrom", "timeFromAmpm", "timeTo", "timeToAmpm",
+    "buyOverride", "waitAfterSellEnabled", "waitAfterSellCandles",
+  ];
+
+  const safeUpdate: Record<string, unknown> = {};
+  for (const key of SAFE_FIELDS) {
+    if (key in config) {
+      safeUpdate[key] = config[key];
+    }
+  }
+
+  activeTrades = activeTrades.map((t, i) =>
+    i === idx ? { ...t, ...safeUpdate } as ActiveTrade : t
+  );
+  persistState();
+  return true;
+}
+
 
 
 export function activateWaitingTradeFromClient(symbol: string, entryPrice: string, logLine: string, candleSize?: number) {
