@@ -79,7 +79,7 @@ function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: Num
 
 export default function TradePage() {
   const router = useRouter();
-  const { selection, addWaitingTradeFromSelection, waitingTrades, activeTrades } = useTradeStore();
+  const { selection, addWaitingTradeFromSelection, waitingTrades, activeTrades, updateActiveTradeConfig } = useTradeStore();
   const [currentPrice, setCurrentPrice] = useState<string | null>(null);
   const [lotValue, setLotValue] = useState(1);
   const [availableBalance, setAvailableBalance] = useState<number | null>(null);
@@ -237,13 +237,13 @@ export default function TradePage() {
   const noSymbol = !selection?.symbol;
 
   const buttonText = isAlreadyActive
-    ? "TRADE RUNNING"
+    ? "OVERRIDE"
     : insufficientBalance
       ? "INSUFFICIENT BALANCE"
       : isAlreadyWaiting
         ? "UPDATE"
         : "ENTER";
-  const isButtonDisabled = isAlreadyActive || insufficientBalance || noSymbol;
+  const isButtonDisabled = insufficientBalance || noSymbol;
 
   useEffect(() => {
     if (!stopLossPercentageEnabled || !Number.isFinite(price) || price <= 0) return;
@@ -416,7 +416,8 @@ export default function TradePage() {
               id="trades"
               value={numberOfTrades.toString()} 
               onChange={(e) => setNumberOfTrades(Number(e.target.value))}
-              className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={!!isAlreadyActive}
+              className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${isAlreadyActive ? "opacity-50 cursor-not-allowed bg-gray-100" : ""}`}
             >
               {Array.from({ length: 10 }, (_, i) => (
                 <option key={i + 1} value={i + 1}>
@@ -650,6 +651,8 @@ export default function TradePage() {
                       checked={trailingAfterTargetEnabled}
                       onChange={(e) => setTrailingAfterTargetEnabled(e.target.checked)}
                       className="h-4 w-4"
+                      disabled={!!isAlreadyActive}
+                      style={isAlreadyActive ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                     />
                     <label htmlFor="trailingAfterTargetEnabled" className="text-sm font-medium">
                       Trailing SL <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span>
@@ -1153,8 +1156,9 @@ export default function TradePage() {
                   value={lotValue}
                   onChange={setLotValue}
                   fallback="1"
-                  className="w-16 h-8 text-sm"
+                  className={`w-16 h-8 text-sm ${isAlreadyActive ? "opacity-50 cursor-not-allowed" : ""}`}
                   min={1}
+                  disabled={!!isAlreadyActive}
                 />
               </div>
 
@@ -1180,6 +1184,52 @@ export default function TradePage() {
             <div className="flex space-x-3">
               <Button
                 onClick={() => {
+                  if (isAlreadyActive && selection?.symbol) {
+                      const configPayload = {
+                        stopLossNumberEnabled: stopLossNumberEnabled || stopLossPercentageEnabled,
+                        stopLossNumber,
+                        targetPointsEnabled,
+                        targetPoints,
+                        targetMode,
+                        minToHoldEnabled,
+                        minToHold,
+                        minToHoldTrigger,
+                        minToHoldTrailing: minToHoldTrailing === "yes",
+                        trailingAfterTarget,
+                        trailingMode,
+                        rangeEnabled,
+                        timeFrom,
+                        timeFromAmpm,
+                        timeTo,
+                        timeToAmpm,
+                        buyOverride: waitStrategyEnabled ? (buyOverrideSize || undefined) : undefined,
+                        waitAfterSellEnabled,
+                        waitAfterSellCandles,
+                        sellWhenLossCandlesEnabled,
+                        sellWhenLossCandles,
+                        maxProfitLossEnabled,
+                        maxProfit,
+                        maxLoss,
+                        reEntryAfterTargetEnabled,
+                        reEntryCandles,
+                        reEntryPoints,
+                        reEntryAsTrailingEnabled,
+                        reEntryTrailingPoints,
+                        reEntryMinTargetEnabled,
+                        reEntryMinTargetPoints,
+                        reEntryMinTargetTrigger,
+                        reEntryMinTargetTrailing: reEntryMinTargetTrailing === "yes",
+                        signalReEntryEnabled,
+                      };
+                      fetch(`/next-api/trades/${encodeURIComponent(selection.symbol)}/config`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(configPayload),
+                      }).catch(() => { /* ignore */ });
+                      updateActiveTradeConfig(selection.symbol, configPayload);
+                      router.push("/dashboard");
+                      return;
+                  }
                   if (!isButtonDisabled && selection?.symbol) {
                       // Tell angel-feed backend to add this symbol to active strategy symbols (max 2)
                       addActiveStrategySymbol(selection.symbol).catch(() => { /* ignore */ });

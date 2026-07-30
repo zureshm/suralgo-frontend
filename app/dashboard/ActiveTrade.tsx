@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,7 +91,8 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled } = useTradeStore();
+  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, setSelection } = useTradeStore();
+  const router = useRouter();
 
   // Track pending force-buy / end-cycle requests per symbol
   const [pendingAction, setPendingAction] = useState<Record<string, "force-buy" | "end-cycle">>({});
@@ -219,7 +221,15 @@ export default function ActiveTrade({
             <div key={t.symbol} className={styles.trade}>
               <div className={styles.tradeRow}>
                 <div className={styles.tradeSymbol}>
-                  {t.symbol}
+                  <span
+                    style={{ cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: "2px" }}
+                    onClick={() => {
+                      setSelection({ symbol: t.symbol, price: t.entryPrice });
+                      router.push("/trade");
+                    }}
+                  >
+                    {t.symbol}
+                  </span>
                   {t.symbol.endsWith("CE") && (
                     <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
                       <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>

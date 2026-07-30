@@ -81,7 +81,7 @@ export default function Watchlist() {
     const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);
     const isRunning = activeTrades.some((t) => t.symbol === row.symbol);
     const isInTrade = isWaiting || isRunning;
-    const isDisabled = isRunning || (!isInTrade && atMaxCapacity);
+    const isDisabled = !isInTrade && atMaxCapacity;
 
     const buttonClass = isDisabled && !isInTrade
       ? "cursor-not-allowed"
