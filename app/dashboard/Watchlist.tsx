@@ -75,7 +75,7 @@ export default function Watchlist() {
   }, [watchlistSymbolsKey]);
 
   const activeSlots = waitingTrades.length + activeTrades.filter((t) => t.status === "ACTIVE").length;
-  const atMaxCapacity = activeSlots >= 4;
+  const atMaxCapacity = activeSlots >= 6;
 
   const watchlistItems = watchlist.map((row) => {
     const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);

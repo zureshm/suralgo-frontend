@@ -13,6 +13,8 @@ import path from "path";
 
 import { getAiGuardSettings, isAiGuardActive, analyzeMarketRegime, loadAiSettingsFromDisk, addAiLog, addAiErrorLog, type AiSuggestion, type AiAnalysisResult } from "./ai-guard";
 
+import { getNiftyLive } from "./nifty-live";
+
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
 const ANGELONE_EXECUTION_URL = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
@@ -1651,7 +1653,7 @@ function handleStrategySignal(signal: any) {
         // Exit Guard â€” suggest or auto-execute exit
         if (result.suggestExit && activeTrade && activeTrade.inPosition) {
           if (settings.autoExitEnabled) {
-            completeActiveTrade(
+            completeCycleWithoutExit(
               activeTrade.symbol,
               String(latestClose ?? ""),
               `AI Guard auto-exit: ${result.reason} (${result.confidence}%) at ${now}`
@@ -2186,6 +2188,22 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
                   addLogToActive(trade.symbol, `RE-ENTRY blocked â€” ${trendingReason} at ${currentTime}`);
                 }
                 continue;
+              }
+              // NIFTY 50 directional guard — CE requires green, PE requires red
+              const { open: niftyOpen, ltp: niftyLtp } = getNiftyLive();
+              if (niftyOpen > 0 && niftyLtp > 0) {
+                const isCE = trade.symbol.endsWith("CE");
+                const isPE = trade.symbol.endsWith("PE");
+                const niftyGreen = niftyLtp > niftyOpen;
+                const niftyRed = niftyLtp < niftyOpen;
+                if ((isCE && !niftyGreen) || (isPE && !niftyRed)) {
+                  if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
+                    lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
+                    const niftyDir = niftyGreen ? "GREEN" : niftyRed ? "RED" : "FLAT";
+                    addLogToActive(trade.symbol, `RE-ENTRY blocked — NIFTY 50 is ${niftyDir} at ${currentTime} (need ${isCE ? "GREEN" : "RED"} for ${isCE ? "CE" : "PE"})`);
+                  }
+                  continue;
+                }
               }
               // AI Guard check â€” block re-entry if AI says sideways/reversing
               const aiSettings = getAiGuardSettings();
