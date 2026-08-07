@@ -872,7 +872,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     logs: [
       ...trade.logs,
       logLine,
-      ...(trade.reEntryAfterTargetEnabled ? [`ReEntry enabled: will re-enter if price exceeds exit within ${trade.reEntryCandles} candles after profitable exit`] : []),
+      ...(trade.reEntryAfterTargetEnabled ? [`Auto Re-entry enabled: will re-enter if price exceeds exit within ${trade.reEntryCandles} candles after profitable exit`] : []),
+      ...(trade.signalReEntryEnabled ? [`Signal Re-entry enabled: will re-enter on REENTER signal after any exit`] : []),
     ],
 
     lotSize: trade.lotSize,
@@ -1285,11 +1286,11 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
     let reEntryMsg = `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`;
     if (trade.reEntryAfterTargetEnabled && isProfitableExit) {
-      reEntryMsg = `ReEntry armed: watching for price > â‚¹${exitPrice} within ${trade.reEntryCandles} candles`;
+      reEntryMsg = `Auto Re-entry armed: watching for price > â‚¹${exitPrice} within ${trade.reEntryCandles} candles`;
     } else if (trade.reEntryAfterTargetEnabled && !isProfitableExit) {
-      reEntryMsg += ` [ReEntry skipped: not a profitable exit]`;
+      reEntryMsg += ` [Auto Re-entry skipped: not a profitable exit]`;
     } else if (!trade.reEntryAfterTargetEnabled) {
-      reEntryMsg += ` [ReEntry disabled]`;
+      reEntryMsg += ` [Auto Re-entry disabled]`;
     }
     if (trade.signalReEntryEnabled) {
       reEntryMsg += ` [Signal Re-entry armed: waiting for REENTER signal]`;
@@ -1786,7 +1787,7 @@ function handleStrategySignal(signal: any) {
     if (lastBuyCandleTime[signalSymbol] && signal.lastCandleTime === lastBuyCandleTime[signalSymbol]) return;
     if (lastBuyTimestamp[signalSymbol] && (Date.now() - lastBuyTimestamp[signalSymbol]) < BUY_GRACE_PERIOD_MS) return;
 
-    completeActiveTrade(activeForSymbol.symbol, String(latestClose ?? ""), "SELL triggered for â‚¹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "SELL triggered for â‚¹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime);
 
