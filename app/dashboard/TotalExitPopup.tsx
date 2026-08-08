@@ -143,16 +143,18 @@ export default function TotalExitPopup({ open, onClose }: Props) {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-green-600 text-lg">₹ +</span>
+                <div className="flex items-center gap-2 w-full">
+                  <span className="font-bold text-green-600 text-lg whitespace-nowrap">₹ +</span>
                   <input
                     type="text"
                     inputMode="numeric"
-                    className="flex-1 px-3 py-2 rounded-md font-bold text-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-3 py-2 rounded-md font-bold text-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed w-full"
                     style={{
                       fontSize: "1.2rem",
                       background: "var(--theme-popup-field-bg)",
                       border: "1px solid var(--theme-popup-field-border)",
+                      width: "100%",
+                      minWidth: 0,
                     }}
                     value={totalTargetValue}
                     disabled={!totalTargetEnabled}
@@ -205,16 +207,18 @@ export default function TotalExitPopup({ open, onClose }: Props) {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-red-600 text-lg">₹ -</span>
+                <div className="flex items-center gap-2 w-full">
+                  <span className="font-bold text-red-600 text-lg whitespace-nowrap">₹ -</span>
                   <input
                     type="text"
                     inputMode="numeric"
-                    className="flex-1 px-3 py-2 rounded-md font-bold text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-3 py-2 rounded-md font-bold text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed w-full"
                     style={{
                       fontSize: "1.2rem",
                       background: "var(--theme-popup-field-bg)",
                       border: "1px solid var(--theme-popup-field-border)",
+                      width: "100%",
+                      minWidth: 0,
                     }}
                     value={Math.abs(totalLossValue)}
                     disabled={!totalLossEnabled}
