@@ -462,6 +462,43 @@ export function flushSoundEvents(): SoundType[] {
   return events;
 }
 
+// --- Total Exit State ---
+let totalTargetEnabled = false;
+let totalTargetValue = 1200;
+let totalLossEnabled = false;
+let totalLossValue = -1200;
+
+export function getTotalExitSettings() {
+  return { totalTargetEnabled, totalTargetValue, totalLossEnabled, totalLossValue };
+}
+
+export function setTotalExitSettings(settings: { totalTargetEnabled?: boolean; totalTargetValue?: number; totalLossEnabled?: boolean; totalLossValue?: number }) {
+  if (settings.totalTargetEnabled !== undefined) totalTargetEnabled = settings.totalTargetEnabled;
+  if (settings.totalTargetValue !== undefined) totalTargetValue = settings.totalTargetValue;
+  if (settings.totalLossEnabled !== undefined) totalLossEnabled = settings.totalLossEnabled;
+  if (settings.totalLossValue !== undefined) totalLossValue = -Math.abs(settings.totalLossValue);
+  persistState();
+}
+
+function executeTotalExit(reason: string, ltpMap: Record<string, number> = {}) {
+  console.log(`[trade-engine] ${reason}`);
+  
+  for (const trade of activeTrades) {
+    if (trade.status === "ACTIVE") {
+      const currentLtp = ltpMap[trade.symbol] || lastCandleCloseMap[trade.symbol] || Number(trade.entryPrice);
+      let exitPnl = trade.pnl;
+      if (trade.inPosition && Number.isFinite(Number(trade.entryPrice))) {
+        const qty = trade.lotSize * trade.lotValue;
+        exitPnl = trade.pnl + (currentLtp - Number(trade.entryPrice)) * qty;
+      }
+      forceExitTrade(trade.symbol, String(currentLtp), exitPnl, reason);
+    }
+  }
+
+  waitingTrades = [];
+  persistState();
+}
+
 let engineRunning = false;
 
 // Tracks which waiting symbols have received at least one valid signal from the strategy server.
@@ -646,6 +683,11 @@ function loadState() {
 
       if (data.lastHandledSignalKey != null) lastHandledSignalKey = typeof data.lastHandledSignalKey === "string" ? {} : data.lastHandledSignalKey;
 
+      if (typeof data.totalTargetEnabled === "boolean") totalTargetEnabled = data.totalTargetEnabled;
+      if (typeof data.totalTargetValue === "number") totalTargetValue = data.totalTargetValue;
+      if (typeof data.totalLossEnabled === "boolean") totalLossEnabled = data.totalLossEnabled;
+      if (typeof data.totalLossValue === "number") totalLossValue = data.totalLossValue;
+
       console.log(`[trade-engine] Loaded state from ${DB_PATH} (${waitingTrades.length} waiting, ${activeTrades.length} active, ${tradeHistory.length} history)`);
 
     }
@@ -691,6 +733,11 @@ function persistState() {
       lastStrategyCandleTime,
 
       lastHandledSignalKey,
+
+      totalTargetEnabled,
+      totalTargetValue,
+      totalLossEnabled,
+      totalLossValue,
 
     }, null, 2);
 
@@ -2218,6 +2265,36 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         forceExitTrade(trade.symbol, String(exitPrice), trade.pnl + worstPnl, `MAX LOSS â‚¹${trade.maxLoss} reached (P/L: â‚¹${(trade.pnl + worstPnl).toFixed(2)}) at ${currentTime}`);
         continue;
       }
+    }
+
+    // --- Global Total Exit check ---
+    let totalAccountPnl = 0;
+    for (const t of activeTrades) {
+      totalAccountPnl += t.pnl;
+      if (t.inPosition && t.symbol === trade.symbol) {
+        const qty = t.lotSize * t.lotValue;
+        const entry = Number(t.entryPrice);
+        if (Number.isFinite(entry)) {
+          totalAccountPnl += (ltp - entry) * qty;
+        }
+      } else if (t.inPosition && ltpMap[t.symbol]) {
+        const otherLtp = ltpMap[t.symbol];
+        const qty = t.lotSize * t.lotValue;
+        const entry = Number(t.entryPrice);
+        if (Number.isFinite(entry)) {
+          totalAccountPnl += (otherLtp - entry) * qty;
+        }
+      }
+    }
+
+    if (totalTargetEnabled && totalAccountPnl >= totalTargetValue) {
+      executeTotalExit(`TOTAL TARGET ₹${totalTargetValue} reached (Total P/L: ₹${totalAccountPnl.toFixed(2)}) at ${currentTime}`, ltpMap);
+      return;
+    }
+
+    if (totalLossEnabled && totalAccountPnl <= totalLossValue) {
+      executeTotalExit(`TOTAL LOSS ₹${totalLossValue} reached (Total P/L: ₹${totalAccountPnl.toFixed(2)}) at ${currentTime}`, ltpMap);
+      return;
     }
 
     if (!trade.inPosition) {
