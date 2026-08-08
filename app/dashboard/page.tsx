@@ -14,6 +14,7 @@ import ActiveTrade from "./ActiveTrade";
 import SettingsPopup from "./SettingsPopup";
 import ChartPopup from "./ChartPopup";
 import OptionChainPopup from "./OptionChainPopup";
+import TotalExitPopup from "./TotalExitPopup";
 
 export default function DashboardPage() {
   const [isHydrated, setIsHydrated] = useState(false);
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
   const [optionChainOpen, setOptionChainOpen] = useState(false);
+  const [totalExitOpen, setTotalExitOpen] = useState(false);
   const {
     waitingTrades,
     removeWaitingTrade,
@@ -102,7 +104,7 @@ export default function DashboardPage() {
             <Grid2X2 size={20} />
             <span>Options</span>
           </div>
-          <div className={styles.menuItem}>
+          <div className={styles.menuItem} onClick={() => setTotalExitOpen(true)}>
             <LogOut size={20} />
             <span>Exit</span>
           </div>
@@ -111,6 +113,7 @@ export default function DashboardPage() {
         <SettingsPopup open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <ChartPopup open={chartOpen} onClose={() => setChartOpen(false)} />
         <OptionChainPopup open={optionChainOpen} onClose={() => setOptionChainOpen(false)} />
+        <TotalExitPopup open={totalExitOpen} onClose={() => setTotalExitOpen(false)} />
       </div>
     </div>
   );

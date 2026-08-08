@@ -13,6 +13,8 @@ import path from "path";
 
 import { getAiGuardSettings, isAiGuardActive, analyzeMarketRegime, loadAiSettingsFromDisk, addAiLog, addAiErrorLog, type AiSuggestion, type AiAnalysisResult } from "./ai-guard";
 
+import { getNiftyLive } from "./nifty-live";
+
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
 const ANGELONE_EXECUTION_URL = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
@@ -54,11 +56,14 @@ const DB_PATH = path.join(process.cwd(), "data", "trades.json");
 
 // Add a symbol to angel-feed active strategy symbols (fire-and-forget)
 function tryAddActiveStrategySymbol(symbol: string) {
+  console.log(`[trade-engine] Notifying feed server to start monitoring ${symbol}...`);
   fetch(`${API_URL}/active-strategy-symbols`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ symbol }),
-  }).catch(() => {});
+  })
+    .then(() => console.log(`[trade-engine] Notified feed server for ${symbol}`))
+    .catch((e) => console.error(`[trade-engine] Failed to notify feed server for ${symbol}:`, e));
 }
 
 // Remove a symbol from angel-feed active strategy symbols if no other trade uses it
@@ -457,6 +462,43 @@ export function flushSoundEvents(): SoundType[] {
   return events;
 }
 
+// --- Total Exit State ---
+let totalTargetEnabled = false;
+let totalTargetValue = 1200;
+let totalLossEnabled = false;
+let totalLossValue = -1200;
+
+export function getTotalExitSettings() {
+  return { totalTargetEnabled, totalTargetValue, totalLossEnabled, totalLossValue };
+}
+
+export function setTotalExitSettings(settings: { totalTargetEnabled?: boolean; totalTargetValue?: number; totalLossEnabled?: boolean; totalLossValue?: number }) {
+  if (settings.totalTargetEnabled !== undefined) totalTargetEnabled = settings.totalTargetEnabled;
+  if (settings.totalTargetValue !== undefined) totalTargetValue = settings.totalTargetValue;
+  if (settings.totalLossEnabled !== undefined) totalLossEnabled = settings.totalLossEnabled;
+  if (settings.totalLossValue !== undefined) totalLossValue = -Math.abs(settings.totalLossValue);
+  persistState();
+}
+
+function executeTotalExit(reason: string, ltpMap: Record<string, number> = {}) {
+  console.log(`[trade-engine] ${reason}`);
+  
+  for (const trade of activeTrades) {
+    if (trade.status === "ACTIVE") {
+      const currentLtp = ltpMap[trade.symbol] || lastCandleCloseMap[trade.symbol] || Number(trade.entryPrice);
+      let exitPnl = trade.pnl;
+      if (trade.inPosition && Number.isFinite(Number(trade.entryPrice))) {
+        const qty = trade.lotSize * trade.lotValue;
+        exitPnl = trade.pnl + (currentLtp - Number(trade.entryPrice)) * qty;
+      }
+      forceExitTrade(trade.symbol, String(currentLtp), exitPnl, reason);
+    }
+  }
+
+  waitingTrades = [];
+  persistState();
+}
+
 let engineRunning = false;
 
 // Tracks which waiting symbols have received at least one valid signal from the strategy server.
@@ -469,51 +511,113 @@ const symbolsWithFirstSignal = new Set<string>();
 const symbolHistoryStatus: Record<string, { status: string; candleCount: number }> = {};
 
 // Check history status from angel-feed server for a symbol.
+
 // Phase 1: poll every 5s for up to 60s. If not ready, mark "failed".
+
 // Phase 2: keep re-checking every 30s for up to 10 min â€” angel-feed may
+
 // eventually succeed (e.g. morning history fetch delays). If found ready,
+
 // upgrade status and mark initialized so the frontend error banner clears.
+
 async function checkSymbolHistoryStatus(symbol: string) {
+
+  console.log(`[trade-engine] Starting history status poll for ${symbol}`);
+
   const maxAttempts = 12; // Phase 1: ~60s total (every 5s)
+
   for (let i = 0; i < maxAttempts; i++) {
+
     try {
+
+      console.log(`[trade-engine] Checking history status for ${symbol} (attempt ${i + 1}/${maxAttempts})...`);
+
       const res = await fetch(`${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
+
       const data = await res.json();
+
       if (data.status === "ready") {
+
+        console.log(`[trade-engine] Symbol ${symbol} history is READY (${data.candleCount || 0} candles)`);
+
         symbolHistoryStatus[symbol] = { status: "ready", candleCount: data.candleCount || 0 };
+
         symbolsWithFirstSignal.add(symbol);
+
         return;
+
       }
+
       if (data.status === "failed") {
+
+        console.error(`[trade-engine] Symbol ${symbol} history fetch FAILED at feed server`);
+
         break;
+
       }
-    } catch {
-      // Feed server unreachable â€” will retry
+
+    } catch (e) {
+
+      console.warn(`[trade-engine] Feed server unreachable for ${symbol} check, retrying...`);
+
     }
+
     await new Promise((r) => setTimeout(r, 5000));
+
   }
-  // Phase 1 ended without "ready" â€” mark as failed
-  symbolHistoryStatus[symbol] = { status: "failed", candleCount: 0 };
+
+  // Phase 1 ended without "ready" — mark as failed
+
+  if (symbolHistoryStatus[symbol]?.status !== "ready") {
+
+    console.log(`[trade-engine] Phase 1 poll ended for ${symbol} without readiness. Switching to Phase 2 (30s background poll).`);
+
+    symbolHistoryStatus[symbol] = { status: "failed", candleCount: 0 };
+
+  }
 
   // Phase 2: background re-checks every 30s for up to 10 min
+
   const maxBgAttempts = 20;
+
   for (let i = 0; i < maxBgAttempts; i++) {
+
     if (!waitingTrades.some((t) => t.symbol === symbol)) return;
+
     if (symbolHistoryStatus[symbol]?.status === "ready") return;
+
     await new Promise((r) => setTimeout(r, 30000));
+
     if (!waitingTrades.some((t) => t.symbol === symbol)) return;
+
     try {
+
+      console.log(`[trade-engine] Background history status poll for ${symbol} (attempt ${i + 1}/${maxBgAttempts})...`);
+
       const res = await fetch(`${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
+
       const data = await res.json();
+
       if (data.status === "ready") {
+
+        console.log(`[trade-engine] Symbol ${symbol} history finally READY (${data.candleCount || 0} candles)`);
+
         symbolHistoryStatus[symbol] = { status: "ready", candleCount: data.candleCount || 0 };
+
         symbolsWithFirstSignal.add(symbol);
+
         return;
+
       }
+
     } catch {
-      // Feed server unreachable â€” will retry
+
+      // Feed server unreachable — will retry
+
     }
+
   }
+
 }
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -579,6 +683,11 @@ function loadState() {
 
       if (data.lastHandledSignalKey != null) lastHandledSignalKey = typeof data.lastHandledSignalKey === "string" ? {} : data.lastHandledSignalKey;
 
+      if (typeof data.totalTargetEnabled === "boolean") totalTargetEnabled = data.totalTargetEnabled;
+      if (typeof data.totalTargetValue === "number") totalTargetValue = data.totalTargetValue;
+      if (typeof data.totalLossEnabled === "boolean") totalLossEnabled = data.totalLossEnabled;
+      if (typeof data.totalLossValue === "number") totalLossValue = data.totalLossValue;
+
       console.log(`[trade-engine] Loaded state from ${DB_PATH} (${waitingTrades.length} waiting, ${activeTrades.length} active, ${tradeHistory.length} history)`);
 
     }
@@ -624,6 +733,11 @@ function persistState() {
       lastStrategyCandleTime,
 
       lastHandledSignalKey,
+
+      totalTargetEnabled,
+      totalTargetValue,
+      totalLossEnabled,
+      totalLossValue,
 
     }, null, 2);
 
@@ -870,7 +984,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     logs: [
       ...trade.logs,
       logLine,
-      ...(trade.reEntryAfterTargetEnabled ? [`ReEntry enabled: will re-enter if price exceeds exit within ${trade.reEntryCandles} candles after profitable exit`] : []),
+      ...(trade.reEntryAfterTargetEnabled ? [`Auto Re-entry enabled: will re-enter if price exceeds exit within ${trade.reEntryCandles} candles after profitable exit`] : []),
+      ...(trade.signalReEntryEnabled ? [`Signal Re-entry enabled: will re-enter on REENTER signal after any exit`] : []),
     ],
 
     lotSize: trade.lotSize,
@@ -1283,11 +1398,11 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
     let reEntryMsg = `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`;
     if (trade.reEntryAfterTargetEnabled && isProfitableExit) {
-      reEntryMsg = `ReEntry armed: watching for price > â‚¹${exitPrice} within ${trade.reEntryCandles} candles`;
+      reEntryMsg = `Auto Re-entry armed: watching for price > â‚¹${exitPrice} within ${trade.reEntryCandles} candles`;
     } else if (trade.reEntryAfterTargetEnabled && !isProfitableExit) {
-      reEntryMsg += ` [ReEntry skipped: not a profitable exit]`;
+      reEntryMsg += ` [Auto Re-entry skipped: not a profitable exit]`;
     } else if (!trade.reEntryAfterTargetEnabled) {
-      reEntryMsg += ` [ReEntry disabled]`;
+      reEntryMsg += ` [Auto Re-entry disabled]`;
     }
     if (trade.signalReEntryEnabled) {
       reEntryMsg += ` [Signal Re-entry armed: waiting for REENTER signal]`;
@@ -1651,7 +1766,7 @@ function handleStrategySignal(signal: any) {
         // Exit Guard â€” suggest or auto-execute exit
         if (result.suggestExit && activeTrade && activeTrade.inPosition) {
           if (settings.autoExitEnabled) {
-            completeActiveTrade(
+            completeCycleWithoutExit(
               activeTrade.symbol,
               String(latestClose ?? ""),
               `AI Guard auto-exit: ${result.reason} (${result.confidence}%) at ${now}`
@@ -1784,7 +1899,7 @@ function handleStrategySignal(signal: any) {
     if (lastBuyCandleTime[signalSymbol] && signal.lastCandleTime === lastBuyCandleTime[signalSymbol]) return;
     if (lastBuyTimestamp[signalSymbol] && (Date.now() - lastBuyTimestamp[signalSymbol]) < BUY_GRACE_PERIOD_MS) return;
 
-    completeActiveTrade(activeForSymbol.symbol, String(latestClose ?? ""), "SELL triggered for â‚¹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+    completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "SELL triggered for â‚¹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime);
 
@@ -2152,6 +2267,36 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
       }
     }
 
+    // --- Global Total Exit check ---
+    let totalAccountPnl = 0;
+    for (const t of activeTrades) {
+      totalAccountPnl += t.pnl;
+      if (t.inPosition && t.symbol === trade.symbol) {
+        const qty = t.lotSize * t.lotValue;
+        const entry = Number(t.entryPrice);
+        if (Number.isFinite(entry)) {
+          totalAccountPnl += (ltp - entry) * qty;
+        }
+      } else if (t.inPosition && ltpMap[t.symbol]) {
+        const otherLtp = ltpMap[t.symbol];
+        const qty = t.lotSize * t.lotValue;
+        const entry = Number(t.entryPrice);
+        if (Number.isFinite(entry)) {
+          totalAccountPnl += (otherLtp - entry) * qty;
+        }
+      }
+    }
+
+    if (totalTargetEnabled && totalAccountPnl >= totalTargetValue) {
+      executeTotalExit(`TOTAL TARGET ₹${totalTargetValue} reached (Total P/L: ₹${totalAccountPnl.toFixed(2)}) at ${currentTime}`, ltpMap);
+      return;
+    }
+
+    if (totalLossEnabled && totalAccountPnl <= totalLossValue) {
+      executeTotalExit(`TOTAL LOSS ₹${totalLossValue} reached (Total P/L: ₹${totalAccountPnl.toFixed(2)}) at ${currentTime}`, ltpMap);
+      return;
+    }
+
     if (!trade.inPosition) {
 
       const positionKey = `${trade.symbol}-${trade.entryPrice}`;
@@ -2186,6 +2331,22 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
                   addLogToActive(trade.symbol, `RE-ENTRY blocked â€” ${trendingReason} at ${currentTime}`);
                 }
                 continue;
+              }
+              // NIFTY 50 directional guard — CE requires green, PE requires red
+              const { open: niftyOpen, ltp: niftyLtp } = getNiftyLive();
+              if (niftyOpen > 0 && niftyLtp > 0) {
+                const isCE = trade.symbol.endsWith("CE");
+                const isPE = trade.symbol.endsWith("PE");
+                const niftyGreen = niftyLtp > niftyOpen;
+                const niftyRed = niftyLtp < niftyOpen;
+                if ((isCE && !niftyGreen) || (isPE && !niftyRed)) {
+                  if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
+                    lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
+                    const niftyDir = niftyGreen ? "GREEN" : niftyRed ? "RED" : "FLAT";
+                    addLogToActive(trade.symbol, `RE-ENTRY blocked — NIFTY 50 is ${niftyDir} at ${currentTime} (need ${isCE ? "GREEN" : "RED"} for ${isCE ? "CE" : "PE"})`);
+                  }
+                  continue;
+                }
               }
               // AI Guard check â€” block re-entry if AI says sideways/reversing
               const aiSettings = getAiGuardSettings();
