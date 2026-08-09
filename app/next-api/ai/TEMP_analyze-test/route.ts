@@ -90,7 +90,9 @@ export async function POST(request: Request) {
 
     let parsed: unknown = null;
     try {
-      parsed = JSON.parse(content);
+      const cleaned = content.replace(/```/g, "").replace(/^\s*json\s*/i, "").trim();
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
     } catch {
       // AI returned non-JSON
     }
