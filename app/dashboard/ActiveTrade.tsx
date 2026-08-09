@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward } from "lucide-react";
+import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
@@ -539,6 +539,18 @@ export default function ActiveTrade({
                         Keep anyway
                       </button>
                     )}
+                    <button
+                      className={`${styles.waitingBtn} ${styles.dark}`}
+                      type="button"
+                      title="Force Init — skip history and mark as ready"
+                      style={{ padding: "2px 6px", fontSize: "11px", background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}
+                      onClick={() => {
+                        fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
+                      }}
+                    >
+                      <Play className="w-3 h-3" />
+                      Force&nbsp;Init
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -575,6 +587,18 @@ export default function ActiveTrade({
                     </div>
                   </div>
                   <button
+                    className={`${styles.waitingBtn} ${styles.dark}`}
+                    type="button"
+                    title="Force Init — skip history and mark as ready"
+                    style={{ flexShrink: 0, padding: "2px 6px", fontSize: "11px", background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}
+                    onClick={() => {
+                      fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
+                    }}
+                  >
+                    <Play className="w-3 h-3" />
+                    Force&nbsp;Init
+                  </button>
+                  <button
                     className={`${styles.waitingBtn} ${styles.danger}`}
                     type="button"
                     style={{ flexShrink: 0, padding: "2px 8px", fontSize: "11px" }}
@@ -610,6 +634,36 @@ export default function ActiveTrade({
                       </span>
                     )}
                     {renderAiRegimeBadge(t.symbol)}
+                    {(() => {
+                      const histStatus = symbolHistoryStatus[t.symbol];
+                      if (histStatus?.status === "ready") return null;
+                      const isRetrying = histStatus?.status === "loading";
+                      return (
+                        <button
+                          type="button"
+                          title={isRetrying ? "Fetching history..." : "Retry history fetch"}
+                          onClick={() => {
+                            if (isRetrying) return;
+                            fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/retry-history`, { method: "POST" }).catch(() => {});
+                          }}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginLeft: 4,
+                            border: "1px solid rgba(99,102,241,0.3)",
+                            background: "rgba(99,102,241,0.1)",
+                            color: "#6366f1",
+                            borderRadius: 4,
+                            padding: 2,
+                            cursor: isRetrying ? "default" : "pointer",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <RefreshCw className="w-3 h-3" style={isRetrying ? { animation: "spin 1s linear infinite" } : undefined} />
+                        </button>
+                      );
+                    })()}
                   </div>
                   {renderAiToggle(t.symbol)}
                 </div>
