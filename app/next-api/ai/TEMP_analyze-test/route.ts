@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAiGuardSettings, buildCompactCandles, buildMarketMetrics, buildSystemPrompt, getProviderConfig, getNextApiKey } from "@/lib/ai-guard";
+import { getAiGuardSettings, buildCompactCandles, buildMarketMetrics, buildSystemPrompt, buildSystemPromptWithVolume, getProviderConfig, getNextApiKey } from "@/lib/ai-guard";
 
 // POST /next-api/ai/TEMP_analyze-test — parse pasted CSV candle data, build prompt, call AI provider
 export async function POST(request: Request) {
@@ -19,9 +19,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `No API key configured. Set your ${config.providerName} API key in AI Guard settings first.` }, { status: 400 });
     }
 
-    // Parse CSV lines: time,open,high,low,close,volume
+    // Parse CSV lines: time,open,high,low,close[,volume]
     const lines = candleText.trim().split("\n");
-    const candles: { time: string; open: number; high: number; low: number; close: number }[] = [];
+    const candles: { time: string; open: number; high: number; low: number; close: number; volume?: number }[] = [];
 
     for (const line of lines) {
       const trimmed = line.trim();
@@ -35,10 +35,11 @@ export async function POST(request: Request) {
       const h = parseFloat(parts[2]);
       const l = parseFloat(parts[3]);
       const cl = parseFloat(parts[4]);
+      const vol = parts.length >= 6 ? parseFloat(parts[5]) : undefined;
 
       if (isNaN(o) || isNaN(h) || isNaN(l) || isNaN(cl)) continue;
 
-      candles.push({ time, open: o, high: h, low: l, close: cl });
+      candles.push({ time, open: o, high: h, low: l, close: cl, volume: vol && !isNaN(vol) ? vol : undefined });
     }
 
     if (candles.length === 0) {
@@ -48,14 +49,20 @@ export async function POST(request: Request) {
     const candleCount = settings.candlesCount || 120;
     const recentCandlesCount = settings.recentCandlesCount || 30;
     const displaySymbol = symbol || "TEST_SYMBOL";
+    const useVolume = settings.considerVolume || false;
+    const useHA = settings.useHeikinAshi !== false;
 
     // Build the same prompt structure as production
-    const metrics = buildMarketMetrics(candles, candleCount, recentCandlesCount);
-    const compactCandles = buildCompactCandles(candles, candleCount);
+    const metrics = buildMarketMetrics(candles, candleCount, recentCandlesCount, useVolume, useHA);
+    const compactCandles = buildCompactCandles(candles, candleCount, useVolume, useHA);
 
+    const candleFormat = useVolume ? "time,open,high,low,close,volume" : "time,open,high,low,close";
+    const candleType = useHA ? "Heikin-Ashi OHLC" : "raw OHLC";
     let userPrompt = `Symbol: ${displaySymbol}\n`;
     userPrompt += `${metrics}\n\n`;
-    userPrompt += `Candles (${Math.min(candles.length, candleCount)}, 1-min Heikin-Ashi OHLC, format: time,open,high,low,close):\n${compactCandles}`;
+    userPrompt += `Candles (${Math.min(candles.length, candleCount)}, 1-min ${candleType}, format: ${candleFormat}):\n${compactCandles}`;
+
+    const systemPrompt = useVolume ? buildSystemPromptWithVolume(recentCandlesCount, useHA) : buildSystemPrompt(recentCandlesCount, useHA);
 
     // Call AI provider
     const controller = new AbortController();
@@ -64,7 +71,7 @@ export async function POST(request: Request) {
     const res = await fetch(config.url, {
       method: "POST",
       headers: config.headers(effectiveApiKey),
-      body: JSON.stringify(config.buildBody(buildSystemPrompt(recentCandlesCount), userPrompt, 200)),
+      body: JSON.stringify(config.buildBody(systemPrompt, userPrompt, 200)),
       signal: controller.signal,
     });
 

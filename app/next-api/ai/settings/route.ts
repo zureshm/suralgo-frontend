@@ -20,6 +20,8 @@ export async function POST(request: Request) {
       confidenceThreshold: Number(body.confidenceThreshold) || 70,
       candlesCount: Number(body.candlesCount) || 120,
       recentCandlesCount: Number(body.recentCandlesCount) || 30,
+      considerVolume: Boolean(body.considerVolume),
+      useHeikinAshi: body.useHeikinAshi !== false,
       provider: String(body.provider || "groq"),
       model: String(body.model || "llama-3.1-8b-instant"),
       apiKeys,

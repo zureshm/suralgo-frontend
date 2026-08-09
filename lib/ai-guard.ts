@@ -38,6 +38,8 @@ export type AiGuardSettings = {
   confidenceThreshold: number;
   candlesCount: number;
   recentCandlesCount: number;
+  considerVolume: boolean;
+  useHeikinAshi: boolean;
   provider: string;
   model: string;
   apiKeys: string[];
@@ -77,6 +79,8 @@ const DEFAULT_SETTINGS: AiGuardSettings = {
   provider: "groq",
   model: "llama-3.1-8b-instant",
   recentCandlesCount: 30,
+  considerVolume: false,
+  useHeikinAshi: true,
   apiKeys: [],
 };
 
@@ -209,7 +213,13 @@ export function convertToHeikinAshi(candles: { time?: string; open: number; high
   return ha;
 }
 
-export function buildSystemPrompt(recentCandles: number): string {
+export function buildSystemPrompt(recentCandles: number, useHA: boolean = true): string {
+  const candleNote = useHA
+    ? "Note: Candle data is in Heikin-Ashi format (smoothed OHLC). Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways."
+    : "Note: Candle data is in raw OHLC format. Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways.";
+  const primaryLine = useHA
+    ? "Primary analysis: Read the Heikin-Ashi candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?"
+    : "Primary analysis: Read the raw OHLC candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?";
   return `You are a market regime classifier for Nifty option symbols on 1-minute charts.
 
 Classify the market into one of three regimes:
@@ -217,9 +227,9 @@ Classify the market into one of three regimes:
 - SIDEWAYS: Price oscillating in a range without clear direction. This is the default when there is no sustained trend. blockEntry=true, suggestExit=true.
 - REVERSING: A prior confirmed trend is now losing momentum or flipping direction. blockEntry=true, suggestExit=true.
 
-Note: Candle data is in Heikin-Ashi format (smoothed OHLC). Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways.
+${candleNote}
 
-Primary analysis: Read the Heikin-Ashi candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?
+${primaryLine}
 
 Secondary: Use the pre-computed metrics as supplementary context only. They are raw facts, not signals.
 
@@ -245,26 +255,78 @@ Return ONLY valid JSON:
 
 export const SYSTEM_PROMPT = buildSystemPrompt(30);
 
-export function buildCompactCandles(candles: any[], maxCount: number): string {
+export function buildSystemPromptWithVolume(recentCandles: number, useHA: boolean = true): string {
+  const candleNote = useHA
+    ? "Note: Candle data is in Heikin-Ashi format (smoothed OHLC) with volume. Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways."
+    : "Note: Candle data is in raw OHLC format with volume. Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways.";
+  const primaryLine = useHA
+    ? "Primary analysis: Read the Heikin-Ashi candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?"
+    : "Primary analysis: Read the raw OHLC candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?";
+  return `You are a market regime classifier for Nifty option symbols on 1-minute charts.
+
+Classify the market into one of three regimes:
+- TRENDING: Price making sustained directional moves with momentum. blockEntry=false, suggestExit=false.
+- SIDEWAYS: Price oscillating in a range without clear direction. This is the default when there is no sustained trend. blockEntry=true, suggestExit=true.
+- REVERSING: A prior confirmed trend is now losing momentum or flipping direction. blockEntry=true, suggestExit=true.
+
+${candleNote}
+
+${primaryLine}
+
+Volume analysis (use as confirmation):
+- High volume on directional candles = stronger trend conviction.
+- Low volume on price moves = likely sideways or fakeout.
+- Volume divergence (price rising but volume falling) can signal an impending reversal.
+- Volume spikes at turning points confirm reversals.
+
+Secondary: Use the pre-computed metrics (including volume metrics) as supplementary context only. They are raw facts, not signals.
+
+You receive two metric windows:
+- Full window: shows the overall session context
+- Recent ${recentCandles} candles: shows the current immediate price action
+
+If the recent ${recentCandles} candles show a different regime than the full window, weight the recent window a bit more heavily — the current regime matters more for trade decisions than what happened before ${recentCandles} minutes.
+
+Key: Nifty option premiums are volatile. A 4% net move on a ₹100 option is just 4 points and may still be sideways. Judge by the actual candle pattern and volume confirmation, not by percentage thresholds.
+
+Return ONLY valid JSON:
+{
+  "marketRegime": "TRENDING" | "SIDEWAYS" | "REVERSING",
+  "blockEntry": boolean,
+  "suggestExit": boolean,
+  "confidence": number (0-100),
+  "reason": "brief explanation",
+  "rangeHigh": number or null,
+  "rangeLow": number or null
+}`;
+}
+
+export function buildCompactCandles(candles: any[], maxCount: number, considerVolume: boolean = false, useHeikinAshi: boolean = true): string {
   if (!Array.isArray(candles) || candles.length === 0) return "";
-  const haCandles = convertToHeikinAshi(candles);
-  const slice = haCandles.slice(-maxCount);
+  const processedCandles = useHeikinAshi ? convertToHeikinAshi(candles) : candles;
+  const slice = processedCandles.slice(-maxCount);
   return slice
-    .map((c) => {
+    .map((c: any, i: number) => {
       const time = c.time || "";
       const o = Number(c.open).toFixed(2);
       const h = Number(c.high).toFixed(2);
       const l = Number(c.low).toFixed(2);
       const cl = Number(c.close).toFixed(2);
+      if (considerVolume) {
+        // Get volume from original candles (HA transform doesn't carry volume)
+        const origIndex = candles.length - slice.length + i;
+        const vol = origIndex >= 0 && origIndex < candles.length ? (candles[origIndex].volume || 0) : 0;
+        return `${time},${o},${h},${l},${cl},${vol}`;
+      }
       return `${time},${o},${h},${l},${cl}`;
     })
     .join("|");
 }
 
-export function buildMarketMetrics(candles: any[], maxCount: number, recentCandlesCount: number = 30): string {
+export function buildMarketMetrics(candles: any[], maxCount: number, recentCandlesCount: number = 30, considerVolume: boolean = false, useHeikinAshi: boolean = true): string {
   if (!Array.isArray(candles) || candles.length === 0) return "No data";
-  const haCandles = convertToHeikinAshi(candles);
-  const slice = haCandles.slice(-maxCount);
+  const processedCandles = useHeikinAshi ? convertToHeikinAshi(candles) : candles;
+  const slice = processedCandles.slice(-maxCount);
   const n = slice.length;
 
   let high = -Infinity, low = Infinity;
@@ -388,6 +450,43 @@ export function buildMarketMetrics(candles: any[], maxCount: number, recentCandl
     `- Net Move: ${rnNetMove >= 0 ? "+" : ""}${rnNetMove.toFixed(2)} (${rnNetMovePct.toFixed(2)}%)`,
   ];
 
+  // Volume metrics (when considerVolume is enabled)
+  if (considerVolume) {
+    const origSlice = candles.slice(-maxCount);
+    let totalVol = 0, upVol = 0, downVol = 0;
+    for (let i = 0; i < slice.length && i < origSlice.length; i++) {
+      const vol = origSlice[i].volume || 0;
+      totalVol += vol;
+      const o = Number(slice[i].open), cl = Number(slice[i].close);
+      if (cl >= o) upVol += vol;
+      else downVol += vol;
+    }
+    const avgVol = n > 0 ? totalVol / n : 0;
+
+    // Recent N volume
+    const rnOrigSlice = candles.slice(-recentCandlesCount);
+    let rnTotalVol = 0, rnUpVol = 0, rnDownVol = 0;
+    for (let i = 0; i < rnOrigSlice.length; i++) {
+      const vol = rnOrigSlice[i].volume || 0;
+      rnTotalVol += vol;
+      const o = Number(rnOrigSlice[i].open), cl = Number(rnOrigSlice[i].close);
+      if (cl >= o) rnUpVol += vol;
+      else rnDownVol += vol;
+    }
+    const rnAvgVol = rnOrigSlice.length > 0 ? rnTotalVol / rnOrigSlice.length : 0;
+
+    // Volume trend: compare recent avg vs full avg
+    const volTrend = avgVol > 0 ? ((rnAvgVol - avgVol) / avgVol) * 100 : 0;
+
+    lines.push(``);
+    lines.push(`Volume Analysis:`);
+    lines.push(`- Avg Volume (full): ${avgVol.toFixed(0)}`);
+    lines.push(`- Volume on Up Candles: ${upVol.toFixed(0)} | Down Candles: ${downVol.toFixed(0)}`);
+    lines.push(`- Up/Down Volume Ratio: ${downVol > 0 ? (upVol / downVol).toFixed(2) : "∞"}`);
+    lines.push(`- Recent ${recentCandlesCount} Avg Volume: ${rnAvgVol.toFixed(0)} (${volTrend >= 0 ? "+" : ""}${volTrend.toFixed(0)}% vs full)`);
+    lines.push(`- Recent Up Vol: ${rnUpVol.toFixed(0)} | Down Vol: ${rnDownVol.toFixed(0)}`);
+  }
+
   return lines.join("\n");
 }
 
@@ -398,10 +497,12 @@ export async function analyzeMarketRegime(
 ): Promise<AiAnalysisResult> {
   const settings = getAiGuardSettings();
   const candleCount = settings.candlesCount || 120;
-  const compactCandles = buildCompactCandles(candles, candleCount);
+  const useVolume = settings.considerVolume || false;
+  const useHA = settings.useHeikinAshi !== false;
+  const compactCandles = buildCompactCandles(candles, candleCount, useVolume, useHA);
 
   const recentCandlesCount = settings.recentCandlesCount || 30;
-  const metrics = buildMarketMetrics(candles, candleCount, recentCandlesCount);
+  const metrics = buildMarketMetrics(candles, candleCount, recentCandlesCount, useVolume, useHA);
 
   let userPrompt = `Symbol: ${symbol}\n`;
   if (tradeContext) {
@@ -412,14 +513,18 @@ export async function analyzeMarketRegime(
     userPrompt += "\n";
   }
   userPrompt += `${metrics}\n\n`;
-  userPrompt += `Candles (${candleCount}, 1-min Heikin-Ashi OHLC, format: time,open,high,low,close):\n${compactCandles}`;
+  const candleFormat = useVolume ? "time,open,high,low,close,volume" : "time,open,high,low,close";
+  const candleType = useHA ? "Heikin-Ashi OHLC" : "raw OHLC";
+  userPrompt += `Candles (${candleCount}, 1-min ${candleType}, format: ${candleFormat}):\n${compactCandles}`;
+
+  const systemPrompt = useVolume ? buildSystemPromptWithVolume(recentCandlesCount, useHA) : buildSystemPrompt(recentCandlesCount, useHA);
 
   try {
     const provider = settings.provider || "groq";
     const config = getProviderConfig(provider);
     const keyIndex = apiKeyIndex;
     const apiKey = getNextApiKey();
-    addAiLog(`[ai-guard] ${symbol}: using API key #${keyIndex % (aiGuardSettings.apiKeys?.length || 1)}`);
+    addAiLog(`[ai-guard] ${symbol}: using API key #${keyIndex % (aiGuardSettings.apiKeys?.length || 1)}${useVolume ? " (with volume)" : ""}`);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
@@ -427,7 +532,7 @@ export async function analyzeMarketRegime(
     const res = await fetch(config.url, {
       method: "POST",
       headers: config.headers(apiKey),
-      body: JSON.stringify(config.buildBody(buildSystemPrompt(recentCandlesCount), userPrompt, 200)),
+      body: JSON.stringify(config.buildBody(systemPrompt, userPrompt, 200)),
       signal: controller.signal,
     });
 
