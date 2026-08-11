@@ -12,6 +12,7 @@
 .pnp.js
 
 /data/trades.json
+/data/ai-guard-settings.json
 # testing
 /coverage
 
