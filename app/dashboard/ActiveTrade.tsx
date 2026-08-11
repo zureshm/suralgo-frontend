@@ -169,7 +169,7 @@ export default function ActiveTrade({
           width: 24,
           height: 14,
           borderRadius: 7,
-          background: enabled ? "var(--theme-popup-border)" : "#374151",
+          background: enabled ? "var(--theme-popup-border)" : "#ccc",
           transition: "background 0.15s",
         }}>
           <span style={{

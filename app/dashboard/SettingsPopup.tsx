@@ -666,7 +666,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
-                            When OFF, AI only shows exit suggestions. When ON, AI exits the trade automatically when it detects sideways or reversal conditions.
+                            When OFF, AI only shows exit suggestions. When ON, AI exits the trade automatically when it detects sideways or reversal conditions. For sideways, it waits 30s (retrying every 10s) before exit.
                           </div>
                         )}
                       </div>
