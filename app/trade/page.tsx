@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FocusEvent } from "react";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, ShieldAlert, Clock, Target, RefreshCw } from "lucide-react";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useRouter } from "next/navigation";
 import { getPrices } from "@/lib/getPrices";
@@ -161,6 +161,8 @@ export default function TradePage() {
     setReEntryCandles(defaults.reEntryCandles);
     setReEntryPoints(defaults.reEntryPoints);
     setSignalReEntryEnabled(defaults.signalReEntryEnabled);
+    setReEntryStopLossEnabled(defaults.reEntryStopLossEnabled ?? true);
+    setReEntryStopLoss(defaults.reEntryStopLoss ?? 5);
     setReEntryAsTrailingEnabled(defaults.reEntryAsTrailingEnabled);
     setReEntryTrailingPoints(defaults.reEntryTrailingPoints);
     setReEntryMinTargetEnabled(defaults.reEntryMinTargetEnabled);
@@ -210,6 +212,8 @@ export default function TradePage() {
   const [isReEntryInfoOpen, setIsReEntryInfoOpen] = useState(false);
   const [signalReEntryEnabled, setSignalReEntryEnabled] = useState(true);
   const [isSignalReEntryInfoOpen, setIsSignalReEntryInfoOpen] = useState(false);
+  const [reEntryStopLossEnabled, setReEntryStopLossEnabled] = useState(true);
+  const [reEntryStopLoss, setReEntryStopLoss] = useState(5);
   const [reEntryAsTrailingEnabled, setReEntryAsTrailingEnabled] = useState(true);
   const [reEntryTrailingPoints, setReEntryTrailingPoints] = useState(10);
   const [isReEntryTrailingInfoOpen, setIsReEntryTrailingInfoOpen] = useState(false);
@@ -313,6 +317,8 @@ export default function TradePage() {
       setReEntryCandles(data.reEntryCandles || 5);
       setReEntryPoints(data.reEntryPoints || 3);
       setSignalReEntryEnabled(Boolean(data.signalReEntryEnabled ?? true));
+      setReEntryStopLossEnabled(Boolean(data.reEntryStopLossEnabled ?? true));
+      setReEntryStopLoss(data.reEntryStopLoss || 5);
       setReEntryAsTrailingEnabled(Boolean(data.reEntryAsTrailingEnabled ?? true));
       setReEntryTrailingPoints(data.reEntryTrailingPoints || data.trailingAfterTarget || 10);
       setReEntryMinTargetEnabled(Boolean(data.reEntryMinTargetEnabled ?? false));
@@ -369,6 +375,8 @@ export default function TradePage() {
       reEntryCandles,
       reEntryPoints,
       signalReEntryEnabled,
+      reEntryStopLossEnabled,
+      reEntryStopLoss,
       reEntryAsTrailingEnabled,
       reEntryTrailingPoints,
       reEntryMinTargetEnabled,
@@ -431,7 +439,7 @@ export default function TradePage() {
 
           {/* Stop Loss Strategy */}
           <div className="space-y-4">
-            <div className="text-base font-medium">Stop Loss Strategies</div>
+            <div className="text-base font-medium flex items-center gap-2"><ShieldAlert className="h-4 w-4" /> Stop Loss Strategies</div>
             
             <div className="space-y-3">
               <div className="rounded-md border border-gray-200 p-3 space-y-3">
@@ -493,7 +501,7 @@ export default function TradePage() {
 
           {/* Wait Strategy */}
           <div className="space-y-2">
-            <div className="text-base font-medium">Wait Strategy</div>
+            <div className="text-base font-medium flex items-center gap-2"><Clock className="h-4 w-4" /> Wait Strategies</div>
             <div className="rounded-md border border-gray-200 p-3 space-y-3">
               <div className="flex items-center space-x-2">
                 <input
@@ -577,7 +585,7 @@ export default function TradePage() {
 
           {/* Target / Profit Strategy */}
           <div className="space-y-4">
-            <div className="text-base font-medium">Target / Profit Strategies</div>
+            <div className="text-base font-medium flex items-center gap-2"><Target className="h-4 w-4" /> Target Strategies</div>
             
             <div className="space-y-3">
               <div className="rounded-md border border-gray-200 p-3 space-y-3">
@@ -790,6 +798,9 @@ export default function TradePage() {
               </div>
             </div>
 
+            {/* Re-entry Strategies heading */}
+            <div className="text-base font-medium pt-2 flex items-center gap-2"><RefreshCw className="h-4 w-4" /> Re-entry Strategies</div>
+
             {/* ReEntry After Target */}
             <div className="space-y-2 border rounded-lg p-3">
               <div className="flex items-center justify-between">
@@ -891,6 +902,31 @@ export default function TradePage() {
               </div>
             </div>
 
+            {/* Re-entry Stop Loss */}
+            <div className="rounded-md border border-gray-200 p-3 space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="reEntryStopLossEnabled"
+                  checked={reEntryStopLossEnabled}
+                  onChange={(e) => setReEntryStopLossEnabled(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="reEntryStopLossEnabled" className="text-sm font-medium" style={{color:'green'}}>Re-entry Stop Loss</label>
+              </div>
+              <div className="flex items-center space-x-2 pl-6">
+                <NumericField
+                  value={reEntryStopLoss}
+                  onChange={setReEntryStopLoss}
+                  className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                  min="1"
+                  max="99"
+                  disabled={!reEntryStopLossEnabled}
+                />
+                <span className={`text-sm ${reEntryStopLossEnabled ? "" : "text-gray-400"}`}>Points</span>
+              </div>
+            </div>
+
             {/* ReEnter as Trailing */}
             <div className="rounded-md border border-gray-200 p-3 space-y-2">
               <div className="flex items-center justify-between">
@@ -902,7 +938,7 @@ export default function TradePage() {
                     onChange={(e) => setReEntryAsTrailingEnabled(e.target.checked)}
                     className="h-4 w-4"
                   />
-                  <label htmlFor="reEntryAsTrailingEnabled" className="text-sm font-medium" style={{color:'red'}}>ReEnter as Trailing</label>
+                  <label htmlFor="reEntryAsTrailingEnabled" className="text-sm font-medium" style={{color:'green'}}>ReEnter as Trailing</label>
                 </div>
 
                 <div className="relative">
@@ -1213,6 +1249,8 @@ export default function TradePage() {
                         reEntryAfterTargetEnabled,
                         reEntryCandles,
                         reEntryPoints,
+                        reEntryStopLossEnabled,
+                        reEntryStopLoss,
                         reEntryAsTrailingEnabled,
                         reEntryTrailingPoints,
                         reEntryMinTargetEnabled,
@@ -1271,6 +1309,8 @@ export default function TradePage() {
                         reEntryAfterTargetEnabled,
                         reEntryCandles,
                         reEntryPoints,
+                        reEntryStopLossEnabled,
+                        reEntryStopLoss,
                         reEntryAsTrailingEnabled,
                         reEntryTrailingPoints,
                         reEntryMinTargetEnabled,

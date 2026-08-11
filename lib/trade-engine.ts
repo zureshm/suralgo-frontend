@@ -256,6 +256,8 @@ type WaitingTrade = {
   reEntryCandles: number;
   reEntryPoints: number;
 
+  reEntryStopLossEnabled: boolean;
+  reEntryStopLoss: number;
   reEntryAsTrailingEnabled: boolean;
   reEntryTrailingPoints: number;
 
@@ -365,6 +367,8 @@ type ActiveTrade = {
   reEntryCandles: number;
   reEntryPoints: number;
 
+  reEntryStopLossEnabled: boolean;
+  reEntryStopLoss: number;
   reEntryAsTrailingEnabled: boolean;
   reEntryTrailingPoints: number;
 
@@ -1071,6 +1075,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     reEntryCandles: trade.reEntryCandles,
     reEntryPoints: trade.reEntryPoints,
 
+    reEntryStopLossEnabled: trade.reEntryStopLossEnabled,
+    reEntryStopLoss: trade.reEntryStopLoss,
     reEntryAsTrailingEnabled: trade.reEntryAsTrailingEnabled,
     reEntryTrailingPoints: trade.reEntryTrailingPoints,
 
@@ -2581,10 +2587,14 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     // Stop loss hit
 
-    if (trade.stopLossNumberEnabled && trade.stopLossNumber > 0 && (ltp - entry) <= -trade.stopLossNumber) {
+    // Use re-entry SL if trade is a re-entry cycle and reEntryStopLossEnabled
+    const effectiveSLEnabled = (trade.isReEntryCycle && trade.reEntryStopLossEnabled) ? true : trade.stopLossNumberEnabled;
+    const effectiveSL = (trade.isReEntryCycle && trade.reEntryStopLossEnabled) ? trade.reEntryStopLoss : trade.stopLossNumber;
 
-      const slLevel = entry - trade.stopLossNumber;
-      const slExit = priceDiff <= -trade.stopLossNumber ? ltp : slLevel;
+    if (effectiveSLEnabled && effectiveSL > 0 && (ltp - entry) <= -effectiveSL) {
+
+      const slLevel = entry - effectiveSL;
+      const slExit = priceDiff <= -effectiveSL ? ltp : slLevel;
 
       triggeredPositions.add(positionKey);
 
@@ -2837,6 +2847,7 @@ export function updateActiveTradeConfig(symbol: string, config: Record<string, u
     "maxProfitLossEnabled", "maxProfit", "maxLoss",
     "sellWhenLossCandlesEnabled", "sellWhenLossCandles",
     "reEntryAfterTargetEnabled", "reEntryCandles", "reEntryPoints",
+    "reEntryStopLossEnabled", "reEntryStopLoss",
     "reEntryAsTrailingEnabled", "reEntryTrailingPoints",
     "reEntryMinTargetEnabled", "reEntryMinTargetPoints", "reEntryMinTargetTrigger", "reEntryMinTargetTrailing",
     "signalReEntryEnabled",
