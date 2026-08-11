@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { X, BarChart2, RefreshCw, Loader2 } from "lucide-react";
-import { createChart, CandlestickSeries, IChartApi, UTCTimestamp, SeriesMarker, Time, createSeriesMarkers, LineSeries } from "lightweight-charts";
+import { createChart, CandlestickSeries, IChartApi, UTCTimestamp, SeriesMarker, Time, createSeriesMarkers, LineSeries, ISeriesApi } from "lightweight-charts";
 import { useTradeStore } from "../store/TradeStore";
 
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL || "http://localhost:4000";
@@ -155,12 +155,14 @@ export default function ChartPopup({ open, onClose }: Props) {
   const [spinning, setSpinning] = useState(false);
   const chartRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const chartInstances = useRef<Record<string, IChartApi>>({});
+  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema10: ISeriesApi<"Line">; ema20: ISeriesApi<"Line"> }>>({});
 
   // Nifty50 live chart state
   const [nifty50Data, setNifty50Data] = useState<Nifty50CandleData>({ completedCandles: [], currentCandle: null });
   const [nifty50Connected, setNifty50Connected] = useState(false);
   const nifty50ChartRef = useRef<HTMLDivElement | null>(null);
   const nifty50ChartInstance = useRef<IChartApi | null>(null);
+  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema10: ISeriesApi<"Line">; ema20: ISeriesApi<"Line"> } | null>(null);
 
   // Only show charts for symbols in active/waiting trades
   // Stabilize: only return new Set when actual symbol list changes
@@ -249,50 +251,49 @@ export default function ChartPopup({ open, onClose }: Props) {
       allCandles.push(nifty50Data.currentCandle);
     }
 
-    if (allCandles.length === 0) {
-      if (nifty50ChartInstance.current) {
-        nifty50ChartInstance.current.remove();
-        nifty50ChartInstance.current = null;
-      }
-      return;
+    if (allCandles.length === 0) return;
+
+    // Initialize chart if not exists
+    if (!nifty50ChartInstance.current) {
+      const chart = createChart(container, {
+        width: container.clientWidth,
+        height: 220,
+        layout: {
+          background: { color: "transparent" },
+          textColor: "#333",
+          fontSize: 10,
+        },
+        grid: {
+          vertLines: { color: "rgba(0,0,0,0.04)" },
+          horzLines: { color: "rgba(0,0,0,0.04)" },
+        },
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+          borderColor: "rgba(0,0,0,0.1)",
+        },
+        rightPriceScale: {
+          borderColor: "rgba(0,0,0,0.1)",
+        },
+      });
+
+      const series = chart.addSeries(CandlestickSeries, {
+        upColor: "#0a8a43",
+        downColor: "#d12b2b",
+        borderUpColor: "#0a8a43",
+        borderDownColor: "#d12b2b",
+        wickUpColor: "#0a8a43",
+        wickDownColor: "#d12b2b",
+      });
+
+      const ema10 = chart.addSeries(LineSeries, { color: "#2563eb", lineWidth: 1 });
+      const ema20 = chart.addSeries(LineSeries, { color: "#f97316", lineWidth: 1 });
+
+      nifty50ChartInstance.current = chart;
+      nifty50SeriesInstance.current = { main: series, ema10, ema20 };
     }
 
-    // Remove existing chart
-    if (nifty50ChartInstance.current) {
-      nifty50ChartInstance.current.remove();
-      nifty50ChartInstance.current = null;
-    }
-
-    const chart = createChart(container, {
-      width: container.clientWidth,
-      height: 220,
-      layout: {
-        background: { color: "transparent" },
-        textColor: "#333",
-        fontSize: 10,
-      },
-      grid: {
-        vertLines: { color: "rgba(0,0,0,0.04)" },
-        horzLines: { color: "rgba(0,0,0,0.04)" },
-      },
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: false,
-        borderColor: "rgba(0,0,0,0.1)",
-      },
-      rightPriceScale: {
-        borderColor: "rgba(0,0,0,0.1)",
-      },
-    });
-
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: "#0a8a43",
-      downColor: "#d12b2b",
-      borderUpColor: "#0a8a43",
-      borderDownColor: "#d12b2b",
-      wickUpColor: "#0a8a43",
-      wickDownColor: "#d12b2b",
-    });
+    const { main, ema10, ema20 } = nifty50SeriesInstance.current!;
 
     const mapped = allCandles
       .map((c) => ({
@@ -309,49 +310,42 @@ export default function ChartPopup({ open, onClose }: Props) {
     const validCandles = Array.from(deduped.values())
       .sort((a, b) => (a.time as number) - (b.time as number));
 
-    if (validCandles.length === 0) return;
+    if (validCandles.length > 0) {
+      main.setData(validCandles);
 
-    series.setData(validCandles);
+      // EMA overlays
+      const closePrices = validCandles.map(c => c.close);
+      const ema10Values = calculateEMA(closePrices, 10);
+      const ema20Values = calculateEMA(closePrices, 20);
 
-    // EMA overlays
-    const closePrices = validCandles.map(c => c.close);
-    const ema10Values = calculateEMA(closePrices, 10);
-    const ema20Values = calculateEMA(closePrices, 20);
+      if (ema10Values.length > 0) {
+        ema10.setData(ema10Values.map((val, idx) => ({
+          time: validCandles[idx + (closePrices.length - ema10Values.length)].time,
+          value: val,
+        })));
+      }
 
-    if (ema10Values.length > 0) {
-      const ema10Series = chart.addSeries(LineSeries, { color: "#2563eb", lineWidth: 1 });
-      const ema10Data = ema10Values.map((val, idx) => ({
-        time: validCandles[idx + (closePrices.length - ema10Values.length)].time,
-        value: val,
-      }));
-      ema10Series.setData(ema10Data);
+      if (ema20Values.length > 0) {
+        ema20.setData(ema20Values.map((val, idx) => ({
+          time: validCandles[idx + (closePrices.length - ema20Values.length)].time,
+          value: val,
+        })));
+      }
     }
-
-    if (ema20Values.length > 0) {
-      const ema20Series = chart.addSeries(LineSeries, { color: "#f97316", lineWidth: 1 });
-      const ema20Data = ema20Values.map((val, idx) => ({
-        time: validCandles[idx + (closePrices.length - ema20Values.length)].time,
-        value: val,
-      }));
-      ema20Series.setData(ema20Data);
-    }
-
-    // Show last ~30 candles
-    const visibleCandles = 30;
-    chart.timeScale().setVisibleLogicalRange({
-      from: validCandles.length - visibleCandles,
-      to: validCandles.length + 5,
-    });
-
-    nifty50ChartInstance.current = chart;
 
     return () => {
-      if (nifty50ChartInstance.current) {
-        nifty50ChartInstance.current.remove();
-        nifty50ChartInstance.current = null;
-      }
+      // We don't remove chart on every update anymore
     };
   }, [nifty50Data]);
+
+  // Clean up Nifty50 chart on close
+  useEffect(() => {
+    if (!open && nifty50ChartInstance.current) {
+      nifty50ChartInstance.current.remove();
+      nifty50ChartInstance.current = null;
+      nifty50SeriesInstance.current = null;
+    }
+  }, [open]);
 
   // Fetch candle history + log signals — on open and manual refresh only
   useEffect(() => {
@@ -415,11 +409,12 @@ export default function ChartPopup({ open, onClose }: Props) {
       .filter((s) => activeSymbols.has(s))
       .slice(0, 6);
 
-    // Dispose old charts
+    // Dispose charts for symbols no longer active
     Object.keys(chartInstances.current).forEach((key) => {
       if (!symbols.includes(key)) {
         chartInstances.current[key]?.remove();
         delete chartInstances.current[key];
+        delete seriesInstances.current[key];
       }
     });
 
@@ -430,41 +425,47 @@ export default function ChartPopup({ open, onClose }: Props) {
       const candles = symbolCandles[symbol];
       if (!candles || candles.length === 0) return;
 
-      // Remove existing chart for this symbol
-      if (chartInstances.current[symbol]) {
-        chartInstances.current[symbol].remove();
+      // Initialize chart if not exists
+      if (!chartInstances.current[symbol]) {
+        const chart = createChart(container, {
+          width: container.clientWidth,
+          height: 180,
+          layout: {
+            background: { color: "rgba(0,0,0,0.9)" },
+            textColor: "#eee",
+            fontSize: 10,
+          },
+          grid: {
+            vertLines: { color: "rgba(255,255,255,0.14)" },
+            horzLines: { color: "rgba(255,255,255,0.14)" },
+          },
+          timeScale: {
+            timeVisible: true,
+            secondsVisible: false,
+            borderColor: "rgba(255,255,255.1)",
+          },
+          rightPriceScale: {
+            borderColor: "rgba(255,255,255.1)",
+          },
+        });
+
+        const main = chart.addSeries(CandlestickSeries, {
+          upColor: "#0ad125",
+          downColor: "#ea3434",
+          borderUpColor: "#0ad125",
+          borderDownColor: "#ea3434",
+          wickUpColor: "#0ad125",
+          wickDownColor: "#ea3434",
+        });
+
+        const ema10 = chart.addSeries(LineSeries, { color: "#5488fa", lineWidth: 1 });
+        const ema20 = chart.addSeries(LineSeries, { color: "#ffd932", lineWidth: 1 });
+
+        chartInstances.current[symbol] = chart;
+        seriesInstances.current[symbol] = { main, ema10, ema20 };
       }
 
-      const chart = createChart(container, {
-        width: container.clientWidth,
-        height: 180,
-        layout: {
-          background: { color: "rgba(0,0,0,0.9)" },
-          textColor: "#eee",
-          fontSize: 10,
-        },
-        grid: {
-          vertLines: { color: "rgba(255,255,255,0.14)" },
-          horzLines: { color: "rgba(255,255,255,0.14)" },
-        },
-        timeScale: {
-          timeVisible: true,
-          secondsVisible: false,
-          borderColor: "rgba(255,255,255.1)",
-        },
-        rightPriceScale: {
-          borderColor: "rgba(255,255,255.1)",
-        },
-      });
-
-      const series = chart.addSeries(CandlestickSeries, {
-        upColor: "#0ad125",
-        downColor: "#ea3434",
-        borderUpColor: "#0ad125",
-        borderDownColor: "#ea3434",
-        wickUpColor: "#0ad125",
-        wickDownColor: "#ea3434",
-      });
+      const { main, ema10, ema20 } = seriesInstances.current[symbol];
 
       // Filter invalid times, deduplicate, and sort ascending
       const mapped = candles
@@ -483,70 +484,53 @@ export default function ChartPopup({ open, onClose }: Props) {
       const validCandles = Array.from(deduped.values())
         .sort((a, b) => (a.time as number) - (b.time as number));
 
-      if (validCandles.length === 0) return;
+      if (validCandles.length > 0) {
+        main.setData(validCandles);
 
-      series.setData(validCandles);
+        // EMA lines
+        const closePrices = validCandles.map(c => c.close);
+        const ema10Values = calculateEMA(closePrices, 10);
+        const ema20Values = calculateEMA(closePrices, 20);
 
-      // Calculate and add EMA10 (blue) and EMA20 (orange) lines
-      const closePrices = validCandles.map(c => c.close);
-      const ema10Values = calculateEMA(closePrices, 10);
-      const ema20Values = calculateEMA(closePrices, 20);
+        if (ema10Values.length > 0) {
+          ema10.setData(ema10Values.map((val, idx) => ({
+            time: validCandles[idx + (closePrices.length - ema10Values.length)].time,
+            value: val,
+          })));
+        }
+        if (ema20Values.length > 0) {
+          ema20.setData(ema20Values.map((val, idx) => ({
+            time: validCandles[idx + (closePrices.length - ema20Values.length)].time,
+            value: val,
+          })));
+        }
 
-      // EMA10 line (blue)
-      const ema10Series = chart.addSeries(LineSeries, {
-        color: "#5488fa", // blue
-        lineWidth: 1,
-      });
-      if (ema10Values.length > 0) {
-        const ema10Data = ema10Values.map((val, idx) => ({
-          time: validCandles[idx + (closePrices.length - ema10Values.length)].time,
-          value: val,
-        }));
-        ema10Series.setData(ema10Data);
+        // Add BUY/SELL markers
+        const markers: SeriesMarker<Time>[] = candles
+          .filter((c) => c.signal === "BUY" || c.signal === "SELL")
+          .map((c) => ({
+            time: toChartTime(c.time) as Time,
+            position: c.signal === "BUY" ? "belowBar" as const : "aboveBar" as const,
+            color: c.signal === "BUY" ? "#0a8a43" : "#d12b2b",
+            shape: c.signal === "BUY" ? "arrowUp" as const : "arrowDown" as const,
+            text: "",
+          }));
+
+        if (markers.length > 0) {
+          createSeriesMarkers(main, markers);
+        }
       }
-
-      // EMA20 line (orange)
-      const ema20Series = chart.addSeries(LineSeries, {
-        color: "#ffd932", // orange
-        lineWidth: 1,
-      });
-      if (ema20Values.length > 0) {
-        const ema20Data = ema20Values.map((val, idx) => ({
-          time: validCandles[idx + (closePrices.length - ema20Values.length)].time,
-          value: val,
-        }));
-        ema20Series.setData(ema20Data);
-      }
-
-      // Add BUY/SELL markers (arrows only, no text)
-      const markers: SeriesMarker<Time>[] = candles
-        .filter((c) => c.signal === "BUY" || c.signal === "SELL")
-        .map((c) => ({
-          time: toChartTime(c.time) as Time,
-          position: c.signal === "BUY" ? "belowBar" as const : "aboveBar" as const,
-          color: c.signal === "BUY" ? "#0a8a43" : "#d12b2b",
-          shape: c.signal === "BUY" ? "arrowUp" as const : "arrowDown" as const,
-          text: "",
-        }));
-
-      if (markers.length > 0) {
-        createSeriesMarkers(series, markers);
-      }
-
-      // Show last ~20 candles with some right padding
-      const visibleCandles = 30;
-      chart.timeScale().setVisibleLogicalRange({
-        from: candles.length - visibleCandles,
-        to: candles.length + 5,
-      });
-      chartInstances.current[symbol] = chart;
     });
+  }, [symbolCandles, activeSymbols]);
 
-    return () => {
+  // Clean up strategy charts on close
+  useEffect(() => {
+    if (!open) {
       Object.values(chartInstances.current).forEach((chart) => chart.remove());
       chartInstances.current = {};
-    };
-  }, [symbolCandles, activeSymbols]);
+      seriesInstances.current = {};
+    }
+  }, [open]);
 
   if (!open) return null;
 
