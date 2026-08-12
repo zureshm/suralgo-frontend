@@ -41,7 +41,7 @@ export const STRATEGY_DEFAULTS = {
     reEntryMinTargetTrailing: true,
     reEntryAfterTargetEnabled: true,
     reEntryCandles: 10,
-    reEntryPoints: 3
+    reEntryPoints: 2
   },
   allclear: {
     numberOfTrades: 10,
@@ -169,11 +169,11 @@ export const STRATEGY_DEFAULTS = {
     reEntryTrailingPoints: 12,
     reEntryMinTargetEnabled: true,
     reEntryMinTargetPoints: 3,
-    reEntryMinTargetTrigger: 2,
+    reEntryMinTargetTrigger: 1.5,
     reEntryMinTargetTrailing: true,
     reEntryAfterTargetEnabled: true,
     reEntryCandles: 8,
-    reEntryPoints: 3
+    reEntryPoints: 1
   },
   high: {
     numberOfTrades: 10,
