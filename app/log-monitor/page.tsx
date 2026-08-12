@@ -12,10 +12,12 @@ interface LogSection {
   error: string | null;
   filter: string;
   filterOptions: string[];
+  dataKey?: string;
 }
 
 const FILTER_OPTIONS = ["ALL", "BUY", "SELL", "REENTER", "ERROR"];
 const BASIC_FILTER_OPTIONS = ["ALL", "ERROR"];
+const HISTORY_FILTER_OPTIONS = ["ALL", "READY", "FAILED", "ERROR"];
 
 function getLogColor(line: string): string {
   if (line.includes("REENTER")) return "cyan";
@@ -29,6 +31,8 @@ function getLogColor(line: string): string {
 function matchesFilter(line: string, filter: string): boolean {
   if (filter === "ALL") return true;
   if (filter === "ERROR") return line.startsWith("[ERR]") || line.includes("error") || line.includes("Error") || line.includes("ERROR");
+  if (filter === "READY") return line.includes("READY");
+  if (filter === "FAILED") return line.includes("FAILED") || line.includes("unreachable") || line.includes("failed");
   return line.includes(filter);
 }
 
@@ -38,6 +42,7 @@ export default function LogMonitorPage() {
     { title: "Candle Builder", url: `${API_URL}/logs/candle`, logs: [], error: null, filter: "ALL", filterOptions: FILTER_OPTIONS },
     { title: "Strategy Engine", url: `${STRATEGY_URL}/logs/strategy`, logs: [], error: null, filter: "ALL", filterOptions: FILTER_OPTIONS },
     { title: "AI Guard", url: `/next-api/ai/logs`, logs: [], error: null, filter: "ALL", filterOptions: FILTER_OPTIONS },
+    { title: "History Fetch", url: `/next-api/trades`, logs: [], error: null, filter: "ALL", filterOptions: HISTORY_FILTER_OPTIONS, dataKey: "historyFetchLogs" },
   ]);
 
   const [autoScroll, setAutoScroll] = useState(true);
@@ -50,7 +55,8 @@ export default function LogMonitorPage() {
           const res = await fetch(section.url);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
-          return { ...section, logs: data.logs || [], error: null };
+          const logs = section.dataKey ? (data[section.dataKey] || []) : (data.logs || []);
+          return { ...section, logs, error: null };
         } catch (err: any) {
           return { ...section, error: err.message || "Fetch failed" };
         }

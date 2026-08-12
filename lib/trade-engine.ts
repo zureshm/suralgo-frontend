@@ -514,6 +514,15 @@ const symbolsWithFirstSignal = new Set<string>();
 // 'loading' = history fetch in progress, 'ready' = history loaded, 'failed' = 0 candles
 const symbolHistoryStatus: Record<string, { status: string; candleCount: number }> = {};
 
+// Ring buffer of history-fetch log lines for the Log Monitor page
+const historyFetchLogs: string[] = [];
+const MAX_HISTORY_LOGS = 200;
+function pushHistoryLog(msg: string) {
+  const ts = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  historyFetchLogs.push(`[${ts}] ${msg}`);
+  if (historyFetchLogs.length > MAX_HISTORY_LOGS) historyFetchLogs.shift();
+}
+
 // Check history status from angel-feed server for a symbol.
 
 // Phase 1: poll every 5s for up to 60s. If not ready, mark "failed".
@@ -527,6 +536,7 @@ const symbolHistoryStatus: Record<string, { status: string; candleCount: number 
 async function checkSymbolHistoryStatus(symbol: string) {
 
   console.log(`[trade-engine] Starting history status poll for ${symbol}`);
+  pushHistoryLog(`Starting history status poll for ${symbol}`);
 
   const maxAttempts = 12; // Phase 1: ~60s total (every 5s)
 
@@ -535,6 +545,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
     try {
 
       console.log(`[trade-engine] Checking history status for ${symbol} (attempt ${i + 1}/${maxAttempts})...`);
+      pushHistoryLog(`Checking history status for ${symbol} (attempt ${i + 1}/${maxAttempts}) — GET ${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
 
       const res = await fetch(`${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
 
@@ -543,6 +554,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
       if (data.status === "ready") {
 
         console.log(`[trade-engine] Symbol ${symbol} history is READY (${data.candleCount || 0} candles)`);
+        pushHistoryLog(`Symbol ${symbol} history is READY (${data.candleCount || 0} candles)`);
 
         symbolHistoryStatus[symbol] = { status: "ready", candleCount: data.candleCount || 0 };
 
@@ -555,6 +567,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
       if (data.status === "failed") {
 
         console.error(`[trade-engine] Symbol ${symbol} history fetch FAILED at feed server`);
+        pushHistoryLog(`Symbol ${symbol} history fetch FAILED at feed server`);
 
         break;
 
@@ -563,6 +576,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
     } catch (e) {
 
       console.warn(`[trade-engine] Feed server unreachable for ${symbol} check, retrying...`);
+      pushHistoryLog(`Feed server unreachable for ${symbol} check — ${e instanceof Error ? e.message : String(e)}`);
 
     }
 
@@ -575,6 +589,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
   if (symbolHistoryStatus[symbol]?.status !== "ready") {
 
     console.log(`[trade-engine] Phase 1 poll ended for ${symbol} without readiness. Switching to Phase 2 (30s background poll).`);
+    pushHistoryLog(`Phase 1 poll ended for ${symbol} without readiness. Switching to Phase 2 (30s background poll).`);
 
     symbolHistoryStatus[symbol] = { status: "failed", candleCount: 0 };
 
@@ -597,6 +612,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
     try {
 
       console.log(`[trade-engine] Background history status poll for ${symbol} (attempt ${i + 1}/${maxBgAttempts})...`);
+      pushHistoryLog(`Background history status poll for ${symbol} (attempt ${i + 1}/${maxBgAttempts})`);
 
       const res = await fetch(`${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
 
@@ -605,6 +621,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
       if (data.status === "ready") {
 
         console.log(`[trade-engine] Symbol ${symbol} history finally READY (${data.candleCount || 0} candles)`);
+        pushHistoryLog(`Symbol ${symbol} history finally READY (${data.candleCount || 0} candles)`);
 
         symbolHistoryStatus[symbol] = { status: "ready", candleCount: data.candleCount || 0 };
 
@@ -614,9 +631,8 @@ async function checkSymbolHistoryStatus(symbol: string) {
 
       }
 
-    } catch {
-
-      // Feed server unreachable — will retry
+    } catch (e) {
+      pushHistoryLog(`Background poll: Feed server unreachable for ${symbol} — ${e instanceof Error ? e.message : String(e)}`);
 
     }
 
@@ -2862,6 +2878,8 @@ export function getEngineState() {
 
     symbolHistoryStatus,
 
+    historyFetchLogs: [...historyFetchLogs],
+
     aiSuggestions: [...aiSuggestions],
 
     aiGuardActive: isAiGuardActive(),
@@ -2893,7 +2911,11 @@ export function forceInitSymbol(symbol: string) {
 
 // Retry history fetch for a symbol that was force-initialized without history
 export function retryHistoryFetch(symbol: string) {
-  if (!waitingTrades.some((t) => t.symbol === symbol)) return;
+  if (!waitingTrades.some((t) => t.symbol === symbol)) {
+    pushHistoryLog(`Retry ignored for ${symbol} — not in waiting trades`);
+    return;
+  }
+  pushHistoryLog(`Retry triggered for ${symbol} — setting status to loading, starting poll...`);
   symbolHistoryStatus[symbol] = { status: "loading", candleCount: 0 };
   checkSymbolHistoryStatus(symbol);
 }
