@@ -318,7 +318,6 @@ export default function ActiveTrade({
               </div>
 
               {/* AI Guard — Exit suggestion panel */}
-              <div style={{ height: 5 }} />
               {(() => {
                 const suggestion = aiSuggestions.find(
                   (s) => s.symbol === t.symbol && s.type === "EXIT_SUGGESTED" && !s.dismissed
@@ -345,6 +344,7 @@ export default function ActiveTrade({
                     borderRadius: "6px",
                     background: `${themeColor}14`, // alpha 0.08
                     border: `1px solid ${themeColor}40`, // alpha 0.25
+                    marginTop: "5px",
                     marginBottom: "6px",
                   }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
@@ -708,7 +708,6 @@ export default function ActiveTrade({
                 </div>
 
                 {/* AI Guard — Entry blocked panel */}
-                <div style={{ height: 5 }} />
                 {(() => {
                   const suggestion = aiSuggestions.find(
                     (s) => s.symbol === t.symbol && s.type === "ENTRY_BLOCKED" && !s.dismissed
@@ -735,6 +734,7 @@ export default function ActiveTrade({
                       borderRadius: "6px",
                       background: `${themeColor}14`, // alpha 0.08
                       border: `1px solid ${themeColor}40`, // alpha 0.25
+                      marginTop: "5px",
                       marginBottom: "6px",
                     }}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
