@@ -318,6 +318,7 @@ export default function ActiveTrade({
               </div>
 
               {/* AI Guard — Exit suggestion panel */}
+              <div style={{ height: 5 }} />
               {(() => {
                 const suggestion = aiSuggestions.find(
                   (s) => s.symbol === t.symbol && s.type === "EXIT_SUGGESTED" && !s.dismissed
@@ -332,7 +333,7 @@ export default function ActiveTrade({
                   label = "AI confirms TRENDING";
                 } else if (ru.includes("REVERS") || ru.includes("DOWN") || ru.includes("BEAR")) {
                   themeColor = "#ef4444"; // REVERSING (Red)
-                  label = "AI suggests EXIT";
+                  label = "AI suggests ending cycle";
                 }
 
                 return (
@@ -354,34 +355,21 @@ export default function ActiveTrade({
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: "6px", marginLeft: "26px" }}>
+                      {t.inPosition && (
                       <button
                         className={`${styles.waitingBtn} ${styles.dark}`}
                         type="button"
                         style={{ padding: "2px 8px", fontSize: "11px" }}
                         onClick={() => {
-                          const ltp = activeLtps[t.symbol];
-                          const entry = Number(t.entryPrice);
-                          const qty = t.lotSize * t.lotValue;
-                          const unrealized =
-                            t.inPosition && Number.isFinite(ltp) && Number.isFinite(entry)
-                              ? (ltp - entry) * qty
-                              : 0;
-                          const livePnl = t.pnl + unrealized;
-                          const now = new Date();
-                          const hh = String(now.getHours()).padStart(2, "0");
-                          const mm = String(now.getMinutes()).padStart(2, "0");
-                          const ss = String(now.getSeconds()).padStart(2, "0");
-                          const lastCandleTime = `${hh}:${mm}:${ss}`;
-                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/exit`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ exitPrice: String(ltp ?? ""), lastCandleTime }),
-                          }).catch(() => {});
-                          onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
+                          setPendingAction((prev) => ({ ...prev, [t.symbol]: "end-cycle" }));
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/end-cycle`, { method: "POST" })
+                            .catch(() => {})
+                            .finally(() => setPendingAction((prev) => { const next = { ...prev }; delete next[t.symbol]; return next; }));
                         }}
                       >
-                        Exit Now
+                        End Cycle
                       </button>
+                      )}
                       <button
                         className={`${styles.waitingBtn} ${styles.danger}`}
                         type="button"
@@ -720,6 +708,7 @@ export default function ActiveTrade({
                 </div>
 
                 {/* AI Guard — Entry blocked panel */}
+                <div style={{ height: 5 }} />
                 {(() => {
                   const suggestion = aiSuggestions.find(
                     (s) => s.symbol === t.symbol && s.type === "ENTRY_BLOCKED" && !s.dismissed
