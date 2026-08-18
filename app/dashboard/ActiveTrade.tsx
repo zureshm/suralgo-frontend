@@ -131,8 +131,8 @@ export default function ActiveTrade({
     const r = aiRegime[symbol];
     if (!r) return <span style={{ marginLeft, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>ANALYZING</span>;
     const ru = r.regime.toUpperCase();
-    const color = ru === "TRENDING" ? "#22c55e" : ru === "SIDEWAYS" ? "#f59e0b" : "#ef4444";
-    const label = ru === "TRENDING" ? "TRENDING" : ru === "SIDEWAYS" ? "SIDEWAYS" : "DOWNTREND";
+    const color = (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) ? "#22c55e" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "#a855f7" : "#ef4444";
+    const label = (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) ? "TRENDING" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "SIDEWAYS" : "DOWNTREND";
     return <span style={{ marginLeft, background: color, color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>{label}</span>;
   };
 
@@ -169,7 +169,7 @@ export default function ActiveTrade({
           width: 24,
           height: 14,
           borderRadius: 7,
-          background: enabled ? "var(--theme-popup-border)" : "#374151",
+          background: enabled ? "var(--theme-popup-border)" : "#ccc",
           transition: "background 0.15s",
         }}>
           <span style={{
@@ -323,6 +323,18 @@ export default function ActiveTrade({
                   (s) => s.symbol === t.symbol && s.type === "EXIT_SUGGESTED" && !s.dismissed
                 );
                 if (!suggestion) return null;
+
+                const ru = suggestion.marketRegime.toUpperCase();
+                let themeColor = "#a855f7"; // SIDEWAYS (Purple)
+                let label = "AI suggests CAUTION (Sideways)";
+                if (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) {
+                  themeColor = "#22c55e"; // TRENDING (Green)
+                  label = "AI confirms TRENDING";
+                } else if (ru.includes("REVERS") || ru.includes("DOWN") || ru.includes("BEAR")) {
+                  themeColor = "#ef4444"; // REVERSING (Red)
+                  label = "AI suggests ending cycle";
+                }
+
                 return (
                   <div style={{
                     display: "flex",
@@ -330,46 +342,34 @@ export default function ActiveTrade({
                     gap: "6px",
                     padding: "8px 10px",
                     borderRadius: "6px",
-                    background: "rgba(245,158,11,0.08)",
-                    border: "1px solid rgba(245,158,11,0.25)",
+                    background: `${themeColor}14`, // alpha 0.08
+                    border: `1px solid ${themeColor}40`, // alpha 0.25
+                    marginTop: "5px",
                     marginBottom: "6px",
                   }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-                      <AlertTriangle className="w-4 h-4" style={{ color: "#f59e0b", flexShrink: 0, marginTop: "1px" }} />
+                      <AlertTriangle className="w-4 h-4" style={{ color: themeColor, flexShrink: 0, marginTop: "1px" }} />
                       <div style={{ flex: 1, fontSize: "12px", lineHeight: "16px" }}>
-                        <span style={{ fontWeight: 600, color: "#f59e0b" }}>AI suggests EXIT</span>
+                        <span style={{ fontWeight: 600, color: themeColor }}>{label}</span>
                         <span style={{ color: "var(--theme-text-gray-500)", marginLeft: "6px" }}>— {suggestion.reason} ({suggestion.confidence}%)</span>
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: "6px", marginLeft: "26px" }}>
+                      {t.inPosition && (
                       <button
                         className={`${styles.waitingBtn} ${styles.dark}`}
                         type="button"
                         style={{ padding: "2px 8px", fontSize: "11px" }}
                         onClick={() => {
-                          const ltp = activeLtps[t.symbol];
-                          const entry = Number(t.entryPrice);
-                          const qty = t.lotSize * t.lotValue;
-                          const unrealized =
-                            t.inPosition && Number.isFinite(ltp) && Number.isFinite(entry)
-                              ? (ltp - entry) * qty
-                              : 0;
-                          const livePnl = t.pnl + unrealized;
-                          const now = new Date();
-                          const hh = String(now.getHours()).padStart(2, "0");
-                          const mm = String(now.getMinutes()).padStart(2, "0");
-                          const ss = String(now.getSeconds()).padStart(2, "0");
-                          const lastCandleTime = `${hh}:${mm}:${ss}`;
-                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/exit`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ exitPrice: String(ltp ?? ""), lastCandleTime }),
-                          }).catch(() => {});
-                          onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
+                          setPendingAction((prev) => ({ ...prev, [t.symbol]: "end-cycle" }));
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/end-cycle`, { method: "POST" })
+                            .catch(() => {})
+                            .finally(() => setPendingAction((prev) => { const next = { ...prev }; delete next[t.symbol]; return next; }));
                         }}
                       >
-                        Exit Now
+                        End Cycle
                       </button>
+                      )}
                       <button
                         className={`${styles.waitingBtn} ${styles.danger}`}
                         type="button"
@@ -713,6 +713,18 @@ export default function ActiveTrade({
                     (s) => s.symbol === t.symbol && s.type === "ENTRY_BLOCKED" && !s.dismissed
                   );
                   if (!suggestion) return null;
+
+                  const ru = suggestion.marketRegime.toUpperCase();
+                  let themeColor = "#a855f7"; // SIDEWAYS (Purple)
+                  let label = "AI blocked entry (Sideways)";
+                  if (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) {
+                    themeColor = "#22c55e"; // TRENDING (Green)
+                    label = "AI confirms TRENDING";
+                  } else if (ru.includes("REVERS") || ru.includes("DOWN") || ru.includes("BEAR")) {
+                    themeColor = "#ef4444"; // REVERSING (Red)
+                    label = "AI blocked entry (Reversal)";
+                  }
+
                   return (
                     <div style={{
                       display: "flex",
@@ -720,14 +732,15 @@ export default function ActiveTrade({
                       gap: "6px",
                       padding: "8px 10px",
                       borderRadius: "6px",
-                      background: "rgba(239,68,68,0.08)",
-                      border: "1px solid rgba(239,68,68,0.25)",
+                      background: `${themeColor}14`, // alpha 0.08
+                      border: `1px solid ${themeColor}40`, // alpha 0.25
+                      marginTop: "5px",
                       marginBottom: "6px",
                     }}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-                        <AlertTriangle className="w-4 h-4" style={{ color: "#ef4444", flexShrink: 0, marginTop: "1px" }} />
+                        <AlertTriangle className="w-4 h-4" style={{ color: themeColor, flexShrink: 0, marginTop: "1px" }} />
                         <div style={{ flex: 1, fontSize: "12px", lineHeight: "16px" }}>
-                          <span style={{ fontWeight: 600, color: "#ef4444" }}>AI blocked entry</span>
+                          <span style={{ fontWeight: 600, color: themeColor }}>{label}</span>
                           <span style={{ color: "var(--theme-text-gray-500)", marginLeft: "6px" }}>— {suggestion.reason} ({suggestion.confidence}%)</span>
                         </div>
                       </div>

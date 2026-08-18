@@ -256,6 +256,8 @@ type WaitingTrade = {
   reEntryCandles: number;
   reEntryPoints: number;
 
+  reEntryStopLossEnabled: boolean;
+  reEntryStopLoss: number;
   reEntryAsTrailingEnabled: boolean;
   reEntryTrailingPoints: number;
 
@@ -267,7 +269,14 @@ type WaitingTrade = {
   pendingSkippedBuy?: boolean;
 
   signalReEntryEnabled: boolean;
-
+  triggerTimerEnabled?: boolean;
+  triggerTimeEnabled?: boolean;
+  triggerPriceEnabled?: boolean;
+  triggerHours?: number;
+  triggerMinutes?: number;
+  triggerSeconds?: number;
+  triggerMinPrice?: number;
+  triggerMaxPrice?: number;
 };
 
 
@@ -365,6 +374,8 @@ type ActiveTrade = {
   reEntryCandles: number;
   reEntryPoints: number;
 
+  reEntryStopLossEnabled: boolean;
+  reEntryStopLoss: number;
   reEntryAsTrailingEnabled: boolean;
   reEntryTrailingPoints: number;
 
@@ -385,7 +396,14 @@ type ActiveTrade = {
   signalReEntryEnabled: boolean;
 
   signalReEntryArmed?: boolean;
-
+  triggerTimerEnabled?: boolean;
+  triggerTimeEnabled?: boolean;
+  triggerPriceEnabled?: boolean;
+  triggerHours?: number;
+  triggerMinutes?: number;
+  triggerSeconds?: number;
+  triggerMinPrice?: number;
+  triggerMaxPrice?: number;
 };
 
 
@@ -447,6 +465,9 @@ let watchlist: string[] = [];
 let lastStrategyCandleTime = "";
 
 let lastHandledSignalKey: Record<string, string> = {};
+
+// Trigger Timer state — tracks which symbols have already fired today to prevent re-firing
+const triggerTimerFired: Set<string> = new Set();
 
 // â”€â”€â”€ Sound event queue (consumed by client via polling) â”€â”€â”€
 type SoundType = "enter" | "exit" | "profit" | "loss";
@@ -510,6 +531,15 @@ const symbolsWithFirstSignal = new Set<string>();
 // 'loading' = history fetch in progress, 'ready' = history loaded, 'failed' = 0 candles
 const symbolHistoryStatus: Record<string, { status: string; candleCount: number }> = {};
 
+// Ring buffer of history-fetch log lines for the Log Monitor page
+const historyFetchLogs: string[] = [];
+const MAX_HISTORY_LOGS = 200;
+function pushHistoryLog(msg: string) {
+  const ts = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  historyFetchLogs.push(`[${ts}] ${msg}`);
+  if (historyFetchLogs.length > MAX_HISTORY_LOGS) historyFetchLogs.shift();
+}
+
 // Check history status from angel-feed server for a symbol.
 
 // Phase 1: poll every 5s for up to 60s. If not ready, mark "failed".
@@ -523,6 +553,7 @@ const symbolHistoryStatus: Record<string, { status: string; candleCount: number 
 async function checkSymbolHistoryStatus(symbol: string) {
 
   console.log(`[trade-engine] Starting history status poll for ${symbol}`);
+  pushHistoryLog(`Starting history status poll for ${symbol}`);
 
   const maxAttempts = 12; // Phase 1: ~60s total (every 5s)
 
@@ -531,6 +562,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
     try {
 
       console.log(`[trade-engine] Checking history status for ${symbol} (attempt ${i + 1}/${maxAttempts})...`);
+      pushHistoryLog(`Checking history status for ${symbol} (attempt ${i + 1}/${maxAttempts}) — GET ${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
 
       const res = await fetch(`${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
 
@@ -539,6 +571,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
       if (data.status === "ready") {
 
         console.log(`[trade-engine] Symbol ${symbol} history is READY (${data.candleCount || 0} candles)`);
+        pushHistoryLog(`Symbol ${symbol} history is READY (${data.candleCount || 0} candles)`);
 
         symbolHistoryStatus[symbol] = { status: "ready", candleCount: data.candleCount || 0 };
 
@@ -551,6 +584,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
       if (data.status === "failed") {
 
         console.error(`[trade-engine] Symbol ${symbol} history fetch FAILED at feed server`);
+        pushHistoryLog(`Symbol ${symbol} history fetch FAILED at feed server`);
 
         break;
 
@@ -559,6 +593,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
     } catch (e) {
 
       console.warn(`[trade-engine] Feed server unreachable for ${symbol} check, retrying...`);
+      pushHistoryLog(`Feed server unreachable for ${symbol} check — ${e instanceof Error ? e.message : String(e)}`);
 
     }
 
@@ -571,6 +606,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
   if (symbolHistoryStatus[symbol]?.status !== "ready") {
 
     console.log(`[trade-engine] Phase 1 poll ended for ${symbol} without readiness. Switching to Phase 2 (30s background poll).`);
+    pushHistoryLog(`Phase 1 poll ended for ${symbol} without readiness. Switching to Phase 2 (30s background poll).`);
 
     symbolHistoryStatus[symbol] = { status: "failed", candleCount: 0 };
 
@@ -593,6 +629,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
     try {
 
       console.log(`[trade-engine] Background history status poll for ${symbol} (attempt ${i + 1}/${maxBgAttempts})...`);
+      pushHistoryLog(`Background history status poll for ${symbol} (attempt ${i + 1}/${maxBgAttempts})`);
 
       const res = await fetch(`${API_URL}/symbol-history-status/${encodeURIComponent(symbol)}`);
 
@@ -601,6 +638,7 @@ async function checkSymbolHistoryStatus(symbol: string) {
       if (data.status === "ready") {
 
         console.log(`[trade-engine] Symbol ${symbol} history finally READY (${data.candleCount || 0} candles)`);
+        pushHistoryLog(`Symbol ${symbol} history finally READY (${data.candleCount || 0} candles)`);
 
         symbolHistoryStatus[symbol] = { status: "ready", candleCount: data.candleCount || 0 };
 
@@ -610,9 +648,8 @@ async function checkSymbolHistoryStatus(symbol: string) {
 
       }
 
-    } catch {
-
-      // Feed server unreachable — will retry
+    } catch (e) {
+      pushHistoryLog(`Background poll: Feed server unreachable for ${symbol} — ${e instanceof Error ? e.message : String(e)}`);
 
     }
 
@@ -792,8 +829,10 @@ function cleanupStaleState() {
 const aiSuggestions: AiSuggestion[] = [];
 const lastAiCandleTime: Record<string, string> = {};
 const lastAiResult: Record<string, AiAnalysisResult> = {};
+const pendingSidewaysExits: Record<string, { retryCount: number; lastRetryTime: number }> = {};
 export function clearAiResults() {
   for (const k of Object.keys(lastAiResult)) delete lastAiResult[k];
+  for (const k of Object.keys(pendingSidewaysExits)) delete pendingSidewaysExits[k];
   aiSuggestions.length = 0;
 }
 
@@ -1071,6 +1110,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     reEntryCandles: trade.reEntryCandles,
     reEntryPoints: trade.reEntryPoints,
 
+    reEntryStopLossEnabled: trade.reEntryStopLossEnabled,
+    reEntryStopLoss: trade.reEntryStopLoss,
     reEntryAsTrailingEnabled: trade.reEntryAsTrailingEnabled,
     reEntryTrailingPoints: trade.reEntryTrailingPoints,
 
@@ -1085,7 +1126,14 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     signalReEntryEnabled: trade.signalReEntryEnabled,
 
     signalReEntryArmed: false,
-
+    triggerTimerEnabled: trade.triggerTimerEnabled,
+    triggerTimeEnabled: trade.triggerTimeEnabled,
+    triggerPriceEnabled: trade.triggerPriceEnabled,
+    triggerHours: trade.triggerHours,
+    triggerMinutes: trade.triggerMinutes,
+    triggerSeconds: trade.triggerSeconds,
+    triggerMinPrice: trade.triggerMinPrice,
+    triggerMaxPrice: trade.triggerMaxPrice,
   };
 
 
@@ -1723,6 +1771,45 @@ function handleStrategySignal(signal: any) {
         lastAiResult[signalSymbol] = result;
         const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
 
+        // Always update AI suggestions list for both waiting and active trades
+        // This ensures the UI message bubble is always current and visible for all regimes
+        const matchingWaiting = waitingTrades.find((t) => t.symbol === signalSymbol);
+        const matchingActive = activeTrades.find((t) => t.symbol === signalSymbol && t.status === "ACTIVE");
+
+        if (matchingWaiting) {
+          for (let i = aiSuggestions.length - 1; i >= 0; i--) {
+            if (aiSuggestions[i].symbol === signalSymbol && aiSuggestions[i].type === "ENTRY_BLOCKED") {
+              aiSuggestions.splice(i, 1);
+            }
+          }
+          aiSuggestions.push({
+            symbol: signalSymbol,
+            type: "ENTRY_BLOCKED",
+            marketRegime: result.marketRegime,
+            confidence: result.confidence,
+            reason: result.reason,
+            timestamp: now,
+            dismissed: false,
+          });
+        }
+
+        if (matchingActive) {
+          for (let i = aiSuggestions.length - 1; i >= 0; i--) {
+            if (aiSuggestions[i].symbol === signalSymbol && aiSuggestions[i].type === "EXIT_SUGGESTED") {
+              aiSuggestions.splice(i, 1);
+            }
+          }
+          aiSuggestions.push({
+            symbol: signalSymbol,
+            type: "EXIT_SUGGESTED",
+            marketRegime: result.marketRegime,
+            confidence: result.confidence,
+            reason: result.reason,
+            timestamp: now,
+            dismissed: false,
+          });
+        }
+
         // EntryGuard â€” block BUY if sideways/reversing
         if (settings.entryGuardEnabled && result.blockEntry) {
           // If there's a buffered BUY, increment its candle count
@@ -1744,20 +1831,6 @@ function handleStrategySignal(signal: any) {
             }
           }
 
-          for (let i = aiSuggestions.length - 1; i >= 0; i--) {
-            if (aiSuggestions[i].symbol === signalSymbol && aiSuggestions[i].type === "ENTRY_BLOCKED") {
-              aiSuggestions.splice(i, 1);
-            }
-          }
-          aiSuggestions.push({
-            symbol: signalSymbol,
-            type: "ENTRY_BLOCKED",
-            marketRegime: result.marketRegime,
-            confidence: result.confidence,
-            reason: result.reason,
-            timestamp: now,
-            dismissed: false,
-          });
           addAiLog(`[ai-guard] Entry blocked for ${signalSymbol}: ${result.reason} (${result.confidence}%)`);
         } else if (settings.entryGuardEnabled && !result.blockEntry) {
           // AI says trending â€” if there's a buffered BUY, fire it now
@@ -1779,9 +1852,33 @@ function handleStrategySignal(signal: any) {
           }
         }
 
+        // Clear sideways retry if AI now says trending
+        if (!result.suggestExit || result.marketRegime === "TRENDING") {
+          if (pendingSidewaysExits[signalSymbol]) {
+            addLogToActive(signalSymbol, `AI now confirms TRENDING â€” sideways exit cancelled at ${now}`);
+            addAiLog(`[ai-guard] ${signalSymbol} returned to TRENDING, clearing sideways retry`);
+            delete pendingSidewaysExits[signalSymbol];
+          }
+        }
+
         // Exit Guard â€” suggest or auto-execute exit
         if (result.suggestExit && activeTrade && activeTrade.inPosition) {
           if (settings.autoExitEnabled) {
+            // If sideways, start or continue the 30s retry window
+            if (result.marketRegime === "SIDEWAYS") {
+              if (!pendingSidewaysExits[signalSymbol]) {
+                pendingSidewaysExits[signalSymbol] = { retryCount: 0, lastRetryTime: Date.now() };
+                const sideLog = `AI detected SIDEWAYS â€” waiting 30s with 10s retries before auto-exit at ${now}`;
+                addLogToActive(signalSymbol, sideLog);
+                addAiLog(`[ai-guard] Sideways detected for ${signalSymbol}, starting 30s retry window`);
+                return; // Don't exit yet
+              } else {
+                // Already in retry window, wait for tick to handle it
+                return;
+              }
+            }
+
+            // Auto-execute exit (for REVERSING or immediate exit if not sideways)
             completeCycleWithoutExit(
               activeTrade.symbol,
               String(latestClose ?? ""),
@@ -1789,23 +1886,9 @@ function handleStrategySignal(signal: any) {
             );
             updateLastSellCandleTime(activeTrade.symbol, signal.lastCandleTime ?? "");
             addAiLog(`[ai-guard] Auto-exit executed for ${signalSymbol}: ${result.reason} (${result.confidence}%)`);
+            delete pendingSidewaysExits[signalSymbol];
           } else {
-            const existing = aiSuggestions.find(
-              (s) => s.symbol === signalSymbol && s.type === "EXIT_SUGGESTED" && !s.dismissed
-            );
-            if (!existing) {
-              aiSuggestions.push({
-                symbol: signalSymbol,
-                type: "EXIT_SUGGESTED",
-                marketRegime: result.marketRegime,
-                confidence: result.confidence,
-                reason: result.reason,
-                timestamp: now,
-                dismissed: false,
-              });
-              addLogToActive(signalSymbol, `AI Guard: exit suggested â€” ${result.reason} (${result.confidence}%) at ${now}`);
-              addAiLog(`[ai-guard] Exit suggested for ${signalSymbol}: ${result.reason} (${result.confidence}%)`);
-            }
+            addAiLog(`[ai-guard] Exit suggested for ${signalSymbol}: ${result.reason} (${result.confidence}%)`);
           }
         }
       }).catch((e) => {
@@ -1815,15 +1898,13 @@ function handleStrategySignal(signal: any) {
 
 
 
-  // Auto-sell cutoff at 3:25 PM
+  // Auto-sell cutoff at 3:25 PM — use server system time, not stale candle time
+  const AUTO_SELL_CUTOFF_MINUTES = 15 * 60 + 25;
+  const sysNow = new Date();
+  const sysMinutes = sysNow.getHours() * 60 + sysNow.getMinutes();
+  const sysTimeStr = `${String(sysNow.getHours()).padStart(2, "0")}:${String(sysNow.getMinutes()).padStart(2, "0")}`;
 
-  const AUTO_SELL_CUTOFF_MINUTES = 15 * 60  + 25;
-
-  const candleMinutes = toMinutes(signal.lastCandleTime);
-
-
-
-  if (candleMinutes >= AUTO_SELL_CUTOFF_MINUTES && activeForSymbol && activeForSymbol.inPosition) {
+  if (sysMinutes >= AUTO_SELL_CUTOFF_MINUTES && activeForSymbol && activeForSymbol.inPosition) {
 
     completeActiveTrade(
 
@@ -1831,11 +1912,11 @@ function handleStrategySignal(signal: any) {
 
       String(latestClose ?? ""),
 
-      `AUTO SELL triggered post 02:55 pm cut-off at â‚¹${String(latestClose ?? "")} (${fmtTime(signal.lastCandleTime)})`
+      `AUTO SELL triggered post 03:25 pm cut-off at â‚¹${String(latestClose ?? "")} (sys ${sysTimeStr})`
 
     );
 
-    updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime ?? "15:15");
+    updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime ?? "15:25");
 
     return;
 
@@ -2581,10 +2662,14 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     // Stop loss hit
 
-    if (trade.stopLossNumberEnabled && trade.stopLossNumber > 0 && (ltp - entry) <= -trade.stopLossNumber) {
+    // Use re-entry SL if trade is a re-entry cycle and reEntryStopLossEnabled
+    const effectiveSLEnabled = (trade.isReEntryCycle && trade.reEntryStopLossEnabled) ? true : trade.stopLossNumberEnabled;
+    const effectiveSL = (trade.isReEntryCycle && trade.reEntryStopLossEnabled) ? trade.reEntryStopLoss : trade.stopLossNumber;
 
-      const slLevel = entry - trade.stopLossNumber;
-      const slExit = priceDiff <= -trade.stopLossNumber ? ltp : slLevel;
+    if (effectiveSLEnabled && effectiveSL > 0 && (ltp - entry) <= -effectiveSL) {
+
+      const slLevel = entry - effectiveSL;
+      const slExit = priceDiff <= -effectiveSL ? ltp : slLevel;
 
       triggeredPositions.add(positionKey);
 
@@ -2619,12 +2704,17 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
 
 
+let tickInProgress = false;
+
 async function tick() {
 
   if (!engineRunning) {
     console.log("[trade-engine] Tick called but engine not running, skipping");
     return;
   }
+
+  if (tickInProgress) return;
+  tickInProgress = true;
   
   try {
 
@@ -2700,13 +2790,194 @@ async function tick() {
         handleLtpMonitoring(ltpMap, marketTime);
 
       } catch { /* market data not running */ }
+    }
 
+    // 3. Handle pending sideways exits (10s retries)
+    if (isAiGuardActive()) {
+      const now = Date.now();
+      for (const symbol of Object.keys(pendingSidewaysExits)) {
+        const retry = pendingSidewaysExits[symbol];
+        if (now - retry.lastRetryTime >= 10000) {
+          retry.lastRetryTime = now;
+          retry.retryCount++;
+
+          const activeTrade = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
+          if (!activeTrade || !activeTrade.inPosition) {
+            delete pendingSidewaysExits[symbol];
+            continue;
+          }
+
+          const settings = getAiGuardSettings();
+          const tradeContext = {
+            entryPrice: activeTrade.entryPrice,
+            pnl: activeTrade.pnl,
+            signal: activeTrade.lotSize > 0 ? "BUY" : "SELL"
+          };
+
+          addAiLog(`[ai-guard] ${symbol}: Sideways retry #${retry.retryCount}/3...`);
+          
+          fetch(`${STRATEGY_URL}/chart-history`)
+            .then(r => r.json())
+            .then(historyData => {
+              const candles = Array.isArray(historyData?.[symbol]) ? historyData[symbol] : [];
+              if (candles.length === 0) return null;
+              return analyzeMarketRegime(symbol, candles, tradeContext);
+            })
+            .then(result => {
+              if (!result) return;
+              lastAiResult[symbol] = result;
+              const timeStr = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+              // Update AI suggestions list during retry
+              for (let i = aiSuggestions.length - 1; i >= 0; i--) {
+                if (aiSuggestions[i].symbol === symbol && aiSuggestions[i].type === "EXIT_SUGGESTED") {
+                  aiSuggestions.splice(i, 1);
+                }
+              }
+              aiSuggestions.push({
+                symbol,
+                type: "EXIT_SUGGESTED",
+                marketRegime: result.marketRegime,
+                confidence: result.confidence,
+                reason: result.reason,
+                timestamp: timeStr,
+                dismissed: false,
+              });
+
+              if (!result.suggestExit || result.marketRegime === "TRENDING") {
+                addLogToActive(symbol, `AI now confirms TRENDING â€” sideways exit cancelled at ${timeStr}`);
+                addAiLog(`[ai-guard] ${symbol} returned to TRENDING during retry, clearing sideways retry`);
+                delete pendingSidewaysExits[symbol];
+              } else if (retry.retryCount >= 3) {
+                if (settings.autoExitEnabled) {
+                  completeCycleWithoutExit(
+                    symbol,
+                    String(lastCandleCloseMap[symbol] ?? ""),
+                    `AI Guard auto-exit: Sideways persisted for 30s (${result.reason}, ${result.confidence}%) at ${timeStr}`
+                  );
+                  updateLastSellCandleTime(symbol, lastAiCandleTime[symbol] || "");
+                  addAiLog(`[ai-guard] Auto-exit executed for ${symbol} after 30s sideways persistence`);
+                }
+                delete pendingSidewaysExits[symbol];
+              } else {
+                addLogToActive(symbol, `AI still sideways (${result.reason}, ${result.confidence}%) â€” retry ${retry.retryCount}/3 at ${timeStr}`);
+                addAiLog(`[ai-guard] ${symbol} still sideways at retry #${retry.retryCount}`);
+              }
+            })
+            .catch(e => {
+              addAiErrorLog(`[ai-guard] Sideways retry error for ${symbol}: ${String(e)}`);
+            });
+        }
+      }
+    }
+
+    // 4. Auto Trigger check — auto-activate waiting trades based on time and/or price
+    // Uses server system time (IST) and live LTP from API
+    // Batch-fetches all LTPs upfront to avoid per-trade sequential fetches causing tick overlap
+    const sysNowTrigger = new Date();
+    const sysH = sysNowTrigger.getHours();
+    const sysM = sysNowTrigger.getMinutes();
+    const sysS = sysNowTrigger.getSeconds();
+    const sysTotalSecs = sysH * 3600 + sysM * 60 + sysS;
+    const sysTimeStr = `${String(sysH).padStart(2, "0")}:${String(sysM).padStart(2, "0")}:${String(sysS).padStart(2, "0")}`;
+
+    // Collect trigger-eligible trades (snapshot to avoid mutation issues)
+    const triggerCandidates = [...waitingTrades].filter(trade => {
+      if (!trade.triggerTimerEnabled) return false;
+      if (triggerTimerFired.has(trade.symbol)) return false;
+      const timeEnabled = trade.triggerTimeEnabled !== false;
+      const priceEnabled = trade.triggerPriceEnabled !== false;
+      if (!timeEnabled && !priceEnabled) return false;
+      return true;
+    });
+
+    // Batch-fetch LTP for all trigger candidates in a single API call
+    const triggerLtpMap: Record<string, number> = {};
+    if (triggerCandidates.length > 0) {
+      try {
+        const triggerSymbols = triggerCandidates.map(t => t.symbol).join(",");
+        const res = await fetch(`${API_URL}/prices?symbols=${triggerSymbols}`);
+        const prices = await res.json();
+        if (Array.isArray(prices)) {
+          for (const p of prices) {
+            if (p?.symbol && p?.ltp != null) triggerLtpMap[p.symbol] = Number(p.ltp);
+          }
+        }
+      } catch {
+        console.log(`[auto-trigger] Batch LTP fetch failed, skipping trigger check this tick`);
+      }
+    }
+
+    for (const trade of triggerCandidates) {
+      if (triggerTimerFired.has(trade.symbol)) continue; // Re-check after batch processing
+
+      const timeEnabled = trade.triggerTimeEnabled !== false;
+      const priceEnabled = trade.triggerPriceEnabled !== false;
+
+      // 1. Time Check
+      let timeMatched = true;
+      if (timeEnabled) {
+        const targetH = trade.triggerHours ?? 0;
+        const targetM = trade.triggerMinutes ?? 0;
+        const targetS = trade.triggerSeconds ?? 0;
+        const targetTotalSecs = targetH * 3600 + targetM * 60 + targetS;
+        
+        // Match if current time is within [target, target + 60] seconds
+        timeMatched = (sysTotalSecs >= targetTotalSecs && sysTotalSecs <= targetTotalSecs + 60);
+      }
+
+      if (!timeMatched) continue;
+
+      // 2. Price Check — use pre-fetched LTP
+      let priceMatched = true;
+      const currentLtp = triggerLtpMap[trade.symbol] ?? NaN;
+
+      if (priceEnabled) {
+        const minP = trade.triggerMinPrice ?? 0;
+        const maxP = trade.triggerMaxPrice ?? Infinity;
+
+        if (!Number.isFinite(currentLtp)) {
+          console.log(`[auto-trigger] ${trade.symbol}: no valid LTP, skipping`);
+          continue;
+        }
+
+        priceMatched = (currentLtp >= minP && currentLtp <= maxP);
+      }
+
+      // If price is enabled but not matched, we just skip this tick (wait for price to enter range)
+      // EXCEPT if Time is also enabled and matched - if time matched but price didn't, we mark as fired (missed window)
+      if (priceEnabled && !priceMatched) {
+        if (timeEnabled) {
+          // Time matched but price didn't - window will eventually pass
+          // If we're at the very end of the 60s window, we can mark as fired to stop trying
+          if (sysTotalSecs > (trade.triggerHours ?? 0) * 3600 + (trade.triggerMinutes ?? 0) * 60 + (trade.triggerSeconds ?? 0) + 55) {
+             console.log(`[auto-trigger] ${trade.symbol}: Time window closing, price never hit range. Marking as fired.`);
+             addLogToWaiting(trade.symbol, `Auto Trigger: Time window passed, price ${currentLtp} never entered range.`);
+             triggerTimerFired.add(trade.symbol);
+          }
+        }
+        continue;
+      }
+
+      // Both conditions (that are enabled) are met!
+      const ltpStr = Number.isFinite(currentLtp) ? String(currentLtp) : "0";
+      const reasonParts = [];
+      if (timeEnabled) reasonParts.push(`Time ${sysTimeStr}`);
+      if (priceEnabled) reasonParts.push(`Price ₹${currentLtp}`);
+      const reason = reasonParts.join(" & ");
+
+      console.log(`[auto-trigger] ${trade.symbol}: ${reason} met, activating!`);
+      addLogToWaiting(trade.symbol, `Auto Trigger fired (${reason})`);
+      activateWaitingTrade(trade.symbol, ltpStr, `Auto Trigger BUY at ₹${ltpStr} (${reason})`);
+      triggerTimerFired.add(trade.symbol);
     }
 
   } catch (e) {
 
     console.error("[trade-engine] tick error:", e);
 
+  } finally {
+    tickInProgress = false;
   }
 
   persistState();
@@ -2736,6 +3007,8 @@ export function getEngineState() {
     symbolsWithFirstSignal: [...symbolsWithFirstSignal],
 
     symbolHistoryStatus,
+
+    historyFetchLogs: [...historyFetchLogs],
 
     aiSuggestions: [...aiSuggestions],
 
@@ -2768,7 +3041,11 @@ export function forceInitSymbol(symbol: string) {
 
 // Retry history fetch for a symbol that was force-initialized without history
 export function retryHistoryFetch(symbol: string) {
-  if (!waitingTrades.some((t) => t.symbol === symbol)) return;
+  if (!waitingTrades.some((t) => t.symbol === symbol)) {
+    pushHistoryLog(`Retry ignored for ${symbol} — not in waiting trades`);
+    return;
+  }
+  pushHistoryLog(`Retry triggered for ${symbol} — setting status to loading, starting poll...`);
   symbolHistoryStatus[symbol] = { status: "loading", candleCount: 0 };
   checkSymbolHistoryStatus(symbol);
 }
@@ -2791,6 +3068,7 @@ export function addWaitingTrade(trade: WaitingTrade) {
   // Clear stale signal state from any previous trade cycle for this symbol
   delete lastHandledSignalKey[trade.symbol];
   delete lastBuyCandleTime[trade.symbol];
+  triggerTimerFired.delete(trade.symbol);
 
   // Reset first-signal tracking so the loader shows correctly for this (re-)add
   symbolsWithFirstSignal.delete(trade.symbol);
@@ -2837,11 +3115,14 @@ export function updateActiveTradeConfig(symbol: string, config: Record<string, u
     "maxProfitLossEnabled", "maxProfit", "maxLoss",
     "sellWhenLossCandlesEnabled", "sellWhenLossCandles",
     "reEntryAfterTargetEnabled", "reEntryCandles", "reEntryPoints",
+    "reEntryStopLossEnabled", "reEntryStopLoss",
     "reEntryAsTrailingEnabled", "reEntryTrailingPoints",
     "reEntryMinTargetEnabled", "reEntryMinTargetPoints", "reEntryMinTargetTrigger", "reEntryMinTargetTrailing",
     "signalReEntryEnabled",
     "rangeEnabled", "timeFrom", "timeFromAmpm", "timeTo", "timeToAmpm",
     "buyOverride", "waitAfterSellEnabled", "waitAfterSellCandles",
+    "triggerTimerEnabled", "triggerTimeEnabled", "triggerPriceEnabled",
+    "triggerHours", "triggerMinutes", "triggerSeconds", "triggerMinPrice", "triggerMaxPrice",
   ];
 
   const safeUpdate: Record<string, unknown> = {};
