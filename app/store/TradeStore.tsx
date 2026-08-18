@@ -53,6 +53,14 @@ export type WaitingTrade = {
   reEntryMinTargetTrailing: boolean;
   pendingSkippedBuy?: boolean;
   signalReEntryEnabled: boolean;
+  triggerTimerEnabled?: boolean;
+  triggerTimeEnabled?: boolean;
+  triggerPriceEnabled?: boolean;
+  triggerHours?: number;
+  triggerMinutes?: number;
+  triggerSeconds?: number;
+  triggerMinPrice?: number;
+  triggerMaxPrice?: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -118,6 +126,14 @@ export type ActiveTrade = {
   pendingSkippedBuy?: boolean;
   signalReEntryEnabled: boolean;
   signalReEntryArmed?: boolean;
+  triggerTimerEnabled?: boolean;
+  triggerTimeEnabled?: boolean;
+  triggerPriceEnabled?: boolean;
+  triggerHours?: number;
+  triggerMinutes?: number;
+  triggerSeconds?: number;
+  triggerMinPrice?: number;
+  triggerMaxPrice?: number;
 };
 
 export type AiSuggestion = {
@@ -391,6 +407,14 @@ export function TradeStoreProvider({
           return Boolean(data.signalReEntryEnabled ?? true);
         } catch { return true; }
       })(),
+      triggerTimerEnabled: readFormBool(sym, "triggerTimerEnabled", false),
+      triggerTimeEnabled: readFormBool(sym, "triggerTimeEnabled", true),
+      triggerPriceEnabled: readFormBool(sym, "triggerPriceEnabled", true),
+      triggerHours: readFormNumber(sym, "triggerHours", 9),
+      triggerMinutes: readFormNumber(sym, "triggerMinutes", 15),
+      triggerSeconds: readFormNumber(sym, "triggerSeconds", 10),
+      triggerMinPrice: readFormNumber(sym, "triggerMinPrice", 100),
+      triggerMaxPrice: readFormNumber(sym, "triggerMaxPrice", 400),
     };
 
     if (alreadyExists) {
@@ -489,6 +513,14 @@ export function TradeStoreProvider({
       pendingSkippedBuy: false,
       signalReEntryEnabled: tradeToActivate.signalReEntryEnabled,
       signalReEntryArmed: false,
+      triggerTimerEnabled: tradeToActivate.triggerTimerEnabled,
+      triggerTimeEnabled: tradeToActivate.triggerTimeEnabled,
+      triggerPriceEnabled: tradeToActivate.triggerPriceEnabled,
+      triggerHours: tradeToActivate.triggerHours,
+      triggerMinutes: tradeToActivate.triggerMinutes,
+      triggerSeconds: tradeToActivate.triggerSeconds,
+      triggerMinPrice: tradeToActivate.triggerMinPrice,
+      triggerMaxPrice: tradeToActivate.triggerMaxPrice,
     };
 
     setActiveTrades((prev) => [...prev, newActiveTrade]);
