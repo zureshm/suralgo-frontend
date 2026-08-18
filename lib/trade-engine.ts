@@ -2704,12 +2704,17 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
 
 
+let tickInProgress = false;
+
 async function tick() {
 
   if (!engineRunning) {
     console.log("[trade-engine] Tick called but engine not running, skipping");
     return;
   }
+
+  if (tickInProgress) return;
+  tickInProgress = true;
   
   try {
 
@@ -2868,6 +2873,7 @@ async function tick() {
 
     // 4. Auto Trigger check — auto-activate waiting trades based on time and/or price
     // Uses server system time (IST) and live LTP from API
+    // Batch-fetches all LTPs upfront to avoid per-trade sequential fetches causing tick overlap
     const sysNowTrigger = new Date();
     const sysH = sysNowTrigger.getHours();
     const sysM = sysNowTrigger.getMinutes();
@@ -2875,15 +2881,38 @@ async function tick() {
     const sysTotalSecs = sysH * 3600 + sysM * 60 + sysS;
     const sysTimeStr = `${String(sysH).padStart(2, "0")}:${String(sysM).padStart(2, "0")}:${String(sysS).padStart(2, "0")}`;
 
-    for (const trade of waitingTrades) {
-      // Master toggle must be enabled
-      if (!trade.triggerTimerEnabled) continue;
-      if (triggerTimerFired.has(trade.symbol)) continue;
+    // Collect trigger-eligible trades (snapshot to avoid mutation issues)
+    const triggerCandidates = [...waitingTrades].filter(trade => {
+      if (!trade.triggerTimerEnabled) return false;
+      if (triggerTimerFired.has(trade.symbol)) return false;
+      const timeEnabled = trade.triggerTimeEnabled !== false;
+      const priceEnabled = trade.triggerPriceEnabled !== false;
+      if (!timeEnabled && !priceEnabled) return false;
+      return true;
+    });
 
-      const timeEnabled = trade.triggerTimeEnabled !== false; // Default true for backward compatibility
-      const priceEnabled = trade.triggerPriceEnabled !== false; // Default true for backward compatibility
+    // Batch-fetch LTP for all trigger candidates in a single API call
+    const triggerLtpMap: Record<string, number> = {};
+    if (triggerCandidates.length > 0) {
+      try {
+        const triggerSymbols = triggerCandidates.map(t => t.symbol).join(",");
+        const res = await fetch(`${API_URL}/prices?symbols=${triggerSymbols}`);
+        const prices = await res.json();
+        if (Array.isArray(prices)) {
+          for (const p of prices) {
+            if (p?.symbol && p?.ltp != null) triggerLtpMap[p.symbol] = Number(p.ltp);
+          }
+        }
+      } catch {
+        console.log(`[auto-trigger] Batch LTP fetch failed, skipping trigger check this tick`);
+      }
+    }
 
-      if (!timeEnabled && !priceEnabled) continue; // Nothing to check
+    for (const trade of triggerCandidates) {
+      if (triggerTimerFired.has(trade.symbol)) continue; // Re-check after batch processing
+
+      const timeEnabled = trade.triggerTimeEnabled !== false;
+      const priceEnabled = trade.triggerPriceEnabled !== false;
 
       // 1. Time Check
       let timeMatched = true;
@@ -2899,23 +2928,13 @@ async function tick() {
 
       if (!timeMatched) continue;
 
-      // 2. Price Check
+      // 2. Price Check — use pre-fetched LTP
       let priceMatched = true;
-      let currentLtp: number = NaN;
+      const currentLtp = triggerLtpMap[trade.symbol] ?? NaN;
 
       if (priceEnabled) {
         const minP = trade.triggerMinPrice ?? 0;
         const maxP = trade.triggerMaxPrice ?? Infinity;
-
-        // Fetch live LTP for price check
-        try {
-          const res = await fetch(`${API_URL}/prices?symbols=${encodeURIComponent(trade.symbol)}`);
-          const prices = await res.json();
-          currentLtp = Array.isArray(prices) && prices[0]?.ltp != null ? Number(prices[0].ltp) : NaN;
-        } catch {
-          console.log(`[auto-trigger] ${trade.symbol}: LTP fetch failed, skipping`);
-          continue; 
-        }
 
         if (!Number.isFinite(currentLtp)) {
           console.log(`[auto-trigger] ${trade.symbol}: no valid LTP, skipping`);
@@ -2923,13 +2942,6 @@ async function tick() {
         }
 
         priceMatched = (currentLtp >= minP && currentLtp <= maxP);
-      } else {
-        // If price is not enabled, we still need LTP for activation
-        try {
-          const res = await fetch(`${API_URL}/prices?symbols=${encodeURIComponent(trade.symbol)}`);
-          const prices = await res.json();
-          currentLtp = Array.isArray(prices) && prices[0]?.ltp != null ? Number(prices[0].ltp) : NaN;
-        } catch {}
       }
 
       // If price is enabled but not matched, we just skip this tick (wait for price to enter range)
@@ -2964,6 +2976,8 @@ async function tick() {
 
     console.error("[trade-engine] tick error:", e);
 
+  } finally {
+    tickInProgress = false;
   }
 
   persistState();
