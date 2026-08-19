@@ -250,9 +250,9 @@ export default function TradePage() {
   useEffect(() => {
     const fetchTime = async () => {
       try {
-        const res = await fetch(`/next-api/trades`);
+        const res = await fetch(`/next-api/time`);
         const data = await res.json();
-        if (data.lastStrategyCandleTime) setServerTime(data.lastStrategyCandleTime);
+        setServerTime(data.time);
       } catch {}
     };
     fetchTime();
