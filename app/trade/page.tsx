@@ -182,6 +182,7 @@ export default function TradePage() {
   const handleStrategyChange = (newStrategy: string) => {
     setStrategy(newStrategy);
     applyStrategyDefaults(newStrategy);
+    setTriggerTimerEnabled(newStrategy === 'autotrigger_nifty' || newStrategy === 'autotrigger_sensex');
   };
   const [strategy, setStrategy] = useState('Select Preset');
   const [numberOfTrades, setNumberOfTrades] = useState(5);
