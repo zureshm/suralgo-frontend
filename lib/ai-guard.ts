@@ -46,8 +46,9 @@ export type AiGuardSettings = {
 };
 
 export const GROQ_MODELS = [
-  { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B Instant (14,400 req/day)" },
-  { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B Versatile (1,000 req/day)" },
+  { value: "openai/gpt-oss-20b", label: "GPT OSS 20B — fast, low cost" },
+  { value: "openai/gpt-oss-120b", label: "GPT OSS 120B — highest quality (recommended)" },
+  { value: "Qwen/Qwen3.6-27B", label: "Qwen 3.6 27B — preview" },
 ];
 
 export type AiAnalysisResult = {
@@ -77,7 +78,7 @@ const DEFAULT_SETTINGS: AiGuardSettings = {
   confidenceThreshold: 70,
   candlesCount: 120,
   provider: "groq",
-  model: "llama-3.1-8b-instant",
+  model: "openai/gpt-oss-120b",
   recentCandlesCount: 30,
   considerVolume: false,
   useHeikinAshi: true,
@@ -165,7 +166,7 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     model: "",
     headers: (apiKey) => ({ "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }),
     buildBody: (systemPrompt, userPrompt, maxTokens) => ({
-      model: aiGuardSettings.model || "llama-3.1-8b-instant",
+      model: aiGuardSettings.model || "openai/gpt-oss-120b",
       temperature: 0,
       max_tokens: maxTokens,
       messages: [

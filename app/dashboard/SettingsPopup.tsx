@@ -86,7 +86,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [aiConsiderVolume, setAiConsiderVolume] = useState(false);
   const [aiUseHeikinAshi, setAiUseHeikinAshi] = useState(true);
   const [aiProvider, setAiProvider] = useState("groq");
-  const [aiModel, setAiModel] = useState("llama-3.1-8b-instant");
+  const [aiModel, setAiModel] = useState("openai/gpt-oss-120b");
   const [aiApiKey, setAiApiKey] = useState("");
 
   // AI Guard info tooltips
@@ -117,7 +117,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const aiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiPrevKeyRef = useRef<string>("");
   const aiPrevProviderRef = useRef<string>("groq");
-  const aiPrevModelRef = useRef<string>("llama-3.1-8b-instant");
+  const aiPrevModelRef = useRef<string>("openai/gpt-oss-120b");
 
   // TEMP AI Testing
   const [tempCandleText, setTempCandleText] = useState("");
@@ -156,7 +156,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
           localStorage.setItem("aiConsiderVolume", String(data.considerVolume || false));
           localStorage.setItem("aiUseHeikinAshi", String(data.useHeikinAshi !== false));
           localStorage.setItem("aiProvider", data.provider);
-          localStorage.setItem("aiModel", data.model || "llama-3.1-8b-instant");
+          localStorage.setItem("aiModel", data.model || "openai/gpt-oss-120b");
           localStorage.setItem("aiApiKey", Array.isArray(data.apiKeys) ? data.apiKeys.join("\n") : (data.apiKey || ""));
         }
       })
@@ -905,8 +905,9 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         outline: "none",
                       }}
                     >
-                      <option value="llama-3.1-8b-instant" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Llama 3.1 8B Instant — 14,400 req/day (recommended)</option>
-                      <option value="llama-3.3-70b-versatile" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Llama 3.3 70B Versatile — 1,000 req/day (higher quality)</option>
+                      <option value="openai/gpt-oss-20b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT OSS 20B — fast, low cost</option>
+                      <option value="openai/gpt-oss-120b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT OSS 120B — highest quality (recommended)</option>
+                      <option value="Qwen/Qwen3.6-27B" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Qwen 3.6 27B — preview</option>
                     </select>
                   </div>
                   )}
@@ -1111,7 +1112,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
 
                   {/* Meta */}
                   <div className="text-xs" style={{ color: "var(--theme-popup-label)" }}>
-                    Candles parsed: {tempResult.candleCount} | Used: {tempResult.usedCount} | Model: {tempResult.model || "llama-3.1-8b-instant"}
+                    Candles parsed: {tempResult.candleCount} | Used: {tempResult.usedCount} | Model: {tempResult.model || "openai/gpt-oss-120b"}
                   </div>
 
 
