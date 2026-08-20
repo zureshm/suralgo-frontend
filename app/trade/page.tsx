@@ -243,7 +243,7 @@ export default function TradePage() {
   const [triggerMinutes, setTriggerMinutes] = useState(15);
   const [triggerSeconds, setTriggerSeconds] = useState(10);
   const [triggerMinPrice, setTriggerMinPrice] = useState(100);
-  const [triggerMaxPrice, setTriggerMaxPrice] = useState(400);
+  const [triggerMaxPrice, setTriggerMaxPrice] = useState(800);
   const [serverTime, setServerTime] = useState("");
 
   // Poll server time every second for live display
