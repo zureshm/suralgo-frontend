@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "default" | "blue" | "brown";
+type Theme = "default" | "blue" | "brown" | "purple";
 
 interface ThemeContextType {
   theme: Theme;
@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as Theme;
-    if (savedTheme && ["default", "blue", "brown"].includes(savedTheme)) {
+    if (savedTheme && ["default", "blue", "brown", "purple"].includes(savedTheme)) {
       setThemeState(savedTheme);
     }
     setMounted(true);

@@ -353,8 +353,13 @@ export default function SettingsPopup({ open, onClose }: Props) {
             <div className="mb-5">
               <div className="text-xs font-medium mb-1" style={{ color: "var(--theme-popup-label)" }}>Current Running Strategy</div>
               <span
-                className="text-xs px-1.5 py-0.5 rounded"
-                style={{ background: "var(--theme-bg)", color: "#fff", fontSize: "10px" }}
+                className="text-xs px-2 py-0.5 rounded font-bold inline-block"
+                style={{
+                  background: "var(--theme-active-badge-bg, var(--theme-bg))",
+                  color: "var(--theme-active-badge-text, #fff)",
+                  fontSize: "10px",
+                  letterSpacing: "0.5px",
+                }}
               >
                 {getDisplayName(activeStrategy)}
               </span>
@@ -431,30 +436,35 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 <Palette size={18} style={{ color: "var(--theme-popup-border)" }} />
                 <h3 className="text-sm font-bold" style={{ color: "var(--theme-popup-text)" }}>Color Theme</h3>
               </div>
-              <div className="flex items-center gap-4" style={{ marginTop: 20 }}>
+              <div className="flex items-center gap-5" style={{ marginTop: 14 }}>
                 {[
                   { value: "default" as const, label: "Default", color: "#323335" },
                   { value: "blue" as const, label: "Blue", color: "#164c8e" },
                   { value: "brown" as const, label: "Brown", color: "#570101" },
+                  { value: "purple" as const, label: "Deep Purple", color: "#7c3aed" },
                 ].map((t) => (
                   <button
                     key={t.value}
+                    type="button"
                     onClick={() => setTheme(t.value)}
-                    className="flex items-center gap-2 cursor-pointer"
+                    title={t.label}
+                    aria-label={`Select ${t.label} theme`}
+                    className="cursor-pointer transition-transform hover:scale-110 active:scale-95 flex items-center justify-center p-0.5 rounded-full"
+                    style={{
+                      border: theme === t.value ? "2.5px solid var(--theme-popup-border)" : "2.5px solid transparent",
+                    }}
                   >
                     <span
                       style={{
-                        width: 22,
-                        height: 22,
+                        width: 24,
+                        height: 24,
                         borderRadius: "50%",
                         background: t.color,
-                        border: theme === t.value ? "3px solid var(--theme-popup-border)" : "2px solid var(--theme-popup-field-border)",
-                        boxShadow: theme === t.value ? "0 0 0 2px #fff inset" : "none",
+                        border: "1.5px solid rgba(255, 255, 255, 0.25)",
+                        boxShadow: theme === t.value ? "0 0 0 2px var(--theme-popup-bg), 0 0 8px rgba(0,0,0,0.3)" : "0 1px 3px rgba(0,0,0,0.2)",
+                        display: "block",
                       }}
                     />
-                    <span className="text-xs" style={{ color: "var(--theme-popup-text)", fontWeight: theme === t.value ? 700 : 400 }}>
-                      {t.label}
-                    </span>
                   </button>
                 ))}
               </div>
@@ -470,7 +480,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   <Volume2 size={18} style={{ color: "var(--theme-popup-border)" }} />
                   <h3 className="text-sm font-bold" style={{ color: "var(--theme-popup-text)" }}>Sound Volume</h3>
                 </div>
-                <span className="text-xs font-semibold" style={{ color: "var(--theme-popup-border)" }}>{Math.round(volume * 100)}%</span>
+                <span className="text-xs font-bold" style={{ color: "var(--theme-accent-gold, var(--theme-popup-border))" }}>{Math.round(volume * 100)}%</span>
               </div>
               <div className="flex items-center gap-3">
                 <input
@@ -486,13 +496,13 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   }}
                   className="flex-1 h-2 rounded-lg cursor-pointer appearance-auto"
                   style={{
-                    accentColor: "var(--theme-popup-border)",
+                    accentColor: "var(--theme-accent-gold, var(--theme-popup-border))",
                   }}
                 />
                 <button
                   onClick={() => playSound("enter")}
-                  className="p-2 rounded-lg transition"
-                  style={{ background: "var(--theme-popup-field-bg)", color: "var(--theme-popup-border)" }}
+                  className="p-2 rounded-lg transition hover:scale-105"
+                  style={{ background: "var(--theme-popup-field-bg)", color: "var(--theme-accent-gold, var(--theme-popup-border))", border: "1px solid var(--theme-popup-field-border)" }}
                   aria-label="Test sound"
                 >
                   <Play size={16} />
@@ -517,9 +527,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     width: 44,
                     height: 24,
                     borderRadius: 12,
-                    background: forceBuyEnabled ? "var(--theme-popup-border)" : "var(--theme-popup-field-border)",
+                    background: forceBuyEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                    boxShadow: forceBuyEnabled ? "0 0 10px rgba(251, 191, 36, 0.45)" : "none",
                     position: "relative",
-                    transition: "background 0.2s",
+                    transition: "background 0.2s, box-shadow 0.2s",
                     border: "none",
                     cursor: "pointer",
                   }}
@@ -539,7 +550,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   />
                 </button>
               </div>
-              <div className="text-xs mt-1" style={{ color: forceBuyEnabled ? "var(--theme-status-success)" : "var(--theme-status-loss)" }}>
+              <div className="text-xs mt-1 font-medium" style={{ color: forceBuyEnabled ? "var(--theme-status-success)" : "var(--theme-status-loss)" }}>
                 {forceBuyEnabled ? "Enabled" : "Disabled (self-control mode)"}
               </div>
             </div>
@@ -562,9 +573,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     width: 44,
                     height: 24,
                     borderRadius: 12,
-                    background: aiGuardEnabled ? "var(--theme-popup-border)" : "var(--theme-popup-field-border)",
+                    background: aiGuardEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                    boxShadow: aiGuardEnabled ? "0 0 10px rgba(251, 191, 36, 0.45)" : "none",
                     position: "relative",
-                    transition: "background 0.2s",
+                    transition: "background 0.2s, box-shadow 0.2s",
                     border: "none",
                     cursor: "pointer",
                   }}
@@ -585,17 +597,17 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 </button>
               </div>
 
-              <div className="text-xs mb-3" style={{ color: aiGuardEnabled ? "var(--theme-status-success)" : "var(--theme-popup-label)" }}>
+              <div className="text-xs mb-3 font-semibold" style={{ color: aiGuardEnabled ? "var(--theme-status-success)" : "var(--theme-popup-label)" }}>
                 {aiGuardEnabled ? (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate") : "Disabled"}
               </div>
 
               {aiGuardEnabled && (
-                <div style={{ padding: 16, borderRadius: 5, background: "rgba(255,255,255,0.5)", border: "1px solid #ddd", boxShadow: "0 0 3px rgba(0,0,0,0.1)" }}>
+                <div style={{ padding: 16, borderRadius: 14, background: "var(--theme-popup-subcard-bg)", border: "1px solid var(--theme-popup-subcard-border)", boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>
                   {/* Entry Guard toggle */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between">
                       <div className="relative flex items-center gap-1.5">
-                        <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>Enable EntryGuard</label>
+                        <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Enable EntryGuard</label>
                         <button
                           type="button"
                           onClick={() => setIsEntryGuardInfoOpen((prev) => !prev)}
@@ -622,9 +634,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
                           width: 36,
                           height: 20,
                           borderRadius: 10,
-                          background: aiEntryGuardEnabled ? "var(--theme-popup-border)" : "var(--theme-popup-field-border)",
+                          background: aiEntryGuardEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                          boxShadow: aiEntryGuardEnabled ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
                           position: "relative",
-                          transition: "background 0.2s",
+                          transition: "background 0.2s, box-shadow 0.2s",
                           border: "none",
                           cursor: "pointer",
                         }}
@@ -650,7 +663,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   <div className="mb-3">
                     <div className="flex items-center justify-between">
                       <div className="relative flex items-center gap-1.5">
-                        <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>Auto-execute exits</label>
+                        <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Auto-execute exits</label>
                         <button
                           type="button"
                           onClick={() => setIsAutoExitInfoOpen((prev) => !prev)}
@@ -677,9 +690,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
                           width: 36,
                           height: 20,
                           borderRadius: 10,
-                          background: aiAutoExitEnabled ? "var(--theme-popup-border)" : "var(--theme-popup-field-border)",
+                          background: aiAutoExitEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                          boxShadow: aiAutoExitEnabled ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
                           position: "relative",
-                          transition: "background 0.2s",
+                          transition: "background 0.2s, box-shadow 0.2s",
                           border: "none",
                           cursor: "pointer",
                         }}
@@ -705,7 +719,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1">
                       <div className="relative flex items-center gap-1.5">
-                        <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>Candles for analysis</label>
+                        <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Candles for analysis</label>
                         <button
                           type="button"
                           onClick={() => setIsCandlesInfoOpen((prev) => !prev)}
@@ -733,8 +747,9 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         className="w-16 h-7 px-2 rounded-lg text-xs text-center"
                         style={{
                           background: "var(--theme-popup-field-bg)",
-                          color: "var(--theme-popup-text)",
+                          color: "var(--theme-accent-gold, var(--theme-popup-text))",
                           border: "1px solid var(--theme-popup-field-border)",
+                          fontWeight: 700,
                         }}
                       />
                     </div>
@@ -744,7 +759,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1">
                       <div className="relative flex items-center gap-1.5">
-                        <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>Recent Candles Weight</label>
+                        <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Recent Candles Weight</label>
                       </div>
                       <ClampedNumericField
                         value={aiRecentCandlesCount}
@@ -754,8 +769,9 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         className="w-16 h-7 px-2 rounded-lg text-xs text-center"
                         style={{
                           background: "var(--theme-popup-field-bg)",
-                          color: "var(--theme-popup-text)",
+                          color: "var(--theme-accent-gold, var(--theme-popup-text))",
                           border: "1px solid var(--theme-popup-field-border)",
+                          fontWeight: 700,
                         }}
                       />
                     </div>
@@ -764,7 +780,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   {/* Consider Volume toggle */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>Consider Volume</label>
+                      <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Consider Volume</label>
                       <button
                         type="button"
                         onClick={() => setAiConsiderVolume(!aiConsiderVolume)}
@@ -772,9 +788,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
                           width: 36,
                           height: 20,
                           borderRadius: 10,
-                          background: aiConsiderVolume ? "var(--theme-popup-border)" : "var(--theme-popup-field-border)",
+                          background: aiConsiderVolume ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                          boxShadow: aiConsiderVolume ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
                           position: "relative",
-                          transition: "background 0.2s",
+                          transition: "background 0.2s, box-shadow 0.2s",
                           border: "none",
                           cursor: "pointer",
                         }}
@@ -802,7 +819,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   {/* Heikin-Ashi Smoothing toggle */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>Heikin-Ashi Smoothing</label>
+                      <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Heikin-Ashi Smoothing</label>
                       <button
                         type="button"
                         onClick={() => setAiUseHeikinAshi(!aiUseHeikinAshi)}
@@ -810,9 +827,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
                           width: 36,
                           height: 20,
                           borderRadius: 10,
-                          background: aiUseHeikinAshi ? "var(--theme-popup-border)" : "var(--theme-popup-field-border)",
+                          background: aiUseHeikinAshi ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                          boxShadow: aiUseHeikinAshi ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
                           position: "relative",
-                          transition: "background 0.2s",
+                          transition: "background 0.2s, box-shadow 0.2s",
                           border: "none",
                           cursor: "pointer",
                         }}
@@ -841,7 +859,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1">
                       <div className="relative flex items-center gap-1.5">
-                        <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>AI Provider</label>
+                        <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>AI Provider</label>
                         <button
                           type="button"
                           onClick={() => setIsProviderInfoOpen((prev) => !prev)}
@@ -865,8 +883,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs underline"
-                        style={{ color: "var(--theme-popup-border)" }}
+                        className="text-xs underline font-semibold"
+                        style={{ color: "var(--theme-accent-gold, var(--theme-popup-border))" }}
                         onClick={(e) => e.stopPropagation()}
                       >
                         Get API key ↗
@@ -892,7 +910,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   {aiProvider === "groq" && (
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>Groq Model</label>
+                      <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Groq Model</label>
                     </div>
                     <select
                       value={aiModel}
@@ -915,7 +933,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   {/* API Key input */}
                   <div>
                     <div className="relative flex items-center gap-1.5 mb-1.5">
-                      <label className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>AI API Keys</label>
+                      <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>AI API Keys</label>
                       <button
                         type="button"
                         onClick={() => setIsApiKeyInfoOpen((prev) => !prev)}

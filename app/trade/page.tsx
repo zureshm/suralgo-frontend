@@ -365,7 +365,7 @@ export default function TradePage() {
       setTriggerMinutes(data.triggerMinutes ?? 15);
       setTriggerSeconds(data.triggerSeconds ?? 10);
       setTriggerMinPrice(data.triggerMinPrice ?? 100);
-      setTriggerMaxPrice(data.triggerMaxPrice ?? 400);
+      setTriggerMaxPrice(data.triggerMaxPrice ?? 800);
       const savedTargetMode = data.targetMode === "candleClose" ? "candleClose" : "live";
       const savedTrailingMode = data.trailingMode === "candleClose" ? "candleClose" : "live";
       setTargetMode(savedTargetMode);
@@ -662,7 +662,7 @@ export default function TradePage() {
                     setTriggerMinutes(15);
                     setTriggerSeconds(10);
                     setTriggerMinPrice(100);
-                    setTriggerMaxPrice(400);
+                    setTriggerMaxPrice(800);
                     setTriggerTimeEnabled(true);
                     setTriggerPriceEnabled(true);
                   }}
@@ -1420,7 +1420,7 @@ export default function TradePage() {
               </span>
             </div>
 
-            <div className={`p-3 rounded-lg ${insufficientBalance ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
+            <div data-slot="trade-summary-box" className={`p-3 rounded-lg trade-summary-card ${insufficientBalance ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">
                   {selection?.symbol ?? "Select a symbol from Watchlist"}
@@ -1433,21 +1433,23 @@ export default function TradePage() {
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm">LOT ({lotSize}):</label>
                 <NumericInput
+                  data-lot-input="true"
+                  data-slot="trade-lot-input"
                   value={lotValue}
                   onChange={setLotValue}
                   fallback="1"
-                  className={`w-16 h-8 text-sm ${isAlreadyActive ? "opacity-50 cursor-not-allowed" : ""}`}
+                  className={`w-16 h-8 text-sm trade-lot-input ${isAlreadyActive ? "opacity-50 cursor-not-allowed" : ""}`}
                   min={1}
                   disabled={!!isAlreadyActive}
                 />
               </div>
 
-              <div className="flex justify-between items-center text-sm text-gray-600 mb-1">
+              <div className="flex justify-between items-center text-sm text-gray-600 mb-1" style={{ color: "var(--theme-text-secondary, #4b5563)" }}>
                 <span>Qty</span>
                 <span>{quantity}</span>
               </div>
 
-              <div className="flex justify-between items-center text-sm font-medium">
+              <div className="flex justify-between items-center text-sm font-medium" style={{ color: "var(--theme-text-secondary, #4b5563)" }}>
                 <span>Total Required</span>
                 <span className={insufficientBalance ? "text-red-600 font-bold" : ""}>
                   ₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1590,8 +1592,10 @@ export default function TradePage() {
                     router.push("/dashboard");
                   }
                 }}
-                className="flex-1"
+                className="flex-1 font-bold trade-enter-btn"
                 disabled={isButtonDisabled || false}
+                data-slot="trade-enter-btn"
+                data-enter-btn="true"
               >
                 {buttonText}
               </Button>
