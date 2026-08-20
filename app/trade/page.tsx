@@ -1078,7 +1078,7 @@ export default function TradePage() {
                         lineHeight: "18px",
                       }}
                     >
-                      After exiting with a profit (target, trailing SL, or minimum target), if the price trends back up and exceeds the exit price within the specified candles, a new buy is triggered — but only if Strategy sends TRENDING is true. If TRENDING is false or unavailable, re-entry is blocked. Does not apply for stop-loss or loss exits.
+                      After exiting with a profit (target, trailing SL, or minimum target), if the price trends back up and exceeds the exit price within the specified candles, a new buy is triggered — but only if Strategy sends UPWARDS is true. If UPWARDS is false or unavailable, re-entry is blocked. Does not apply for stop-loss or loss exits.
                     </div>
                   )}
                 </div>

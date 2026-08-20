@@ -131,8 +131,8 @@ export default function ActiveTrade({
     const r = aiRegime[symbol];
     if (!r) return <span style={{ marginLeft, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>ANALYZING</span>;
     const ru = r.regime.toUpperCase();
-    const color = (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) ? "#22c55e" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "#a855f7" : "#ef4444";
-    const label = (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) ? "TRENDING" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "SIDEWAYS" : "DOWNTREND";
+    const color = (ru.includes("UP") || ru.includes("BULL")) ? "#22c55e" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "#a855f7" : "#ef4444";
+    const label = (ru.includes("UP") || ru.includes("BULL")) ? "UPWARDS" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "SIDEWAYS" : "DOWNWARDS";
     return <span style={{ marginLeft, background: color, color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>{label}</span>;
   };
 
@@ -327,11 +327,11 @@ export default function ActiveTrade({
                 const ru = suggestion.marketRegime.toUpperCase();
                 let themeColor = "#a855f7"; // SIDEWAYS (Purple)
                 let label = "AI suggests CAUTION (Sideways)";
-                if (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) {
-                  themeColor = "#22c55e"; // TRENDING (Green)
-                  label = "AI confirms TRENDING";
-                } else if (ru.includes("REVERS") || ru.includes("DOWN") || ru.includes("BEAR")) {
-                  themeColor = "#ef4444"; // REVERSING (Red)
+                if (ru.includes("UP") || ru.includes("BULL")) {
+                  themeColor = "#22c55e"; // UPWARDS (Green)
+                  label = "AI confirms UPWARDS";
+                } else if (ru.includes("DOWN") || ru.includes("BEAR")) {
+                  themeColor = "#ef4444"; // DOWNWARDS (Red)
                   label = "AI suggests ending cycle";
                 }
 
@@ -717,12 +717,12 @@ export default function ActiveTrade({
                   const ru = suggestion.marketRegime.toUpperCase();
                   let themeColor = "#a855f7"; // SIDEWAYS (Purple)
                   let label = "AI blocked entry (Sideways)";
-                  if (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) {
-                    themeColor = "#22c55e"; // TRENDING (Green)
-                    label = "AI confirms TRENDING";
-                  } else if (ru.includes("REVERS") || ru.includes("DOWN") || ru.includes("BEAR")) {
-                    themeColor = "#ef4444"; // REVERSING (Red)
-                    label = "AI blocked entry (Reversal)";
+                  if (ru.includes("UP") || ru.includes("BULL")) {
+                    themeColor = "#22c55e"; // UPWARDS (Green)
+                    label = "AI confirms UPWARDS";
+                  } else if (ru.includes("DOWN") || ru.includes("BEAR")) {
+                    themeColor = "#ef4444"; // DOWNWARDS (Red)
+                    label = "AI blocked entry (Downwards)";
                   }
 
                   return (

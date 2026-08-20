@@ -15,8 +15,9 @@ interface LogSection {
   dataKey?: string;
 }
 
-const FILTER_OPTIONS = ["ALL", "BUY", "SELL", "REENTER", "ERROR"];
+const FILTER_OPTIONS = ["ALL", "BUY", "SELL", "REENTER", "EXIT", "ERROR"];
 const BASIC_FILTER_OPTIONS = ["ALL", "ERROR"];
+const AI_FILTER_OPTIONS = ["ALL", "UPWARDS", "SIDEWAYS", "DOWNWARDS", "UNKNOWN", "ERROR"];
 const HISTORY_FILTER_OPTIONS = ["ALL", "READY", "FAILED", "ERROR"];
 
 function getLogColor(line: string): string {
@@ -31,6 +32,11 @@ function getLogColor(line: string): string {
 function matchesFilter(line: string, filter: string): boolean {
   if (filter === "ALL") return true;
   if (filter === "ERROR") return line.startsWith("[ERR]") || line.includes("error") || line.includes("Error") || line.includes("ERROR");
+  if (filter === "EXIT") return line.includes("exit") || line.includes("Exit") || line.includes("EXIT");
+  if (filter === "UPWARDS") return line.includes("UPWARDS");
+  if (filter === "SIDEWAYS") return line.includes("SIDEWAYS");
+  if (filter === "DOWNWARDS") return line.includes("DOWNWARDS");
+  if (filter === "UNKNOWN") return line.includes("UNKNOWN");
   if (filter === "READY") return line.includes("READY");
   if (filter === "FAILED") return line.includes("FAILED") || line.includes("unreachable") || line.includes("failed");
   return line.includes(filter);
@@ -41,7 +47,7 @@ export default function LogMonitorPage() {
     { title: "Angel Feed Server", url: `${API_URL}/logs/server`, logs: [], error: null, filter: "ALL", filterOptions: BASIC_FILTER_OPTIONS },
     { title: "Candle Builder", url: `${API_URL}/logs/candle`, logs: [], error: null, filter: "ALL", filterOptions: FILTER_OPTIONS },
     { title: "Strategy Engine", url: `${STRATEGY_URL}/logs/strategy`, logs: [], error: null, filter: "ALL", filterOptions: FILTER_OPTIONS },
-    { title: "AI Guard", url: `/next-api/ai/logs`, logs: [], error: null, filter: "ALL", filterOptions: FILTER_OPTIONS },
+    { title: "AI Guard", url: `/next-api/ai/logs`, logs: [], error: null, filter: "ALL", filterOptions: AI_FILTER_OPTIONS },
     { title: "History Fetch", url: `/next-api/trades`, logs: [], error: null, filter: "ALL", filterOptions: HISTORY_FILTER_OPTIONS, dataKey: "historyFetchLogs" },
   ]);
 

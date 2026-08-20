@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       considerVolume: Boolean(body.considerVolume),
       useHeikinAshi: body.useHeikinAshi !== false,
       provider: String(body.provider || "groq"),
-      model: String(body.model || "llama-3.1-8b-instant"),
+      model: String(body.model || "openai/gpt-oss-20b"),
       apiKeys,
     });
     return NextResponse.json({ ok: true });
