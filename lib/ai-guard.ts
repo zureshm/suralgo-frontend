@@ -498,8 +498,18 @@ export async function analyzeMarketRegime(
 ): Promise<AiAnalysisResult> {
   const settings = getAiGuardSettings();
   const candleCount = settings.candlesCount || 120;
-  const useVolume = settings.considerVolume || false;
+  let useVolume = settings.considerVolume || false;
   const useHA = settings.useHeikinAshi !== false;
+
+  // Auto-detect: if volume is requested but all candles have 0 volume, fall back to non-volume mode
+  if (useVolume && Array.isArray(candles) && candles.length > 0) {
+    const hasVolume = candles.some((c) => Number(c.volume) > 0);
+    if (!hasVolume) {
+      useVolume = false;
+      addAiLog(`[ai-guard] ${symbol}: volume data unavailable (all zeros), falling back to price-only analysis`);
+    }
+  }
+
   const compactCandles = buildCompactCandles(candles, candleCount, useVolume, useHA);
 
   const recentCandlesCount = settings.recentCandlesCount || 30;
@@ -528,7 +538,7 @@ export async function analyzeMarketRegime(
     addAiLog(`[ai-guard] ${symbol}: using API key #${keyIndex % (aiGuardSettings.apiKeys?.length || 1)}${useVolume ? " (with volume)" : ""}`);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     const res = await fetch(config.url, {
       method: "POST",
@@ -540,7 +550,8 @@ export async function analyzeMarketRegime(
     clearTimeout(timeout);
 
     if (!res.ok) {
-      addAiErrorLog(`[ai-guard] ${config.providerName} API error: ${res.status} ${res.statusText} (key #${keyIndex % (aiGuardSettings.apiKeys?.length || 1)})`);
+      const errBody = await res.text().catch(() => "");
+      addAiErrorLog(`[ai-guard] ${config.providerName} API error: ${res.status} ${res.statusText} (key #${keyIndex % (aiGuardSettings.apiKeys?.length || 1)}) — ${errBody.slice(0, 300)}`);
       return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "AI unavailable" };
     }
 

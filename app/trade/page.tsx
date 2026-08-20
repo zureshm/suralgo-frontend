@@ -373,8 +373,8 @@ export default function TradePage() {
       setPriceMode(savedTargetMode);
     } else {
       // Reset to defaults
-      setStrategy('nifty_default');
-      applyStrategyDefaults('nifty_default');
+      setStrategy('Select Preset');
+      applyStrategyDefaults('Select Preset');
     }
   }, [selection?.symbol]);
 
