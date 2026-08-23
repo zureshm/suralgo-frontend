@@ -46,8 +46,9 @@ export type AiGuardSettings = {
 };
 
 export const GROQ_MODELS = [
-  { value: "llama-3.1-8b-instant", label: "Llama 3.1 8B Instant (14,400 req/day)" },
-  { value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B Versatile (1,000 req/day)" },
+  { value: "openai/gpt-oss-20b", label: "GPT OSS 20B — fast, low cost" },
+  { value: "openai/gpt-oss-120b", label: "GPT OSS 120B — highest quality (recommended)" },
+  { value: "qwen/qwen3.6-27b", label: "Qwen 3.6 27B — preview" },
 ];
 
 export type AiAnalysisResult = {
@@ -77,7 +78,7 @@ const DEFAULT_SETTINGS: AiGuardSettings = {
   confidenceThreshold: 70,
   candlesCount: 120,
   provider: "groq",
-  model: "llama-3.1-8b-instant",
+  model: "openai/gpt-oss-120b",
   recentCandlesCount: 30,
   considerVolume: false,
   useHeikinAshi: true,
@@ -165,9 +166,9 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     model: "",
     headers: (apiKey) => ({ "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }),
     buildBody: (systemPrompt, userPrompt, maxTokens) => ({
-      model: aiGuardSettings.model || "llama-3.1-8b-instant",
+      model: aiGuardSettings.model || "openai/gpt-oss-120b",
       temperature: 0,
-      max_tokens: maxTokens,
+      max_completion_tokens: maxTokens,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -218,14 +219,14 @@ export function buildSystemPrompt(recentCandles: number, useHA: boolean = true):
     ? "Note: Candle data is in Heikin-Ashi format (smoothed OHLC). Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways."
     : "Note: Candle data is in raw OHLC format. Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways.";
   const primaryLine = useHA
-    ? "Primary analysis: Read the Heikin-Ashi candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?"
-    : "Primary analysis: Read the raw OHLC candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?";
+    ? "Primary analysis: Read the Heikin-Ashi candle data. Look at the actual price action — are candles making higher highs and higher lows (upwards), lower highs and lower lows (downwards), or bouncing between the same levels (sideways)?"
+    : "Primary analysis: Read the raw OHLC candle data. Look at the actual price action — are candles making higher highs and higher lows (upwards), lower highs and lower lows (downwards), or bouncing between the same levels (sideways)?";
   return `You are a market regime classifier for Nifty option symbols on 1-minute charts.
 
 Classify the market into one of three regimes:
-- TRENDING: Price making sustained directional moves with momentum. blockEntry=false, suggestExit=false.
+- UPWARDS: Price making higher highs and higher lows with upward momentum. blockEntry=false, suggestExit=false.
 - SIDEWAYS: Price oscillating in a range without clear direction. This is the default when there is no sustained trend. blockEntry=true, suggestExit=true.
-- REVERSING: A prior confirmed trend is now losing momentum or flipping direction. blockEntry=true, suggestExit=true.
+- DOWNWARDS: Price making lower highs and lower lows with downward momentum. blockEntry=true, suggestExit=true.
 
 ${candleNote}
 
@@ -243,7 +244,7 @@ Key: Nifty option premiums are volatile. A 4% net move on a ₹100 option is jus
 
 Return ONLY valid JSON:
 {
-  "marketRegime": "TRENDING" | "SIDEWAYS" | "REVERSING",
+  "marketRegime": "UPWARDS" | "SIDEWAYS" | "DOWNWARDS",
   "blockEntry": boolean,
   "suggestExit": boolean,
   "confidence": number (0-100),
@@ -260,14 +261,14 @@ export function buildSystemPromptWithVolume(recentCandles: number, useHA: boolea
     ? "Note: Candle data is in Heikin-Ashi format (smoothed OHLC) with volume. Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways."
     : "Note: Candle data is in raw OHLC format with volume. Consecutive same-color candles indicate trend; small bodies with both wicks indicate sideways.";
   const primaryLine = useHA
-    ? "Primary analysis: Read the Heikin-Ashi candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?"
-    : "Primary analysis: Read the raw OHLC candle data. Look at the actual price action — are candles making higher highs/lower lows (trending), or bouncing between the same levels (sideways)?";
+    ? "Primary analysis: Read the Heikin-Ashi candle data. Look at the actual price action — are candles making higher highs and higher lows (upwards), lower highs and lower lows (downwards), or bouncing between the same levels (sideways)?"
+    : "Primary analysis: Read the raw OHLC candle data. Look at the actual price action — are candles making higher highs and higher lows (upwards), lower highs and lower lows (downwards), or bouncing between the same levels (sideways)?";
   return `You are a market regime classifier for Nifty option symbols on 1-minute charts.
 
 Classify the market into one of three regimes:
-- TRENDING: Price making sustained directional moves with momentum. blockEntry=false, suggestExit=false.
+- UPWARDS: Price making higher highs and higher lows with upward momentum. blockEntry=false, suggestExit=false.
 - SIDEWAYS: Price oscillating in a range without clear direction. This is the default when there is no sustained trend. blockEntry=true, suggestExit=true.
-- REVERSING: A prior confirmed trend is now losing momentum or flipping direction. blockEntry=true, suggestExit=true.
+- DOWNWARDS: Price making lower highs and lower lows with downward momentum. blockEntry=true, suggestExit=true.
 
 ${candleNote}
 
@@ -291,7 +292,7 @@ Key: Nifty option premiums are volatile. A 4% net move on a ₹100 option is jus
 
 Return ONLY valid JSON:
 {
-  "marketRegime": "TRENDING" | "SIDEWAYS" | "REVERSING",
+  "marketRegime": "UPWARDS" | "SIDEWAYS" | "DOWNWARDS",
   "blockEntry": boolean,
   "suggestExit": boolean,
   "confidence": number (0-100),
@@ -497,8 +498,18 @@ export async function analyzeMarketRegime(
 ): Promise<AiAnalysisResult> {
   const settings = getAiGuardSettings();
   const candleCount = settings.candlesCount || 120;
-  const useVolume = settings.considerVolume || false;
+  let useVolume = settings.considerVolume || false;
   const useHA = settings.useHeikinAshi !== false;
+
+  // Auto-detect: if volume is requested but all candles have 0 volume, fall back to non-volume mode
+  if (useVolume && Array.isArray(candles) && candles.length > 0) {
+    const hasVolume = candles.some((c) => Number(c.volume) > 0);
+    if (!hasVolume) {
+      useVolume = false;
+      addAiLog(`[ai-guard] ${symbol}: volume data unavailable (all zeros), falling back to price-only analysis`);
+    }
+  }
+
   const compactCandles = buildCompactCandles(candles, candleCount, useVolume, useHA);
 
   const recentCandlesCount = settings.recentCandlesCount || 30;
@@ -527,31 +538,48 @@ export async function analyzeMarketRegime(
     addAiLog(`[ai-guard] ${symbol}: using API key #${keyIndex % (aiGuardSettings.apiKeys?.length || 1)}${useVolume ? " (with volume)" : ""}`);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     const res = await fetch(config.url, {
       method: "POST",
       headers: config.headers(apiKey),
-      body: JSON.stringify(config.buildBody(systemPrompt, userPrompt, 200)),
+      body: JSON.stringify(config.buildBody(systemPrompt, userPrompt, 4096)),
       signal: controller.signal,
     });
 
     clearTimeout(timeout);
 
     if (!res.ok) {
-      addAiErrorLog(`[ai-guard] ${config.providerName} API error: ${res.status} ${res.statusText} (key #${keyIndex % (aiGuardSettings.apiKeys?.length || 1)})`);
+      const errBody = await res.text().catch(() => "");
+      addAiErrorLog(`[ai-guard] ${config.providerName} API error: ${res.status} ${res.statusText} (key #${keyIndex % (aiGuardSettings.apiKeys?.length || 1)}) — ${errBody.slice(0, 300)}`);
       return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "AI unavailable" };
     }
 
     const data = await res.json();
     const content = config.parseContent(data);
-    const cleaned = content.replace(/```/g, "").replace(/^\s*json\s*/i, "").trim();
+    if (!content) {
+      const finishReason = data?.choices?.[0]?.finish_reason || "unknown";
+      const usage = data?.usage;
+      addAiErrorLog(`[ai-guard] Empty AI response (finish_reason=${finishReason}, completion_tokens=${usage?.completion_tokens || 0}, reasoning_tokens=${usage?.completion_tokens_details?.reasoning_tokens || 0})`);
+      return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "AI returned empty response (reasoning budget exhausted)" };
+    }
+    // Strip <think>...</think> reasoning tags from GPT-OSS models
+    const stripped = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    const cleaned = (stripped || content).replace(/```/g, "").replace(/^\s*json\s*/i, "").trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      addAiErrorLog(`[ai-guard] No JSON found in AI response: ${cleaned.slice(0, 80)}`);
+      addAiErrorLog(`[ai-guard] No JSON found in AI response: ${cleaned.slice(0, 120)}`);
       return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "AI returned non-JSON response" };
     }
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      // Try to find the last complete JSON object (greedy match may overshoot)
+      const lastBrace = jsonMatch[0].lastIndexOf("}");
+      const candidate = jsonMatch[0].slice(0, lastBrace + 1);
+      parsed = JSON.parse(candidate);
+    }
 
     return {
       marketRegime: parsed.marketRegime || "UNKNOWN",
@@ -581,7 +609,7 @@ export async function testApiKey(provider: string, apiKey: string): Promise<{ co
     const res = await fetch(config.url, {
       method: "POST",
       headers: config.headers(apiKey),
-      body: JSON.stringify(config.buildBody("", "Reply with: OK", 5)),
+      body: JSON.stringify(config.buildBody("", "Reply with: OK", 256)),
       signal: controller.signal,
     });
 

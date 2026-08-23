@@ -182,8 +182,9 @@ export default function TradePage() {
   const handleStrategyChange = (newStrategy: string) => {
     setStrategy(newStrategy);
     applyStrategyDefaults(newStrategy);
+    setTriggerTimerEnabled(newStrategy === 'autotrigger_nifty' || newStrategy === 'autotrigger_sensex');
   };
-  const [strategy, setStrategy] = useState('nifty_default');
+  const [strategy, setStrategy] = useState('Select Preset');
   const [numberOfTrades, setNumberOfTrades] = useState(5);
   const [stopLossNumberEnabled, setStopLossNumberEnabled] = useState(true);
   const [stopLossNumber, setStopLossNumber] = useState(15);
@@ -242,16 +243,16 @@ export default function TradePage() {
   const [triggerMinutes, setTriggerMinutes] = useState(15);
   const [triggerSeconds, setTriggerSeconds] = useState(10);
   const [triggerMinPrice, setTriggerMinPrice] = useState(100);
-  const [triggerMaxPrice, setTriggerMaxPrice] = useState(400);
+  const [triggerMaxPrice, setTriggerMaxPrice] = useState(800);
   const [serverTime, setServerTime] = useState("");
 
   // Poll server time every second for live display
   useEffect(() => {
     const fetchTime = async () => {
       try {
-        const res = await fetch(`/next-api/trades`);
+        const res = await fetch(`/next-api/time`);
         const data = await res.json();
-        if (data.lastStrategyCandleTime) setServerTime(data.lastStrategyCandleTime);
+        setServerTime(data.time);
       } catch {}
     };
     fetchTime();
@@ -364,7 +365,7 @@ export default function TradePage() {
       setTriggerMinutes(data.triggerMinutes ?? 15);
       setTriggerSeconds(data.triggerSeconds ?? 10);
       setTriggerMinPrice(data.triggerMinPrice ?? 100);
-      setTriggerMaxPrice(data.triggerMaxPrice ?? 400);
+      setTriggerMaxPrice(data.triggerMaxPrice ?? 800);
       const savedTargetMode = data.targetMode === "candleClose" ? "candleClose" : "live";
       const savedTrailingMode = data.trailingMode === "candleClose" ? "candleClose" : "live";
       setTargetMode(savedTargetMode);
@@ -372,8 +373,8 @@ export default function TradePage() {
       setPriceMode(savedTargetMode);
     } else {
       // Reset to defaults
-      setStrategy('nifty_default');
-      applyStrategyDefaults('nifty_default');
+      setStrategy('Select Preset');
+      applyStrategyDefaults('Select Preset');
     }
   }, [selection?.symbol]);
 
@@ -455,11 +456,13 @@ export default function TradePage() {
               onChange={(e) => handleStrategyChange(e.target.value)}
               className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
+              <option value="Select Preset"  hidden>Select Preset</option>
               <option value="nifty_default">Nifty Default</option>
               <option value="sensex_default">Sensex Default</option>
-              <option value="autotrigger_default">Auto Trigger Default</option>
-              <option value="low">Strict Low</option>
-              <option value="medium">Free Low</option>
+              <option value="autotrigger_nifty">Auto Trigger Nifty</option>
+              <option value="autotrigger_sensex">Auto Trigger Sensex</option>
+              <option value="nifty_low">Nifty Low</option>
+              <option value="sensex_low">Sensex Low</option>
               <option value="high">High Target</option>
               <option value="allclear">All Clear</option>
             </select>
@@ -659,7 +662,7 @@ export default function TradePage() {
                     setTriggerMinutes(15);
                     setTriggerSeconds(10);
                     setTriggerMinPrice(100);
-                    setTriggerMaxPrice(400);
+                    setTriggerMaxPrice(800);
                     setTriggerTimeEnabled(true);
                     setTriggerPriceEnabled(true);
                   }}
@@ -1075,7 +1078,7 @@ export default function TradePage() {
                         lineHeight: "18px",
                       }}
                     >
-                      After exiting with a profit (target, trailing SL, or minimum target), if the price trends back up and exceeds the exit price within the specified candles, a new buy is triggered — but only if Strategy sends TRENDING is true. If TRENDING is false or unavailable, re-entry is blocked. Does not apply for stop-loss or loss exits.
+                      After exiting with a profit (target, trailing SL, or minimum target), if the price trends back up and exceeds the exit price within the specified candles, a new buy is triggered — but only if Strategy sends UPWARDS is true. If UPWARDS is false or unavailable, re-entry is blocked. Does not apply for stop-loss or loss exits.
                     </div>
                   )}
                 </div>
@@ -1417,7 +1420,7 @@ export default function TradePage() {
               </span>
             </div>
 
-            <div className={`p-3 rounded-lg ${insufficientBalance ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
+            <div data-slot="trade-summary-box" className={`p-3 rounded-lg trade-summary-card ${insufficientBalance ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">
                   {selection?.symbol ?? "Select a symbol from Watchlist"}
@@ -1430,21 +1433,23 @@ export default function TradePage() {
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm">LOT ({lotSize}):</label>
                 <NumericInput
+                  data-lot-input="true"
+                  data-slot="trade-lot-input"
                   value={lotValue}
                   onChange={setLotValue}
                   fallback="1"
-                  className={`w-16 h-8 text-sm ${isAlreadyActive ? "opacity-50 cursor-not-allowed" : ""}`}
+                  className={`w-16 h-8 text-sm trade-lot-input ${isAlreadyActive ? "opacity-50 cursor-not-allowed" : ""}`}
                   min={1}
                   disabled={!!isAlreadyActive}
                 />
               </div>
 
-              <div className="flex justify-between items-center text-sm text-gray-600 mb-1">
+              <div className="flex justify-between items-center text-sm text-gray-600 mb-1" style={{ color: "var(--theme-text-secondary, #4b5563)" }}>
                 <span>Qty</span>
                 <span>{quantity}</span>
               </div>
 
-              <div className="flex justify-between items-center text-sm font-medium">
+              <div className="flex justify-between items-center text-sm font-medium" style={{ color: "var(--theme-text-secondary, #4b5563)" }}>
                 <span>Total Required</span>
                 <span className={insufficientBalance ? "text-red-600 font-bold" : ""}>
                   ₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1587,8 +1592,10 @@ export default function TradePage() {
                     router.push("/dashboard");
                   }
                 }}
-                className="flex-1"
+                className="flex-1 font-bold trade-enter-btn"
                 disabled={isButtonDisabled || false}
+                data-slot="trade-enter-btn"
+                data-enter-btn="true"
               >
                 {buttonText}
               </Button>

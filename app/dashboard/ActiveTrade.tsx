@@ -131,8 +131,8 @@ export default function ActiveTrade({
     const r = aiRegime[symbol];
     if (!r) return <span style={{ marginLeft, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>ANALYZING</span>;
     const ru = r.regime.toUpperCase();
-    const color = (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) ? "#22c55e" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "#a855f7" : "#ef4444";
-    const label = (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) ? "TRENDING" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "SIDEWAYS" : "DOWNTREND";
+    const color = (ru.includes("UP") || ru.includes("BULL")) ? "#22c55e" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "#a855f7" : "#ef4444";
+    const label = (ru.includes("UP") || ru.includes("BULL")) ? "UPWARDS" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "SIDEWAYS" : "DOWNWARDS";
     return <span style={{ marginLeft, background: color, color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>{label}</span>;
   };
 
@@ -327,11 +327,11 @@ export default function ActiveTrade({
                 const ru = suggestion.marketRegime.toUpperCase();
                 let themeColor = "#a855f7"; // SIDEWAYS (Purple)
                 let label = "AI suggests CAUTION (Sideways)";
-                if (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) {
-                  themeColor = "#22c55e"; // TRENDING (Green)
-                  label = "AI confirms TRENDING";
-                } else if (ru.includes("REVERS") || ru.includes("DOWN") || ru.includes("BEAR")) {
-                  themeColor = "#ef4444"; // REVERSING (Red)
+                if (ru.includes("UP") || ru.includes("BULL")) {
+                  themeColor = "#22c55e"; // UPWARDS (Green)
+                  label = "AI confirms UPWARDS";
+                } else if (ru.includes("DOWN") || ru.includes("BEAR")) {
+                  themeColor = "#ef4444"; // DOWNWARDS (Red)
                   label = "AI suggests ending cycle";
                 }
 
@@ -717,16 +717,17 @@ export default function ActiveTrade({
                   const ru = suggestion.marketRegime.toUpperCase();
                   let themeColor = "#a855f7"; // SIDEWAYS (Purple)
                   let label = "AI blocked entry (Sideways)";
-                  if (ru.includes("TREND") || ru.includes("UP") || ru.includes("BULL")) {
-                    themeColor = "#22c55e"; // TRENDING (Green)
-                    label = "AI confirms TRENDING";
-                  } else if (ru.includes("REVERS") || ru.includes("DOWN") || ru.includes("BEAR")) {
-                    themeColor = "#ef4444"; // REVERSING (Red)
-                    label = "AI blocked entry (Reversal)";
+                  if (ru.includes("UP") || ru.includes("BULL")) {
+                    themeColor = "#22c55e"; // UPWARDS (Green)
+                    label = "AI confirms UPWARDS";
+                  } else if (ru.includes("DOWN") || ru.includes("BEAR")) {
+                    themeColor = "#ef4444"; // DOWNWARDS (Red)
+                    label = "AI blocked entry (Downwards)";
                   }
 
                   return (
                     <div style={{
+                      position: "relative",
                       display: "flex",
                       flexDirection: "column",
                       gap: "6px",
@@ -737,39 +738,45 @@ export default function ActiveTrade({
                       marginTop: "5px",
                       marginBottom: "6px",
                     }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          fetch(`/next-api/ai/dismiss`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ symbol: t.symbol }),
+                          }).catch(() => {});
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: "-10px",
+                          right: "-10px",
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          border: `1px solid ${themeColor}4D`, // alpha 0.3
+                          background: themeColor,
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          padding: 0,
+                          lineHeight: 1,
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        }}
+                        aria-label="Dismiss"
+                      >
+                        ×
+                      </button>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
                         <AlertTriangle className="w-4 h-4" style={{ color: themeColor, flexShrink: 0, marginTop: "1px" }} />
                         <div style={{ flex: 1, fontSize: "12px", lineHeight: "16px" }}>
                           <span style={{ fontWeight: 600, color: themeColor }}>{label}</span>
                           <span style={{ color: "var(--theme-text-gray-500)", marginLeft: "6px" }}>— {suggestion.reason} ({suggestion.confidence}%)</span>
                         </div>
-                      </div>
-                      <div style={{ display: "flex", gap: "6px", marginLeft: "26px" }}>
-                        <button
-                          className={`${styles.waitingBtn} ${styles.dark}`}
-                          type="button"
-                          style={{ padding: "2px 8px", fontSize: "11px" }}
-                          onClick={() => {
-                            fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-buy`, { method: "POST" }).catch(() => {});
-                          }}
-                        >
-                          <Zap className="w-3 h-3" />
-                          Force Entry
-                        </button>
-                        <button
-                          className={`${styles.waitingBtn} ${styles.danger}`}
-                          type="button"
-                          style={{ padding: "2px 8px", fontSize: "11px" }}
-                          onClick={() => {
-                            fetch("/next-api/ai/dismiss", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ symbol: t.symbol }),
-                            }).catch(() => {});
-                          }}
-                        >
-                          Dismiss
-                        </button>
                       </div>
                     </div>
                   );

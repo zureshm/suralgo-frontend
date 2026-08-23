@@ -1,0 +1,408 @@
+/* ============================================ */
+/* CENTRALIZED COLOR THEME - DEEP VSCODE PURPLE */
+/* Dark purple theme inspired by VSCode themes  */
+/* ============================================ */
+
+[data-theme="purple"] {
+  /* ============================================ */
+  /* BASE COLORS (Tailwind / Shadcn Dark Tokens)  */
+  /* ============================================ */
+  
+  --background: oklch(0.16 0.05 295);
+  --foreground: oklch(0.96 0.02 295);
+  --card: oklch(0.20 0.06 295);
+  --card-foreground: oklch(0.96 0.02 295);
+  --popover: oklch(0.20 0.06 295);
+  --popover-foreground: oklch(0.96 0.02 295);
+  --primary: oklch(0.65 0.24 295);
+  --primary-foreground: oklch(0.99 0.01 295);
+  --secondary: oklch(0.25 0.07 295);
+  --secondary-foreground: oklch(0.96 0.02 295);
+  --muted: oklch(0.25 0.07 295);
+  --muted-foreground: oklch(0.72 0.06 295);
+  --accent: oklch(0.30 0.10 295);
+  --accent-foreground: oklch(0.98 0.02 295);
+  --destructive: oklch(0.65 0.22 25);
+  --border: rgba(168, 85, 247, 0.22);
+  --input: rgba(168, 85, 247, 0.25);
+  --ring: oklch(0.65 0.24 295);
+  
+  /* Chart Colors */
+  --chart-1: #a855f7;
+  --chart-2: #c084fc;
+  --chart-3: #e879f9;
+  --chart-4: #38bdf8;
+  --chart-5: #34d399;
+  
+  /* Sidebar Colors */
+  --sidebar: #1a102f;
+  --sidebar-foreground: #f5f3ff;
+  --sidebar-primary: #9333ea;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2e1b54;
+  --sidebar-accent-foreground: #f5f3ff;
+  --sidebar-border: #3b1d6e;
+  --sidebar-ring: #a855f7;
+  
+  /* ============================================ */
+  /* CUSTOM COLORS (App Surfaces & Components)   */
+  /* ============================================ */
+  
+  /* Page Backgrounds */
+  --theme-bg: #1a102f;
+  --theme-page-bg: #1a102f;
+  --theme-trade-page-bg: #1a102f;
+  --theme-login-page-bg: #1a102f;
+  
+  /* Card Backgrounds */
+  --theme-card-white: #23153c;
+  --theme-card-dark: #1a0f30;
+  --theme-card-suggestion: #2d1b50;
+  --theme-card-log-line: #1c1033;
+  --theme-card-shadow: rgba(0, 0, 0, 0.45);
+  
+  /* Borders */
+  --theme-border: #4c2889;
+  --theme-border-dark: #3b1d6e;
+  --theme-border-light: rgba(168, 85, 247, 0.2);
+  --theme-border-subtle: rgba(168, 85, 247, 0.1);
+  --theme-border-subtle-hover: rgba(168, 85, 247, 0.3);
+  --theme-border-subtle-very: rgba(168, 85, 247, 0.15);
+  --theme-border-log: rgba(168, 85, 247, 0.25);
+  --theme-border-suggestion: #4c2889;
+  --theme-border-separator: #3d2366;
+  --theme-border-input: #5b329e;
+  
+  /* Search & Input */
+  --theme-search-bg: #2a174a;
+  --theme-input-bg: #1c1033;
+  --theme-input-border: #5b329e;
+  --theme-input-text: #f5f3ff;
+  --theme-input-focus-border: #a855f7;
+  
+  /* Buttons */
+  --theme-btn-primary: #9333ea;
+  --theme-btn-primary-hover: #7e22ce;
+  --theme-btn-primary-text: #ffffff;
+  --theme-btn-buy: #10b981;
+  --theme-btn-buy-hover: #059669;
+  --theme-btn-buy-text: #ffffff;
+  --theme-btn-danger: #f43f5e;
+  --theme-btn-danger-hover: #e11d48;
+  --theme-btn-danger-text: #ffffff;
+  --theme-btn-disconnect: #f43f5e;
+  --theme-btn-disconnect-hover: #e11d48;
+  --theme-btn-disconnect-text: #ffffff;
+  --theme-btn-dark: #2e1b54;
+  --theme-btn-dark-text: #e9d5ff;
+  --theme-btn-waiting-text: #f5f3ff;
+  --theme-btn-status-text: #f5f3ff;
+  --theme-btn-add: #9333ea;
+  --theme-btn-add-hover: #a855f7;
+  --theme-btn-add-text: #ffffff;
+  --theme-btn-yellow: #fbbf24;
+  --theme-btn-green: #10b981;
+  
+  /* Tailwind Button Colors (for TSX) */
+  --theme-tailwind-yellow-500: #eab308;
+  --theme-tailwind-yellow-600: #ca8a04;
+  --theme-tailwind-red-500: #f43f5e;
+  --theme-tailwind-red-600: #e11d48;
+  --theme-tailwind-red-400: #fb7185;
+  --theme-tailwind-red-700: #be123c;
+  --theme-tailwind-blue-500: #9333ea;
+  --theme-tailwind-blue-600: #7e22ce;
+  --theme-tailwind-blue-text: #ffffff;
+  --theme-tailwind-yellow-text: #1a102f;
+  --theme-tailwind-red-text: #ffffff;
+  
+  /* Status Colors */
+  --theme-status-waiting: #fbbf24;
+  --theme-status-profit: #34d399;
+  --theme-status-loss: #f87171;
+  --theme-status-success: #34d399;
+  --theme-status-empty: #a78bfa;
+  
+  /* Text Colors */
+  --theme-text-primary: #f5f3ff;
+  --theme-text-secondary: #c4b5fd;
+  --theme-text-muted: #a78bfa;
+  --theme-text-label: #d8b4fe;
+  --theme-text-label-alt: #c4b5fd;
+  --theme-text-white: #ffffff;
+  --theme-text-black: #f5f3ff;
+  --theme-text-gray-400: #a78bfa;
+  --theme-text-gray-500: #7c5eb8;
+  --theme-text-gray-600: #5b3e8a;
+  --theme-text-config: #c4b5fd;
+  
+  /* Log/Console Colors */
+  --theme-log-bg: #120a22;
+  --theme-log-text: #f5f3ff;
+  --theme-log-rs-gold: #fbbf24;
+  --theme-log-cyan-time: #38bdf8;
+  --theme-log-pl-profit: #34d399;
+  --theme-log-pl-loss: #f87171;
+  --theme-log-pl-profit-alt: #34d399;
+  --theme-log-pl-loss-alt: #f87171;
+  
+  /* Shadows */
+  --theme-shadow-log: rgba(0, 0, 0, 0.4);
+  --theme-shadow-log-inset: rgba(168, 85, 247, 0.08);
+  
+  /* Time Badge */
+  --theme-time-badge-bg: #1c1033;
+  --theme-time-badge-text: #f5f3ff;
+  
+  /* Note/Warning */
+  --theme-note: #fbbf24;
+  --theme-error: #f43f5e;
+  
+  /* Zinc Colors (for log-monitor page) */
+  --theme-zinc-50: #fafafa;
+  --theme-zinc-100: #f4f4f5;
+  --theme-zinc-200: #e4e4e7;
+  --theme-zinc-300: #d4d4d8;
+  --theme-zinc-400: #a1a1aa;
+  --theme-zinc-500: #71717a;
+  --theme-zinc-600: #52525b;
+  --theme-zinc-700: #3f3f46;
+  --theme-zinc-800: #27272a;
+  --theme-zinc-900: #18181b;
+  --theme-zinc-950: #09090b;
+  
+  /* Amber Colors (for log-monitor page) */
+  --theme-amber-400: #fbbf24;
+  --theme-amber-500: #f59e0b;
+
+  /* Settings Popup */
+  --theme-popup-bg: #1e1236;
+  --theme-popup-border: #9333ea;
+  --theme-popup-text: #ffffff;
+  --theme-popup-label: #c4b5fd;
+  --theme-popup-field-bg: #140b24;
+  --theme-popup-field-border: #4c2889;
+  --theme-popup-backdrop: rgba(12, 6, 24, 0.82);
+  --theme-popup-subcard-bg: #160c2c;
+  --theme-popup-subcard-border: #522992;
+  
+  /* Eye-pleasing Accents & Toggles */
+  --theme-toggle-on: #fbbf24;
+  --theme-toggle-off: #381f5e;
+  --theme-accent-gold: #fbbf24;
+  --theme-accent-pink: #f472b6;
+  
+  /* Active Strategy Badge */
+  --theme-active-badge-bg: #fbbf24;
+  --theme-active-badge-text: #120826;
+
+  /* Trade Page Primary Enter Button & Summary Card */
+  --theme-btn-enter-bg: #fbbf24;
+  --theme-btn-enter-text: #120826;
+  --theme-btn-enter-hover: #f59e0b;
+  --theme-trade-summary-bg: #160c2c;
+  --theme-trade-summary-border: #4c2889;
+
+  /* ============================================ */
+  /* GLOBAL TYPOGRAPHY & ELEMENT OVERRIDES       */
+  /* ============================================ */
+  
+  color: #f5f3ff;
+  color-scheme: dark;
+}
+
+/* Base Body and Root when Purple Theme is Active */
+[data-theme="purple"],
+[data-theme="purple"] body {
+  color: #f5f3ff;
+  background-color: #1a102f;
+}
+
+/* Card and Card Header elements */
+[data-theme="purple"] [data-slot="card"] {
+  background: var(--theme-card-white) !important;
+  color: #f5f3ff !important;
+  border: 1px solid var(--theme-border) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="purple"] [data-slot="card-header"] {
+  background: var(--theme-card-white) !important;
+  color: #f5f3ff !important;
+}
+
+[data-theme="purple"] [data-slot="card-title"] {
+  color: #f5f3ff !important;
+
+  svg {
+    color: #c084fc;
+  }
+}
+
+[data-theme="purple"] [data-slot="card-content"] {
+  color: #f5f3ff !important;
+}
+
+[data-theme="purple"] [data-slot="card-description"] {
+  color: #c4b5fd !important;
+}
+
+/* Connection Status Play button */
+[data-theme="purple"] button[title="Open Log Monitor"] svg {
+  color: #c4b5fd !important;
+}
+
+/* Headings & Labels */
+[data-theme="purple"] h1,
+[data-theme="purple"] h2,
+[data-theme="purple"] h3,
+[data-theme="purple"] h4,
+[data-theme="purple"] h5,
+[data-theme="purple"] h6 {
+  color: #f5f3ff !important;
+}
+
+[data-theme="purple"] label {
+  color: #d8b4fe !important;
+}
+
+/* Muted text & Subtitles */
+[data-theme="purple"] .text-muted-foreground,
+[data-theme="purple"] [class*="muted"] {
+  color: #c4b5fd !important;
+}
+
+/* Tailwind Grayscale Overrides */
+[data-theme="purple"] .text-zinc-700,
+[data-theme="purple"] .text-zinc-800,
+[data-theme="purple"] .text-zinc-900,
+[data-theme="purple"] .text-gray-700,
+[data-theme="purple"] .text-gray-800,
+[data-theme="purple"] .text-gray-900 {
+  color: #f5f3ff !important;
+}
+
+[data-theme="purple"] .text-zinc-500,
+[data-theme="purple"] .text-zinc-600,
+[data-theme="purple"] .text-gray-500,
+[data-theme="purple"] .text-gray-600 {
+  color: #c4b5fd !important;
+}
+
+/* Bottom Navigation Menu */
+[data-theme="purple"] [class*="bottomMenu"] {
+  background: #1e1338 !important;
+  border-top: 1px solid #3b1d6e !important;
+}
+
+[data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"] {
+  color: #c4b5fd !important;
+  opacity: 0.9;
+}
+
+[data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"] svg {
+  color: #c084fc !important;
+}
+
+[data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"] span {
+  color: #c4b5fd !important;
+}
+
+[data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"]:hover {
+  opacity: 1;
+  color: #ffffff !important;
+}
+
+[data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"]:hover svg,
+[data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"]:hover span {
+  color: #ffffff !important;
+}
+
+/* Inputs, Selects, and Textareas */
+[data-theme="purple"] input,
+[data-theme="purple"] select,
+[data-theme="purple"] textarea {
+  background: #1c1033 !important;
+  color: #f5f3ff !important;
+  border-color: #5b329e !important;
+}
+
+[data-theme="purple"] input::placeholder,
+[data-theme="purple"] textarea::placeholder {
+  color: #a78bfa !important;
+}
+
+/* Dividers & Borders */
+[data-theme="purple"] hr,
+[data-theme="purple"] .border-b,
+[data-theme="purple"] .border-t,
+[data-theme="purple"] .border,
+[data-theme="purple"] [data-slot="separator"],
+[data-theme="purple"] [class*="divider"] {
+  border-color: #3d2366 !important;
+}
+
+/* Table and Row elements */
+[data-theme="purple"] [class*="tableHeader"],
+[data-theme="purple"] [class*="thLeft"],
+[data-theme="purple"] [class*="thRight"],
+[data-theme="purple"] [class*="symbol"],
+[data-theme="purple"] [class*="tradeSymbol"],
+[data-theme="purple"] [class*="connectionName"],
+[data-theme="purple"] [class*="sectionTitle"] {
+  color: #f5f3ff !important;
+}
+
+[data-theme="purple"] [class*="ltp"] {
+  color: #f5f3ff !important;
+}
+
+[data-theme="purple"] [class*="row"],
+[data-theme="purple"] [class*="trade"] {
+  border-color: #3d2366 !important;
+}
+
+/* Suggestions dropdown */
+[data-theme="purple"] [class*="suggestions"],
+[data-theme="purple"] [class*="suggestionItem"] {
+  background: #23153c !important;
+  color: #f5f3ff !important;
+  border-color: #4c2889 !important;
+}
+
+[data-theme="purple"] [class*="suggestionItem"]:hover {
+  background: #2e1b54 !important;
+}
+
+/* Trade Page Summary Container, LOT Input, and Enter Button */
+[data-theme="purple"] [data-slot="trade-summary-box"],
+[data-theme="purple"] .trade-summary-card {
+  background: var(--theme-trade-summary-bg, #160c2c) !important;
+  border: 1px solid var(--theme-trade-summary-border, #4c2889) !important;
+  color: #f5f3ff !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="purple"] [data-slot="trade-lot-input"],
+[data-theme="purple"] input[data-lot-input="true"],
+[data-theme="purple"] .trade-lot-input {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  border: 1px solid #d4d4d8 !important;
+}
+
+[data-theme="purple"] [data-slot="trade-enter-btn"],
+[data-theme="purple"] button[data-enter-btn="true"] {
+  background: var(--theme-btn-enter-bg, #fbbf24) !important;
+  color: var(--theme-btn-enter-text, #120826) !important;
+  font-weight: 800 !important;
+  border: none !important;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.35) !important;
+
+  &:hover {
+    background: var(--theme-btn-enter-hover, #f59e0b) !important;
+    box-shadow: 0 0 18px rgba(251, 191, 36, 0.5) !important;
+  }
+}
+

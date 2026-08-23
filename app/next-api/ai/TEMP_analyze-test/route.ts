@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     const res = await fetch(config.url, {
       method: "POST",
       headers: config.headers(effectiveApiKey),
-      body: JSON.stringify(config.buildBody(systemPrompt, userPrompt, 200)),
+      body: JSON.stringify(config.buildBody(systemPrompt, userPrompt, 1024)),
       signal: controller.signal,
     });
 
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       promptSent: userPrompt,
       rawResponse: content,
       parsed,
-      model: settings.model || "llama-3.1-8b-instant",
+      model: settings.model || "openai/gpt-oss-20b",
     });
   } catch (e) {
     if (e instanceof Error && e.name === "AbortError") {
