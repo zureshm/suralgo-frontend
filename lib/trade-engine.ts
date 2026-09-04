@@ -13,7 +13,7 @@ import path from "path";
 
 import { getAiGuardSettings, isAiGuardActive, analyzeMarketRegime, loadAiSettingsFromDisk, addAiLog, addAiErrorLog, type AiSuggestion, type AiAnalysisResult } from "./ai-guard";
 
-import { getNiftyLive } from "./nifty-live";
+import { checkNiftyReEntryFilter } from "./nifty-live";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
@@ -489,6 +489,29 @@ let totalTargetValue = 1200;
 let totalLossEnabled = false;
 let totalLossValue = -1200;
 
+// --- Auto Cutoff Settings ---
+let autoCutoffEnabled = false;
+let autoCutoffHours = "03";
+let autoCutoffMinutes = "05";
+let autoCutoffAmpm = "pm";
+
+export function getAutoCutoffSettings() {
+  return { autoCutoffEnabled, autoCutoffHours, autoCutoffMinutes, autoCutoffAmpm };
+}
+
+export function setAutoCutoffSettings(settings: {
+  autoCutoffEnabled?: boolean;
+  autoCutoffHours?: string;
+  autoCutoffMinutes?: string;
+  autoCutoffAmpm?: string;
+}) {
+  if (settings.autoCutoffEnabled !== undefined) autoCutoffEnabled = settings.autoCutoffEnabled;
+  if (settings.autoCutoffHours !== undefined) autoCutoffHours = settings.autoCutoffHours;
+  if (settings.autoCutoffMinutes !== undefined) autoCutoffMinutes = settings.autoCutoffMinutes;
+  if (settings.autoCutoffAmpm !== undefined) autoCutoffAmpm = settings.autoCutoffAmpm;
+  persistState();
+}
+
 export function getTotalExitSettings() {
   return { totalTargetEnabled, totalTargetValue, totalLossEnabled, totalLossValue };
 }
@@ -725,6 +748,11 @@ function loadState() {
       if (typeof data.totalLossEnabled === "boolean") totalLossEnabled = data.totalLossEnabled;
       if (typeof data.totalLossValue === "number") totalLossValue = data.totalLossValue;
 
+      if (typeof data.autoCutoffEnabled === "boolean") autoCutoffEnabled = data.autoCutoffEnabled;
+      if (typeof data.autoCutoffHours === "string") autoCutoffHours = data.autoCutoffHours;
+      if (typeof data.autoCutoffMinutes === "string") autoCutoffMinutes = data.autoCutoffMinutes;
+      if (typeof data.autoCutoffAmpm === "string") autoCutoffAmpm = data.autoCutoffAmpm;
+
       console.log(`[trade-engine] Loaded state from ${DB_PATH} (${waitingTrades.length} waiting, ${activeTrades.length} active, ${tradeHistory.length} history)`);
 
     }
@@ -775,6 +803,11 @@ function persistState() {
       totalTargetValue,
       totalLossEnabled,
       totalLossValue,
+
+      autoCutoffEnabled,
+      autoCutoffHours,
+      autoCutoffMinutes,
+      autoCutoffAmpm,
 
     }, null, 2);
 
@@ -1023,7 +1056,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     logs: [
       ...trade.logs,
       logLine,
-      ...(trade.reEntryAfterTargetEnabled ? [`Auto Re-entry enabled: will re-enter if price exceeds exit within ${trade.reEntryCandles} candles after profitable exit`] : []),
+      ...(trade.reEntryAfterTargetEnabled ? [`Auto Re-entry enabled: will re-enter if price exceeds exit within ${trade.reEntryCandles} candles after exit`] : []),
       ...(trade.signalReEntryEnabled ? [`Signal Re-entry enabled: will re-enter on REENTER signal after any exit`] : []),
     ],
 
@@ -1431,10 +1464,9 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
       }
     }
 
-    // Determine if this was a profitable exit (target/trailing/min target)
-    const isProfitableExit = cyclePnl >= 0 && !logLine.includes("STOPLOSS") && !logLine.includes("in loss");
+    // Arm Auto Re-Entry whenever enabled (regardless of profit/loss on previous exit)
     const signalReEntryArmed = trade.signalReEntryEnabled;
-    const reEntryInfo = (trade.reEntryAfterTargetEnabled && isProfitableExit) ? {
+    const reEntryInfo = trade.reEntryAfterTargetEnabled ? {
       reEntryExitPrice: Number(exitPrice),
       reEntrySellTime: lastStrategyCandleTime || trade.lastSellCandleTime,
       reEntryReason: logLine,
@@ -1445,11 +1477,9 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
     };
 
     let reEntryMsg = `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`;
-    if (trade.reEntryAfterTargetEnabled && isProfitableExit) {
-      reEntryMsg = `Auto Re-entry armed: watching for price > â‚¹${exitPrice} within ${trade.reEntryCandles} candles`;
-    } else if (trade.reEntryAfterTargetEnabled && !isProfitableExit) {
-      reEntryMsg += ` [Auto Re-entry skipped: not a profitable exit]`;
-    } else if (!trade.reEntryAfterTargetEnabled) {
+    if (trade.reEntryAfterTargetEnabled) {
+      reEntryMsg = `Auto Re-entry armed: watching for price > ₹${exitPrice} within ${trade.reEntryCandles} candles`;
+    } else {
       reEntryMsg += ` [Auto Re-entry disabled]`;
     }
     if (trade.signalReEntryEnabled) {
@@ -1675,6 +1705,20 @@ function handleStrategySignal(signal: any) {
 
   if (!signal) return;
 
+  // Guard: ignore strategy signals from a previous day to prevent stale SELL/STOPLOSS/TARGET
+  // from triggering false exits right after startup or auto-trigger BUY.
+  // Only applies when lastCandleTime contains a date prefix (live mode). Backtest times (HH:MM:SS only) pass through.
+  if (signal.lastCandleTime) {
+    const hasDate = String(signal.lastCandleTime).includes("-");
+    if (hasDate) {
+      const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+      if (!String(signal.lastCandleTime).startsWith(todayStr)) {
+        console.log(`[trade-engine] Ignoring stale signal from previous day: ${signal.lastCandleTime} (${signal.signal})`);
+        return;
+      }
+    }
+  }
+
   // Auto-detect history readiness from candles in the signal payload
   const candlesInSignal = Array.isArray(signal.candles) ? signal.candles : [];
   if (signal.symbol && candlesInSignal.length >= 10) {
@@ -1898,28 +1942,23 @@ function handleStrategySignal(signal: any) {
 
 
 
-  // Auto-sell cutoff at 3:25 PM — use server system time, not stale candle time
-  const AUTO_SELL_CUTOFF_MINUTES = 15 * 60 + 25;
-  const sysNow = new Date();
-  const sysMinutes = sysNow.getHours() * 60 + sysNow.getMinutes();
-  const sysTimeStr = `${String(sysNow.getHours()).padStart(2, "0")}:${String(sysNow.getMinutes()).padStart(2, "0")}`;
+  // Auto-sell cutoff — only if enabled, use server system time against configured cutoff time
+  if (autoCutoffEnabled) {
+    const cutoffMinutes = toMinutes12h(`${autoCutoffHours}:${autoCutoffMinutes}`, autoCutoffAmpm);
+    const sysNow = new Date();
+    const sysMinutes = sysNow.getHours() * 60 + sysNow.getMinutes();
+    const sysTimeStr = `${String(sysNow.getHours()).padStart(2, "0")}:${String(sysNow.getMinutes()).padStart(2, "0")}`;
 
-  if (sysMinutes >= AUTO_SELL_CUTOFF_MINUTES && activeForSymbol && activeForSymbol.inPosition) {
+    if (cutoffMinutes >= 0 && sysMinutes >= cutoffMinutes && activeForSymbol && activeForSymbol.inPosition) {
+      completeActiveTrade(
+        activeForSymbol.symbol,
+        String(latestClose ?? ""),
+        `AUTO SELL triggered post ${autoCutoffHours}:${autoCutoffMinutes} ${autoCutoffAmpm.toUpperCase()} cut-off at ₹${String(latestClose ?? "")} (sys ${sysTimeStr})`
+      );
 
-    completeActiveTrade(
-
-      activeForSymbol.symbol,
-
-      String(latestClose ?? ""),
-
-      `AUTO SELL triggered post 03:25 pm cut-off at â‚¹${String(latestClose ?? "")} (sys ${sysTimeStr})`
-
-    );
-
-    updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime ?? "15:25");
-
-    return;
-
+      updateLastSellCandleTime(activeForSymbol.symbol, signal.lastCandleTime ?? sysTimeStr);
+      return;
+    }
   }
 
 
@@ -2293,7 +2332,7 @@ function handleStrategySignal(signal: any) {
       return;
     }
 
-    // Price guard â€” only re-enter if current price is higher than last exit price
+    // Price guard â€" only re-enter if current price is higher than last exit price
     const lastExitPrice = ("exitPrice" in reenterTrade && reenterTrade.exitPrice) ? Number(reenterTrade.exitPrice) : NaN;
     if (Number.isFinite(lastExitPrice) && Number.isFinite(latestClose) && latestClose <= lastExitPrice) {
       const priceLog = `REENTER skipped â€“ current price â‚¹${latestClose} <= last exit price â‚¹${lastExitPrice} at ${fmtTime(signal.lastCandleTime)}`;
@@ -2418,21 +2457,14 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
           const reEntryThreshold = trade.reEntryExitPrice + (trade.reEntryPoints || 5);
           if (candlesSinceSell <= trade.reEntryCandles) {
             if (ltp > reEntryThreshold) {
-              // NIFTY 50 directional guard — CE requires green, PE requires red
-              const { open: niftyOpen, ltp: niftyLtp } = getNiftyLive();
-              if (niftyOpen > 0 && niftyLtp > 0) {
-                const isCE = trade.symbol.endsWith("CE");
-                const isPE = trade.symbol.endsWith("PE");
-                const niftyGreen = niftyLtp > niftyOpen;
-                const niftyRed = niftyLtp < niftyOpen;
-                if ((isCE && !niftyGreen) || (isPE && !niftyRed)) {
-                  if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
-                    lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
-                    const niftyDir = niftyGreen ? "GREEN" : niftyRed ? "RED" : "FLAT";
-                    addLogToActive(trade.symbol, `RE-ENTRY blocked — NIFTY 50 is ${niftyDir} at ${currentTime} (need ${isCE ? "GREEN" : "RED"} for ${isCE ? "CE" : "PE"})`);
-                  }
-                  continue;
+              // NIFTY 50 technical guard (EMA 10/20 trend, candle color, 6-candle EMA20 non-touch)
+              const niftyCheck = checkNiftyReEntryFilter(trade.symbol);
+              if (!niftyCheck.allowed) {
+                if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
+                  lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
+                  addLogToActive(trade.symbol, `RE-ENTRY blocked — ${niftyCheck.reason} at ${currentTime}`);
                 }
+                continue;
               }
               // AI Guard check â€” block re-entry if AI says sideways/reversing
               const aiSettings = getAiGuardSettings();
