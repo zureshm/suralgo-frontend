@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { X, Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch } from "lucide-react";
+import { X, Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock } from "lucide-react";
 import { playSound, setVolume } from "@/lib/sounds";
 import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
@@ -77,6 +77,14 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const { theme, setTheme } = useTheme();
   const { forceBuyEnabled, setForceBuyEnabled } = useTradeStore();
 
+  // Auto Cutoff settings
+  const [autoCutoffEnabled, setAutoCutoffEnabled] = useState(false);
+  const [autoCutoffHours, setAutoCutoffHours] = useState("03");
+  const [autoCutoffMinutes, setAutoCutoffMinutes] = useState("05");
+  const [autoCutoffAmpm, setAutoCutoffAmpm] = useState("pm");
+  const autoCutoffLoadedRef = useRef(false);
+  const autoCutoffDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // AI Guard settings
   const [aiGuardEnabled, setAiGuardEnabled] = useState(false);
   const [aiEntryGuardEnabled, setAiEntryGuardEnabled] = useState(false);
@@ -130,6 +138,22 @@ export default function SettingsPopup({ open, onClose }: Props) {
   useEffect(() => {
     const stored = localStorage.getItem("soundVolume");
     if (stored) setVolumeState(parseFloat(stored));
+
+    // Fetch Auto Cutoff settings from server
+    fetch("/next-api/settings/auto-cutoff")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && typeof data === "object") {
+          setAutoCutoffEnabled(Boolean(data.autoCutoffEnabled));
+          if (typeof data.autoCutoffHours === "string") setAutoCutoffHours(data.autoCutoffHours);
+          if (typeof data.autoCutoffMinutes === "string") setAutoCutoffMinutes(data.autoCutoffMinutes);
+          if (typeof data.autoCutoffAmpm === "string") setAutoCutoffAmpm(data.autoCutoffAmpm);
+          autoCutoffLoadedRef.current = true;
+        }
+      })
+      .catch(() => {
+        autoCutoffLoadedRef.current = true;
+      });
 
     // Fetch AI Guard settings from server first (source of truth for cross-device)
     fetch("/next-api/ai/settings")
@@ -227,6 +251,27 @@ export default function SettingsPopup({ open, onClose }: Props) {
   }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
 
   useEffect(() => { postAiSettings(); }, [postAiSettings]);
+
+  // Auto-save Auto Cutoff settings to server when changed
+  useEffect(() => {
+    if (!autoCutoffLoadedRef.current) return;
+    if (autoCutoffDebounceRef.current) clearTimeout(autoCutoffDebounceRef.current);
+    autoCutoffDebounceRef.current = setTimeout(() => {
+      fetch("/next-api/settings/auto-cutoff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          autoCutoffEnabled,
+          autoCutoffHours,
+          autoCutoffMinutes,
+          autoCutoffAmpm,
+        }),
+      }).catch((err) => console.error("Failed to save auto cutoff settings:", err));
+    }, 300);
+    return () => {
+      if (autoCutoffDebounceRef.current) clearTimeout(autoCutoffDebounceRef.current);
+    };
+  }, [autoCutoffEnabled, autoCutoffHours, autoCutoffMinutes, autoCutoffAmpm]);
 
   // Test API key when it changes (or provider changes)
   const testAiConnection = useCallback(async () => {
@@ -507,6 +552,124 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 >
                   <Play size={16} />
                 </button>
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
+
+            {/* Auto Cutoff Time setting */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock size={18} style={{ color: "var(--theme-popup-border)" }} />
+                  <h3 className="text-sm font-bold" style={{ color: "var(--theme-popup-text)" }}>Auto Cutoff Time</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAutoCutoffEnabled(!autoCutoffEnabled)}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    background: autoCutoffEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                    boxShadow: autoCutoffEnabled ? "0 0 10px rgba(251, 191, 36, 0.45)" : "none",
+                    position: "relative",
+                    transition: "background 0.2s, box-shadow 0.2s",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 3,
+                      left: autoCutoffEnabled ? 23 : 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                    }}
+                  />
+                </button>
+              </div>
+              <div className="text-xs mt-1 font-medium" style={{ color: autoCutoffEnabled ? "var(--theme-status-success)" : "var(--theme-status-loss)" }}>
+                {autoCutoffEnabled ? `Auto-sell active positions at ${autoCutoffHours}:${autoCutoffMinutes} ${autoCutoffAmpm.toUpperCase()}` : "Disabled"}
+              </div>
+
+              {/* Time inputs */}
+              <div
+                className={`mt-3 flex items-center gap-2 transition-opacity duration-200 ${
+                  autoCutoffEnabled ? "opacity-100" : "opacity-35 pointer-events-none"
+                }`}
+              >
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={2}
+                    value={autoCutoffHours}
+                    disabled={!autoCutoffEnabled}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 2);
+                      setAutoCutoffHours(val);
+                    }}
+                    onBlur={() => {
+                      let h = parseInt(autoCutoffHours, 10);
+                      if (isNaN(h) || h < 1) h = 3;
+                      if (h > 12) h = 12;
+                      setAutoCutoffHours(String(h).padStart(2, "0"));
+                    }}
+                    className="w-12 h-8 px-1 border rounded text-center text-sm font-semibold focus:outline-none"
+                    style={{
+                      background: "var(--theme-popup-field-bg)",
+                      color: "var(--theme-popup-text)",
+                      borderColor: "var(--theme-popup-field-border)",
+                    }}
+                    placeholder="03"
+                  />
+                  <span className="font-bold text-sm" style={{ color: "var(--theme-popup-text)" }}>:</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={2}
+                    value={autoCutoffMinutes}
+                    disabled={!autoCutoffEnabled}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 2);
+                      setAutoCutoffMinutes(val);
+                    }}
+                    onBlur={() => {
+                      let m = parseInt(autoCutoffMinutes, 10);
+                      if (isNaN(m) || m < 0) m = 5;
+                      if (m > 59) m = 59;
+                      setAutoCutoffMinutes(String(m).padStart(2, "0"));
+                    }}
+                    className="w-12 h-8 px-1 border rounded text-center text-sm font-semibold focus:outline-none"
+                    style={{
+                      background: "var(--theme-popup-field-bg)",
+                      color: "var(--theme-popup-text)",
+                      borderColor: "var(--theme-popup-field-border)",
+                    }}
+                    placeholder="05"
+                  />
+                </div>
+                <select
+                  value={autoCutoffAmpm}
+                  disabled={!autoCutoffEnabled}
+                  onChange={(e) => setAutoCutoffAmpm(e.target.value.toLowerCase())}
+                  className="h-8 px-2 border rounded text-sm font-semibold focus:outline-none cursor-pointer"
+                  style={{
+                    background: "var(--theme-popup-field-bg)",
+                    color: "var(--theme-popup-text)",
+                    borderColor: "var(--theme-popup-field-border)",
+                  }}
+                >
+                  <option value="pm">PM</option>
+                  <option value="am">AM</option>
+                </select>
               </div>
             </div>
 
