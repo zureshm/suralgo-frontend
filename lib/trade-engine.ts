@@ -206,6 +206,10 @@ type WaitingTrade = {
 
   stopLossNumber: number;
 
+  trailingStopLossEnabled: boolean;
+
+  trailingStopLossSteps: number;
+
   targetPointsEnabled: boolean;
 
   targetPoints: number;
@@ -254,6 +258,7 @@ type WaitingTrade = {
 
   reEntryAfterTargetEnabled: boolean;
 
+  reEntryStartCandle: number;
   reEntryCandles: number;
   reEntryPoints: number;
 
@@ -302,6 +307,10 @@ type ActiveTrade = {
 
   stopLossNumber: number;
 
+  trailingStopLossEnabled: boolean;
+
+  trailingStopLossSteps: number;
+
   targetPointsEnabled: boolean;
 
   targetPoints: number;
@@ -325,6 +334,8 @@ type ActiveTrade = {
   trailingTrailActive: boolean;
 
   trailingHighWatermark?: number;
+
+  trailingSlHighWatermark?: number;
 
   minTargetHighWatermark?: number;
 
@@ -372,6 +383,7 @@ type ActiveTrade = {
 
   reEntryAfterTargetEnabled: boolean;
 
+  reEntryStartCandle: number;
   reEntryCandles: number;
   reEntryPoints: number;
 
@@ -428,6 +440,10 @@ type TradeHistoryItem = {
     stopLossNumber?: number;
 
     stopLossNumberEnabled: boolean;
+
+    trailingStopLossEnabled?: boolean;
+
+    trailingStopLossSteps?: number;
 
     targetPoints?: number;
 
@@ -964,6 +980,10 @@ function buildConfigSnapshot(trade: ActiveTrade): TradeHistoryItem["config"] {
 
     stopLossNumber: trade.stopLossNumberEnabled ? trade.stopLossNumber : undefined,
 
+    trailingStopLossEnabled: Boolean(trade.trailingStopLossEnabled),
+
+    trailingStopLossSteps: trade.trailingStopLossEnabled ? trade.trailingStopLossSteps : undefined,
+
     targetPointsEnabled: Boolean(trade.targetPointsEnabled),
 
     targetPoints: trade.targetPointsEnabled ? trade.targetPoints : undefined,
@@ -1057,7 +1077,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     logs: [
       ...trade.logs,
       logLine,
-      ...(trade.reEntryAfterTargetEnabled ? [`Auto Re-entry enabled: will re-enter if price exceeds exit within ${trade.reEntryCandles} candles after exit`] : []),
+      ...(trade.reEntryAfterTargetEnabled ? [`Auto Re-entry enabled: will re-enter if price exceeds exit between ${trade.reEntryStartCandle ?? 1} & ${trade.reEntryCandles} candles after exit`] : []),
       ...(trade.signalReEntryEnabled ? [`Signal Re-entry enabled: will re-enter on REENTER signal after any exit`] : []),
     ],
 
@@ -1070,6 +1090,12 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     stopLossNumberEnabled: trade.stopLossNumberEnabled,
 
     stopLossNumber: trade.stopLossNumber,
+
+    trailingStopLossEnabled: trade.trailingStopLossEnabled,
+
+    trailingStopLossSteps: trade.trailingStopLossSteps,
+
+    trailingSlHighWatermark: Number(entryPrice),
 
     targetPointsEnabled: trade.targetPointsEnabled,
 
@@ -1141,6 +1167,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
     reEntryAfterTargetEnabled: trade.reEntryAfterTargetEnabled,
 
+    reEntryStartCandle: trade.reEntryStartCandle ?? 1,
     reEntryCandles: trade.reEntryCandles,
     reEntryPoints: trade.reEntryPoints,
 
@@ -1479,7 +1506,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
     let reEntryMsg = `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`;
     if (trade.reEntryAfterTargetEnabled) {
-      reEntryMsg = `Auto Re-entry armed: watching for price > ₹${exitPrice} within ${trade.reEntryCandles} candles`;
+      reEntryMsg = `Auto Re-entry armed: watching for price > ₹${exitPrice} between ${trade.reEntryStartCandle ?? 1} & ${trade.reEntryCandles} candles`;
     } else {
       reEntryMsg += ` [Auto Re-entry disabled]`;
     }
@@ -1494,6 +1521,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
       logs: [...trade.logs, sellLog, logLine, `Trade P/L: ${cyclePnl.toFixed(2)}`, reEntryMsg],
 
       trailingTrailActive: false, trailingHighWatermark: undefined,
+      trailingSlHighWatermark: undefined,
 
       lastSellCandleTime: lastStrategyCandleTime || trade.lastSellCandleTime,
 
@@ -1535,6 +1563,7 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
       logs: reEntryLogs,
 
       trailingTrailActive: armTrailing, trailingHighWatermark: armTrailing ? Number(entryPrice) : undefined,
+      trailingSlHighWatermark: Number(entryPrice),
       trailingAfterTarget: armTrailing ? trade.reEntryTrailingPoints : trade.trailingAfterTarget,
 
       minTargetHighWatermark: undefined,
@@ -1693,6 +1722,14 @@ function lockMinTargetPrice(symbol: string, price: number) {
 
   });
 
+}
+
+function updateTrailingSlHighWatermark(symbol: string, price: number) {
+  activeTrades = activeTrades.map((t) => {
+    if (t.symbol !== symbol || t.status !== "ACTIVE" || !t.inPosition) return t;
+    if (t.trailingSlHighWatermark && price <= t.trailingSlHighWatermark) return t;
+    return { ...t, trailingSlHighWatermark: price };
+  });
 }
 
 
@@ -2456,8 +2493,9 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         if (sellMin >= 0 && currentMin >= 0) {
           const candlesSinceSell = currentMin - sellMin;
           const reEntryThreshold = trade.reEntryExitPrice + (trade.reEntryPoints || 5);
+          const startCandle = trade.reEntryStartCandle ?? 1;
           if (candlesSinceSell <= trade.reEntryCandles) {
-            if (ltp > reEntryThreshold) {
+            if (candlesSinceSell >= startCandle && ltp > reEntryThreshold) {
               // NIFTY 50 technical guard (EMA 10/20 trend, candle color, 6-candle EMA20 non-touch)
               const niftyCheck = checkNiftyReEntryFilter(trade.symbol);
               if (!niftyCheck.allowed) {
@@ -2480,7 +2518,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
                   continue;
                 }
               }
-              const reEntryLog = `RE-ENTRY triggered at â‚¹${ltp.toFixed(2)} (price exceeded exit+${trade.reEntryPoints || 5} â‚¹${reEntryThreshold.toFixed(2)} within ${candlesSinceSell}/${trade.reEntryCandles} candles) at ${currentTime}`;
+              const reEntryLog = `RE-ENTRY triggered at â‚¹${ltp.toFixed(2)} (price exceeded exit+${trade.reEntryPoints || 5} â‚¹${reEntryThreshold.toFixed(2)} between candle ${startCandle} & ${trade.reEntryCandles}, current: ${candlesSinceSell}) at ${currentTime}`;
               updateActiveTradeBuy(trade.symbol, String(ltp), reEntryLog);
               continue;
             }
@@ -2526,10 +2564,25 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     const trailingEnabled = trade.targetPointsEnabled && trade.targetPoints > 0 && trade.trailingAfterTargetEnabled && trade.trailingAfterTarget > 0;
 
+    // ── Stop Loss & Trailing Stop Loss Calculation ──
+    const effectiveSLEnabled = (trade.isReEntryCycle && trade.reEntryStopLossEnabled) ? true : trade.stopLossNumberEnabled;
+    const effectiveSL = (trade.isReEntryCycle && trade.reEntryStopLossEnabled) ? trade.reEntryStopLoss : trade.stopLossNumber;
 
+    let trailedSLLevel = entry - (effectiveSL || 0);
+    let slStepsCompleted = 0;
+    if (effectiveSLEnabled && effectiveSL > 0) {
+      if (typeof trade.trailingSlHighWatermark !== "number" || ltp > trade.trailingSlHighWatermark) {
+        updateTrailingSlHighWatermark(trade.symbol, ltp);
+      }
+      const slHighMark = Math.max(trade.trailingSlHighWatermark ?? entry, ltp);
+      if (trade.trailingStopLossEnabled && trade.trailingStopLossSteps > 0) {
+        const slGain = Math.max(0, slHighMark - entry);
+        slStepsCompleted = Math.floor(slGain / trade.trailingStopLossSteps);
+        trailedSLLevel = (entry - effectiveSL) + (slStepsCompleted * trade.trailingStopLossSteps);
+      }
+    }
 
     // Minimum Target logic
-
     const useReEntryMinTarget = trade.isReEntryCycle && trade.reEntryMinTargetEnabled;
     const effectiveMinEnabled = useReEntryMinTarget ? true : trade.minToHoldEnabled;
     const effectiveMinPoints = useReEntryMinTarget ? trade.reEntryMinTargetPoints : trade.minToHold;
@@ -2537,168 +2590,98 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     const effectiveMinTrailing = useReEntryMinTarget ? trade.reEntryMinTargetTrailing : trade.minToHoldTrailing;
 
     if (effectiveMinEnabled && effectiveMinPoints > 0) {
-
       const trailLevel = entry + effectiveMinPoints;
-
       const activationLevel = trailLevel + effectiveMinTrigger;
 
       if (!trailingArmedPositions.has(positionKey)) {
-
         if (ltp >= activationLevel) {
           trailingArmedPositions.add(positionKey);
           addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Minimum target armed at ₹${ltp.toFixed(2)} (activation: ₹${activationLevel.toFixed(2)}) at ${currentTime}`);
           persistState();
         }
-
       } else {
-
-        if (effectiveMinTrailing) {
-
-          // Trailing min target mode
-          if (trade.minTargetLockedPrice !== undefined) {
-
-            // Already locked at target â€” exit if price drops to locked price
-            if (ltp <= trade.minTargetLockedPrice) {
-              triggeredPositions.add(positionKey);
-              trailingArmedPositions.delete(positionKey);
-              completeCycleWithoutExit(trade.symbol, String(trade.minTargetLockedPrice), `${useReEntryMinTarget ? "ReEntry " : ""}TRAILING MIN TARGET hit for â‚¹${trade.minTargetLockedPrice.toFixed(2)} at ${currentTime}`);
-              continue;
-            }
-
-          } else {
-
-            // Trail behind high watermark by trigger amount
-            updateMinTargetHighWatermark(trade.symbol, ltp);
-            const minTargetHigh = trade.minTargetHighWatermark ?? ltp;
-            const floor = minTargetHigh - effectiveMinTrigger;
-
-            if (ltp <= floor) {
-              triggeredPositions.add(positionKey);
-              trailingArmedPositions.delete(positionKey);
-              completeCycleWithoutExit(trade.symbol, String(floor), `${useReEntryMinTarget ? "ReEntry " : ""}TRAILING MIN TARGET hit for â‚¹${floor.toFixed(2)} at ${currentTime}`);
-              continue;
-            }
-
-          }
-
-        } else {
-
-          // Normal (non-trailing) min target mode
-          if (ltp <= trailLevel) {
-
-            triggeredPositions.add(positionKey);
-
-            trailingArmedPositions.delete(positionKey);
-
-            completeCycleWithoutExit(trade.symbol, String(ltp), `${useReEntryMinTarget ? "ReEntry " : ""}MINIMUM TARGET hit for â‚¹${ltp} at ${currentTime}`);
-
-            continue;
-
-          }
-
+        if (effectiveMinTrailing && trade.minTargetLockedPrice === undefined) {
+          updateMinTargetHighWatermark(trade.symbol, ltp);
         }
+        const minTargetHigh = trade.minTargetHighWatermark ?? ltp;
+        const minTargetFloor = (trade.minTargetLockedPrice !== undefined)
+          ? trade.minTargetLockedPrice
+          : (effectiveMinTrailing ? minTargetHigh - effectiveMinTrigger : trailLevel);
 
+        if (ltp <= minTargetFloor) {
+          if (effectiveSLEnabled && effectiveSL > 0 && trailedSLLevel > minTargetFloor) {
+            // Defer to Trailing SL check below
+          } else {
+            const exitPrice = Math.min(ltp, minTargetFloor);
+            triggeredPositions.add(positionKey);
+            trailingArmedPositions.delete(positionKey);
+            completeCycleWithoutExit(trade.symbol, String(exitPrice), `${useReEntryMinTarget ? "ReEntry " : ""}${effectiveMinTrailing ? "TRAILING MIN TARGET" : "MINIMUM TARGET"} hit for ₹${exitPrice.toFixed(2)} at ${currentTime}`);
+            continue;
+          }
+        }
       }
-
     } else {
-
       trailingArmedPositions.delete(positionKey);
-
     }
-
-
 
     // Trailing after target
-
     if (trailingEnabled && trade.trailingTrailActive) {
-
       const peakPrice = trailingPrice;
-
       if (typeof trade.trailingHighWatermark !== "number" || peakPrice > trade.trailingHighWatermark) {
-
         updateHighWatermark(trade.symbol, peakPrice);
-
       }
-
       const highMark = trade.trailingHighWatermark ?? peakPrice;
+      const trailingFloor = (trade.minTargetLockedPrice !== undefined)
+        ? Math.max(highMark - trade.trailingAfterTarget, trade.minTargetLockedPrice)
+        : (highMark - trade.trailingAfterTarget);
 
-      const currentTrailingPrice = trailingPrice;
-
-      const drop = highMark - currentTrailingPrice;
-
-      if (drop >= trade.trailingAfterTarget) {
-
-        // If min target is locked, use it as a floor for exit price
-        const exitPrice = (trade.minTargetLockedPrice !== undefined)
-          ? Math.max(trailingPrice, trade.minTargetLockedPrice)
-          : trailingPrice;
-
-        triggeredPositions.add(positionKey);
-
-        completeCycleWithoutExit(trade.symbol, String(exitPrice), `Trailing target hit for â‚¹${exitPrice} at ${currentTime}`);
-
-        continue;
-
+      if (trailingPrice <= trailingFloor) {
+        if (effectiveSLEnabled && effectiveSL > 0 && trailedSLLevel > trailingFloor) {
+          // Defer to Trailing SL check below
+        } else {
+          const exitPrice = Math.min(trailingPrice, trailingFloor);
+          triggeredPositions.add(positionKey);
+          completeCycleWithoutExit(trade.symbol, String(exitPrice), `Trailing target hit for ₹${exitPrice} at ${currentTime}`);
+          continue;
+        }
       }
-
     }
 
-
-
     // Target hit
-
     if (trade.targetPointsEnabled && trade.targetPoints > 0 && (targetPrice - entry) >= trade.targetPoints) {
-
       const targetLevel = entry + trade.targetPoints;
       const targetPriceDiff = targetPrice - entry;
       const tgtExit = targetPriceDiff >= trade.targetPoints ? targetPrice : targetLevel;
 
       if (trailingEnabled) {
-
         if (!trade.trailingTrailActive) {
-
           activateTrailing(trade.symbol, tgtExit, currentTime);
-
-          // Lock min target at target - trigger if trailing min target is active
           if (effectiveMinEnabled && effectiveMinTrailing && trailingArmedPositions.has(positionKey)) {
             const lockedPrice = targetLevel - effectiveMinTrigger;
             lockMinTargetPrice(trade.symbol, lockedPrice);
-            addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Trailing min target locked at â‚¹${lockedPrice.toFixed(2)} at ${currentTime}`);
+            addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Trailing min target locked at ₹${lockedPrice.toFixed(2)} at ${currentTime}`);
           }
-
         }
-
         continue;
-
       }
 
       triggeredPositions.add(positionKey);
-
-      completeCycleWithoutExit(trade.symbol, String(tgtExit), `TARGET hit for â‚¹${tgtExit} at ${currentTime}`);
-
+      completeCycleWithoutExit(trade.symbol, String(tgtExit), `TARGET hit for ₹${tgtExit} at ${currentTime}`);
       continue;
-
     }
 
-
-
-    // Stop loss hit
-
-    // Use re-entry SL if trade is a re-entry cycle and reEntryStopLossEnabled
-    const effectiveSLEnabled = (trade.isReEntryCycle && trade.reEntryStopLossEnabled) ? true : trade.stopLossNumberEnabled;
-    const effectiveSL = (trade.isReEntryCycle && trade.reEntryStopLossEnabled) ? trade.reEntryStopLoss : trade.stopLossNumber;
-
-    if (effectiveSLEnabled && effectiveSL > 0 && (ltp - entry) <= -effectiveSL) {
-
-      const slLevel = entry - effectiveSL;
-      const slExit = priceDiff <= -effectiveSL ? ltp : slLevel;
-
+    // Stop loss hit (Standard or Trailed)
+    if (effectiveSLEnabled && effectiveSL > 0 && ltp <= trailedSLLevel) {
+      const slExit = ltp <= trailedSLLevel ? ltp : trailedSLLevel;
       triggeredPositions.add(positionKey);
+      trailingArmedPositions.delete(positionKey);
 
-      completeCycleWithoutExit(trade.symbol, String(slExit), `STOPLOSS hit for â‚¹${slExit} at ${currentTime}`);
+      const slLog = (trade.trailingStopLossEnabled && slStepsCompleted > 0)
+        ? `TRAILING STOPLOSS hit for ₹${slExit} (trailed to ₹${trailedSLLevel.toFixed(2)}) at ${currentTime}`
+        : `STOPLOSS hit for ₹${slExit} at ${currentTime}`;
 
+      completeCycleWithoutExit(trade.symbol, String(slExit), slLog);
       continue;
-
     }
 
     // Sell when in loss for X candles
@@ -3131,12 +3114,13 @@ export function updateActiveTradeConfig(symbol: string, config: Record<string, u
 
   const SAFE_FIELDS = [
     "stopLossNumberEnabled", "stopLossNumber",
+    "trailingStopLossEnabled", "trailingStopLossSteps",
     "targetPointsEnabled", "targetPoints", "targetMode",
     "trailingAfterTarget", "trailingMode",
     "minToHoldEnabled", "minToHold", "minToHoldTrigger", "minToHoldTrailing",
     "maxProfitLossEnabled", "maxProfit", "maxLoss",
     "sellWhenLossCandlesEnabled", "sellWhenLossCandles",
-    "reEntryAfterTargetEnabled", "reEntryCandles", "reEntryPoints",
+    "reEntryAfterTargetEnabled", "reEntryStartCandle", "reEntryCandles", "reEntryPoints",
     "reEntryStopLossEnabled", "reEntryStopLoss",
     "reEntryAsTrailingEnabled", "reEntryTrailingPoints",
     "reEntryMinTargetEnabled", "reEntryMinTargetPoints", "reEntryMinTargetTrigger", "reEntryMinTargetTrailing",

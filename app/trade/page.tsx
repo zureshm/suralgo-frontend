@@ -137,6 +137,8 @@ export default function TradePage() {
     setNumberOfTrades(defaults.numberOfTrades);
     setStopLossNumberEnabled(defaults.stopLossNumberEnabled);
     setStopLossNumber(defaults.stopLossNumber);
+    setTrailingStopLossEnabled(defaults.trailingStopLossEnabled);
+    setTrailingStopLossSteps(defaults.trailingStopLossSteps);
     setStopLossPercentageEnabled(defaults.stopLossPercentageEnabled);
     setStopLossPercentage(defaults.stopLossPercentage);
     setTargetPointsEnabled(defaults.targetPointsEnabled);
@@ -166,6 +168,7 @@ export default function TradePage() {
     setMaxProfit(defaults.maxProfit);
     setMaxLoss(defaults.maxLoss);
     setReEntryAfterTargetEnabled(defaults.reEntryAfterTargetEnabled);
+    setReEntryStartCandle(defaults.reEntryStartCandle ?? 1);
     setReEntryCandles(defaults.reEntryCandles);
     setReEntryPoints(defaults.reEntryPoints);
     setSignalReEntryEnabled(defaults.signalReEntryEnabled);
@@ -189,6 +192,8 @@ export default function TradePage() {
   const [numberOfTrades, setNumberOfTrades] = useState(5);
   const [stopLossNumberEnabled, setStopLossNumberEnabled] = useState(true);
   const [stopLossNumber, setStopLossNumber] = useState(15);
+  const [trailingStopLossEnabled, setTrailingStopLossEnabled] = useState(false);
+  const [trailingStopLossSteps, setTrailingStopLossSteps] = useState(5);
   const [stopLossPercentageEnabled, setStopLossPercentageEnabled] = useState(false);
   const [stopLossPercentage, setStopLossPercentage] = useState(10);
   const [targetPointsEnabled, setTargetPointsEnabled] = useState(true);
@@ -216,6 +221,7 @@ export default function TradePage() {
   const [maxProfit, setMaxProfit] = useState(1100);
   const [maxLoss, setMaxLoss] = useState(900);
   const [reEntryAfterTargetEnabled, setReEntryAfterTargetEnabled] = useState(false);
+  const [reEntryStartCandle, setReEntryStartCandle] = useState(1);
   const [reEntryCandles, setReEntryCandles] = useState(5);
   const [reEntryPoints, setReEntryPoints] = useState(3);
   const [isReEntryInfoOpen, setIsReEntryInfoOpen] = useState(false);
@@ -321,6 +327,8 @@ export default function TradePage() {
       setNumberOfTrades(data.numberOfTrades || 5);
       setStopLossNumberEnabled(Boolean(data.stopLossNumberEnabled ?? true));
       setStopLossNumber(data.stopLossNumber || 15);
+      setTrailingStopLossEnabled(Boolean(data.trailingStopLossEnabled ?? false));
+      setTrailingStopLossSteps(data.trailingStopLossSteps || 5);
       setStopLossPercentageEnabled(Boolean(data.stopLossPercentageEnabled ?? false));
       setStopLossPercentage(data.stopLossPercentage || 10);
       setTargetPointsEnabled(Boolean(data.targetPointsEnabled ?? true));
@@ -348,6 +356,7 @@ export default function TradePage() {
       setMaxProfit(data.maxProfit || 1100);
       setMaxLoss(data.maxLoss || 900);
       setReEntryAfterTargetEnabled(Boolean(data.reEntryAfterTargetEnabled ?? false));
+      setReEntryStartCandle(data.reEntryStartCandle ?? 1);
       setReEntryCandles(data.reEntryCandles || 5);
       setReEntryPoints(data.reEntryPoints || 3);
       setSignalReEntryEnabled(Boolean(data.signalReEntryEnabled ?? true));
@@ -386,6 +395,8 @@ export default function TradePage() {
       numberOfTrades,
       stopLossNumberEnabled: stopLossNumberEnabled || stopLossPercentageEnabled,
       stopLossNumber,
+      trailingStopLossEnabled,
+      trailingStopLossSteps,
       stopLossPercentageEnabled,
       stopLossPercentage,
       targetPointsEnabled,
@@ -414,6 +425,7 @@ export default function TradePage() {
       maxProfit,
       maxLoss,
       reEntryAfterTargetEnabled,
+      reEntryStartCandle,
       reEntryCandles,
       reEntryPoints,
       signalReEntryEnabled,
@@ -717,6 +729,31 @@ export default function TradePage() {
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
+                    id="trailingStopLossEnabled"
+                    checked={trailingStopLossEnabled}
+                    onChange={(e) => setTrailingStopLossEnabled(e.target.checked)}
+                    className="h-4 w-4"
+                    disabled={!stopLossNumberEnabled && !stopLossPercentageEnabled}
+                  />
+                  <label htmlFor="trailingStopLossEnabled" className={`text-sm font-medium ${(!stopLossNumberEnabled && !stopLossPercentageEnabled) ? "text-gray-400" : ""}`}>Trailing Stop Loss</label>
+                </div>
+
+                <div className="flex items-center space-x-2 pl-6">
+                  <label htmlFor="trailingStopLossSteps" className={`text-sm ${trailingStopLossEnabled ? "" : "text-gray-400"}`}>Steps (Pts)</label>
+                  <NumericInput
+                    id="trailingStopLossSteps"
+                    value={trailingStopLossSteps}
+                    onChange={setTrailingStopLossSteps}
+                    className="w-20 h-8"
+                    disabled={!trailingStopLossEnabled}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
                     id="stopLossPercentageEnabled"
                     checked={stopLossPercentageEnabled}
                     onChange={(e) => setStopLossPercentageEnabled(e.target.checked)}
@@ -908,7 +945,7 @@ export default function TradePage() {
                       style={isAlreadyActive ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                     />
                     <label htmlFor="trailingAfterTargetEnabled" className="text-sm font-medium">
-                      Trailing SL <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span>
+                      Trailing Target <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span>
                     </label>
                   </div>
 
@@ -917,7 +954,7 @@ export default function TradePage() {
                       type="button"
                       className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
                       onClick={() => setIsTrailingAfterInfoOpen((prev) => !prev)}
-                      aria-label="Trailing SL info"
+                      aria-label="Trailing Target info"
                     >
                       <HelpCircle className="h-3.5 w-3.5" />
                     </button>
@@ -931,7 +968,7 @@ export default function TradePage() {
                           lineHeight: "18px",
                         }}
                       >
-                        Once your primary target is hit, this trailing stop-loss keeps following price by the number of points you set. If price reverses by that amount, profits are locked automatically.
+                        Once your primary target is hit, this trailing target keeps following price by the number of points you set. If price reverses by that amount, profits are locked automatically.
                       </div>
                     )}
                   </div>
@@ -1099,11 +1136,20 @@ export default function TradePage() {
               </div>
 
               <div className="flex items-center space-x-2 pl-6">
-                <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Uptrend within</label>
+                <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Uptrend between</label>
+                <NumericField
+                  value={reEntryStartCandle}
+                  onChange={setReEntryStartCandle}
+                  className="w-8 h-8 px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                  min="0"
+                  max="99"
+                  disabled={!reEntryAfterTargetEnabled}
+                />
+                <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>&</span>
                 <NumericField
                   value={reEntryCandles}
                   onChange={setReEntryCandles}
-                  className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                  className="w-8 h-8 px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                   min="1"
                   max="99"
                   disabled={!reEntryAfterTargetEnabled}
@@ -1193,7 +1239,7 @@ export default function TradePage() {
                         disabled={!isReEntryActive}
                         className="h-4 w-4"
                       />
-                      <label htmlFor="reEntryAsTrailingEnabled" className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>ReEnter as Trailing</label>
+                      <label htmlFor="reEntryAsTrailingEnabled" className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>ReEnter as Trailing <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span></label>
                     </div>
 
                     <div className="relative">
@@ -1491,6 +1537,8 @@ export default function TradePage() {
                       const configPayload = {
                         stopLossNumberEnabled: stopLossNumberEnabled || stopLossPercentageEnabled,
                         stopLossNumber,
+                        trailingStopLossEnabled,
+                        trailingStopLossSteps,
                         targetPointsEnabled,
                         targetPoints,
                         targetMode,
@@ -1514,6 +1562,7 @@ export default function TradePage() {
                         maxProfit,
                         maxLoss,
                         reEntryAfterTargetEnabled,
+                        reEntryStartCandle,
                         reEntryCandles,
                         reEntryPoints,
                         reEntryStopLossEnabled,
@@ -1560,6 +1609,8 @@ export default function TradePage() {
                         numberOfTrades,
                         stopLossNumberEnabled: stopLossNumberEnabled || stopLossPercentageEnabled,
                         stopLossNumber,
+                        trailingStopLossEnabled,
+                        trailingStopLossSteps,
                         targetPointsEnabled,
                         targetPoints,
                         minToHoldEnabled,
@@ -1582,6 +1633,7 @@ export default function TradePage() {
                         maxProfit,
                         maxLoss,
                         reEntryAfterTargetEnabled,
+                        reEntryStartCandle,
                         reEntryCandles,
                         reEntryPoints,
                         reEntryStopLossEnabled,
