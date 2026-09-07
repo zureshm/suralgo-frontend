@@ -19,8 +19,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL!;
 const ANGELONE_EXECUTION_URL = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 const FLATTRADE_EXECUTION_URL = process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
+const ZERODHA_EXECUTION_URL = process.env.NEXT_PUBLIC_ZERODHA_EXECUTION_URL || process.env.NEXT_PUBLIC_ZERODA_EXECUTION_URL || "http://localhost:5002";
 
-// Active broker execution URL â€” updated when user connects/disconnects a broker
+// Active broker execution URL — updated when user connects/disconnects a broker
 let activeBrokerUrl: string = ANGELONE_EXECUTION_URL;
 
 export function setActiveBrokerUrl(url: string) {
@@ -34,7 +35,7 @@ export function getActiveBrokerUrl(): string {
 
 // Auto-detect which broker is logged in (called on engine start)
 async function detectActiveBroker() {
-  for (const [label, url] of [["angelone", ANGELONE_EXECUTION_URL], ["flattrade", FLATTRADE_EXECUTION_URL]] as const) {
+  for (const [label, url] of [["angelone", ANGELONE_EXECUTION_URL], ["flattrade", FLATTRADE_EXECUTION_URL], ["zerodha", ZERODHA_EXECUTION_URL]] as const) {
     try {
       const res = await fetch(`${url}/auth/status`);
       const data = await res.json();
@@ -47,7 +48,7 @@ async function detectActiveBroker() {
       // server not reachable
     }
   }
-  console.log(`[trade-engine] No broker logged in â€” defaulting to Angel One URL`);
+  console.log(`[trade-engine] No broker logged in — defaulting to Angel One URL`);
 }
 
 

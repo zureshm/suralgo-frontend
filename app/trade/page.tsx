@@ -15,6 +15,7 @@ import styles from "./page.module.scss";
 
 const ANGELONE_API = process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 const FLATTRADE_API = process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
+const ZERODHA_API = process.env.NEXT_PUBLIC_ZERODHA_EXECUTION_URL || process.env.NEXT_PUBLIC_ZERODA_EXECUTION_URL || "http://localhost:5002";
 
 interface NumericInputProps extends Omit<React.ComponentProps<typeof Input>, "value" | "onChange"> {
   value: number | undefined | null;
@@ -102,9 +103,9 @@ export default function TradePage() {
         if (data.url) brokerUrl = data.url;
       } catch { /* ignore */ }
 
-      // If no active broker set, check both brokers for a logged-in session
+      // If no active broker set, check brokers for a logged-in session
       if (!brokerUrl) {
-        for (const url of [ANGELONE_API, FLATTRADE_API]) {
+        for (const url of [ANGELONE_API, FLATTRADE_API, ZERODHA_API]) {
           try {
             const res = await fetch(`${url}/auth/status`);
             const data = await res.json();
@@ -119,7 +120,7 @@ export default function TradePage() {
         const res = await fetch(`${brokerUrl}/auth/funds`);
         const data = await res.json();
         if (data.success) {
-          setAvailableBalance(data.availableCash ?? data.availableMargin ?? null);
+          setAvailableBalance(data.availableCash ?? data.liveBalance ?? data.availableMargin ?? null);
         }
       } catch { /* ignore */ }
     };

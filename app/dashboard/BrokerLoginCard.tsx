@@ -11,16 +11,19 @@ import { UserCircle, Loader2, HelpCircle } from "lucide-react";
 
 // ── Broker types & configuration ───────────────────────────────────────────
 
-type BrokerType = "angelone" | "flattrade";
+type BrokerType = "angelone" | "flattrade" | "zerodha";
 
 const ANGELONE_API =
   process.env.NEXT_PUBLIC_TRADE_EXECUTION_URL || "http://localhost:5000";
 const FLATTRADE_API =
   process.env.NEXT_PUBLIC_FLATTRADE_EXECUTION_URL || "http://localhost:5001";
+const ZERODHA_API =
+  process.env.NEXT_PUBLIC_ZERODHA_EXECUTION_URL || process.env.NEXT_PUBLIC_ZERODA_EXECUTION_URL || "http://localhost:5002";
 
 const BROKER_CONFIG: Record<BrokerType, { name: string; apiUrl: string }> = {
   angelone: { name: "Angel One", apiUrl: ANGELONE_API },
   flattrade: { name: "Flattrade", apiUrl: FLATTRADE_API },
+  zerodha: { name: "Zerodha", apiUrl: ZERODHA_API },
 };
 
 interface AccountInfo {
@@ -54,9 +57,24 @@ const FLATTRADE_FUND_ROWS = [
   { key: "derivativeIntradayMargin", label: "Derivative Intraday Margin", color: "text-muted-foreground", tip: "Margin blocked for intraday derivative positions." },
 ];
 
+const ZERODHA_FUND_ROWS = [
+  { key: "liveBalance", label: "Live Balance", color: "text-green-600", tip: "Cash currently available in your Zerodha account for trading." },
+  { key: "availableCash", label: "Available Cash", color: "text-green-600", tip: "Available cash balance for trading." },
+  { key: "openingBalance", label: "Opening Balance", color: "text-blue-600", tip: "Your account balance at the start of the trading day." },
+  { key: "net", label: "Net Balance", color: "text-green-600", tip: "Total account value after margin and credits." },
+  { key: "collateral", label: "Collateral", color: "text-muted-foreground", tip: "Value of pledged securities available for F&O trading margin." },
+  { key: "utilisedDebits", label: "Utilised Debits", color: "text-red-600", tip: "Total margin blocked for open positions and pending orders." },
+  { key: "utilisedSpan", label: "SPAN Margin", color: "text-red-600", tip: "SPAN margin blocked for F&O positions." },
+  { key: "utilisedExposure", label: "Exposure Margin", color: "text-orange-600", tip: "Exposure margin blocked for F&O positions." },
+  { key: "utilisedOptionPremium", label: "Option Premium", color: "text-orange-600", tip: "Premium paid for buying options." },
+  { key: "m2mRealized", label: "M2M Realized", color: "text-orange-600", tip: "Realized profit or loss from closed trades today." },
+  { key: "m2mUnrealized", label: "M2M Unrealized", color: "text-orange-600", tip: "Unrealized MTM profit or loss on active open positions." },
+];
+
 const FUND_ROWS_MAP: Record<BrokerType, typeof ANGELONE_FUND_ROWS> = {
   angelone: ANGELONE_FUND_ROWS,
   flattrade: FLATTRADE_FUND_ROWS,
+  zerodha: ZERODHA_FUND_ROWS,
 };
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -79,6 +97,11 @@ export default function BrokerLoginCard() {
   const [ftApiKey, setFtApiKey] = useState("");
   const [ftApiSecret, setFtApiSecret] = useState("");
   const [ftRequestCode, setFtRequestCode] = useState("");
+
+  // Zerodha fields
+  const [zdApiKey, setZdApiKey] = useState("");
+  const [zdApiSecret, setZdApiSecret] = useState("");
+  const [zdRequestToken, setZdRequestToken] = useState("");
 
   // ── Fetch funds for a given broker ──
   const fetchFunds = useCallback((broker: BrokerType) => {
@@ -114,7 +137,7 @@ export default function BrokerLoginCard() {
       return null;
     };
 
-    Promise.all([checkBroker("angelone"), checkBroker("flattrade")]).then(
+    Promise.all([checkBroker("angelone"), checkBroker("flattrade"), checkBroker("zerodha")]).then(
       (results) => {
         const active = results.find((r) => r !== null);
         if (active) {
@@ -143,10 +166,13 @@ export default function BrokerLoginCard() {
     return () => clearInterval(interval);
   }, [connected, accountInfo, fetchFunds]);
 
-  // Auto-populate credentials from URL params + localStorage (Flattrade callback)
+  // Auto-populate credentials from URL params + localStorage (Flattrade / Zerodha callback)
   const searchParams = useSearchParams();
   useEffect(() => {
     const code = searchParams.get("code");
+    const requestToken = searchParams.get("request_token") || searchParams.get("requestToken");
+    const brokerParam = searchParams.get("broker");
+
     if (code) {
       setFtRequestCode(code);
       setSelectedBroker("flattrade");
@@ -160,8 +186,21 @@ export default function BrokerLoginCard() {
       // Clean up
       localStorage.removeItem("ft_pending_apiKey");
       localStorage.removeItem("ft_pending_apiSecret");
+    } else if (requestToken || brokerParam === "zerodha") {
+      if (requestToken) setZdRequestToken(requestToken);
+      setSelectedBroker("zerodha");
+
+      // Restore Zerodha API key and secret from localStorage
+      const savedKey = localStorage.getItem("zd_pending_apiKey");
+      const savedSecret = localStorage.getItem("zd_pending_apiSecret");
+      if (savedKey) setZdApiKey(savedKey);
+      if (savedSecret) setZdApiSecret(savedSecret);
+
+      // Clean up
+      localStorage.removeItem("zd_pending_apiKey");
+      localStorage.removeItem("zd_pending_apiSecret");
     }
-  }, []);
+  }, [searchParams]);
 
   // ── Connect handler ──
   const handleConnect = useCallback(async () => {
@@ -177,28 +216,41 @@ export default function BrokerLoginCard() {
         setError("Client Code, Password and TOTP Secret are required.");
         return;
       }
-    } else {
+    } else if (selectedBroker === "flattrade") {
       if (!ftApiKey.trim() || !ftApiSecret.trim() || !ftRequestCode.trim()) {
         setError("API Key, API Secret and Request Code are required.");
+        return;
+      }
+    } else if (selectedBroker === "zerodha") {
+      if (!zdApiKey.trim() || !zdApiSecret.trim() || !zdRequestToken.trim()) {
+        setError("API Key, API Secret and Request Token are required.");
         return;
       }
     }
 
     setLoading(true);
     try {
-      const body =
-        selectedBroker === "angelone"
-          ? {
-              apiKey: aoApiKey.trim() || undefined,
-              clientCode: aoClientCode.trim(),
-              password: aoPassword.trim(),
-              totpSecret: aoTotpSecret.trim(),
-            }
-          : {
-              apiKey: ftApiKey.trim(),
-              apiSecret: ftApiSecret.trim(),
-              requestCode: ftRequestCode.trim(),
-            };
+      let body: Record<string, unknown>;
+      if (selectedBroker === "angelone") {
+        body = {
+          apiKey: aoApiKey.trim() || undefined,
+          clientCode: aoClientCode.trim(),
+          password: aoPassword.trim(),
+          totpSecret: aoTotpSecret.trim(),
+        };
+      } else if (selectedBroker === "flattrade") {
+        body = {
+          apiKey: ftApiKey.trim(),
+          apiSecret: ftApiSecret.trim(),
+          requestCode: ftRequestCode.trim(),
+        };
+      } else {
+        body = {
+          apiKey: zdApiKey.trim(),
+          apiSecret: zdApiSecret.trim(),
+          requestToken: zdRequestToken.trim(),
+        };
+      }
 
       const res = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
@@ -239,7 +291,12 @@ export default function BrokerLoginCard() {
         body: JSON.stringify({ url: apiUrl }),
       }).catch(() => {});
     } catch {
-      const port = selectedBroker === "angelone" ? "5000" : "5001";
+      const port =
+        selectedBroker === "angelone"
+          ? "5000"
+          : selectedBroker === "flattrade"
+          ? "5001"
+          : "5002";
       setError(
         `Cannot reach trade server. Is it running on port ${port}?`
       );
@@ -255,6 +312,9 @@ export default function BrokerLoginCard() {
     ftApiKey,
     ftApiSecret,
     ftRequestCode,
+    zdApiKey,
+    zdApiSecret,
+    zdRequestToken,
   ]);
 
   // ── Disconnect handler ──
@@ -279,6 +339,9 @@ export default function BrokerLoginCard() {
     setFtApiKey("");
     setFtApiSecret("");
     setFtRequestCode("");
+    setZdApiKey("");
+    setZdApiSecret("");
+    setZdRequestToken("");
     setError("");
   }, [accountInfo]);
 
@@ -401,6 +464,7 @@ export default function BrokerLoginCard() {
             >
               <option value="angelone">Angel One</option>
               <option value="flattrade">Flattrade</option>
+              <option value="zerodha">Zerodha</option>
             </select>
           </div>
 
@@ -477,7 +541,7 @@ export default function BrokerLoginCard() {
               />
             </div>
           </div>
-        ) : (
+        ) : selectedBroker === "flattrade" ? (
           <div className="space-y-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">
@@ -551,6 +615,85 @@ export default function BrokerLoginCard() {
                     // not a valid URL, use raw value
                   }
                   setFtRequestCode(val);
+                }}
+                disabled={loading}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                API Key
+              </label>
+              <Input
+                type="password"
+                placeholder="Zerodha Kite API key"
+                value={zdApiKey}
+                onChange={(e) => setZdApiKey(e.target.value)}
+                disabled={loading}
+                autoComplete="new-password"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                API Secret
+              </label>
+              <Input
+                type="password"
+                placeholder="Zerodha Kite API secret"
+                value={zdApiSecret}
+                onChange={(e) => setZdApiSecret(e.target.value)}
+                disabled={loading}
+                autoComplete="new-password"
+              />
+            </div>
+
+            <Button
+              type="button"
+              className={`w-full h-9 ${
+                zdApiKey.trim() && zdApiSecret.trim()
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+              disabled={!zdApiKey.trim() || !zdApiSecret.trim()}
+              onClick={() => {
+                // Save credentials to localStorage before redirect
+                localStorage.setItem("zd_pending_apiKey", zdApiKey.trim());
+                localStorage.setItem("zd_pending_apiSecret", zdApiSecret.trim());
+
+                // Open Zerodha Kite Connect auth login
+                window.open(
+                  `https://kite.zerodha.com/connect/login?v=3&api_key=${zdApiKey.trim()}`,
+                  "_blank"
+                );
+              }}
+            >
+              Login with Kite
+            </Button>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                Request Token
+              </label>
+              <Input
+                placeholder="Token from Zerodha redirect URL"
+                value={zdRequestToken}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  // Auto-extract request_token from pasted redirect URL
+                  // e.g. http://localhost:3000/callback?action=login&status=success&request_token=abc123
+                  try {
+                    if (val.includes("request_token=") || val.includes("requestToken=")) {
+                      const url = new URL(val);
+                      const token = url.searchParams.get("request_token") || url.searchParams.get("requestToken");
+                      if (token) val = token;
+                    }
+                  } catch {
+                    // not a valid URL, use raw value
+                  }
+                  setZdRequestToken(val);
                 }}
                 disabled={loading}
               />
