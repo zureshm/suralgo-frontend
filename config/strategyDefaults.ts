@@ -41,7 +41,7 @@ export const STRATEGY_DEFAULTS = {
     reEntryMinTargetTrailing: true,
     reEntryAfterTargetEnabled: true,
     reEntryCandles: 10,
-    reEntryPoints: 2
+    reEntryPoints: 4
   },
   sensex_default: {
     numberOfTrades: 10,
@@ -85,7 +85,7 @@ export const STRATEGY_DEFAULTS = {
     reEntryMinTargetTrailing: true,
     reEntryAfterTargetEnabled: true,
     reEntryCandles: 10,
-    reEntryPoints: 2
+    reEntryPoints: 10
   },
   autotrigger_nifty: {
     numberOfTrades: 5,
@@ -129,7 +129,7 @@ export const STRATEGY_DEFAULTS = {
     reEntryMinTargetTrailing: true,
     reEntryAfterTargetEnabled: true,
     reEntryCandles: 2,
-    reEntryPoints: 2
+    reEntryPoints: 4
   },
   autotrigger_sensex: {
     numberOfTrades: 5,
@@ -173,7 +173,7 @@ export const STRATEGY_DEFAULTS = {
     reEntryMinTargetTrailing: true,
     reEntryAfterTargetEnabled: true,
     reEntryCandles: 2,
-    reEntryPoints: 4
+    reEntryPoints: 10
   },
   allclear: {
     numberOfTrades: 10,
@@ -217,7 +217,7 @@ export const STRATEGY_DEFAULTS = {
     reEntryMinTargetTrailing: true,
     reEntryAfterTargetEnabled: true,
     reEntryCandles: 10,
-    reEntryPoints: 4
+    reEntryPoints: 5
   },
   nifty_low: {
     numberOfTrades: 10,
@@ -261,7 +261,7 @@ export const STRATEGY_DEFAULTS = {
     reEntryMinTargetTrailing: true,
     reEntryAfterTargetEnabled: true,
     reEntryCandles: 8,
-    reEntryPoints: 1
+    reEntryPoints: 2
   },
   sensex_low: {
     numberOfTrades: 10,
@@ -305,7 +305,7 @@ export const STRATEGY_DEFAULTS = {
     reEntryMinTargetTrailing: true,
     reEntryAfterTargetEnabled: true,
     reEntryCandles: 8,
-    reEntryPoints: 4
+    reEntryPoints: 5
   },
   high: {
     numberOfTrades: 10,
@@ -314,9 +314,9 @@ export const STRATEGY_DEFAULTS = {
     stopLossPercentageEnabled: true,
     stopLossPercentage: 10,
     targetPointsEnabled: true,
-    targetPoints: 25,
-    targetMode: "live",
-    trailingMode: "live",
+    targetPoints: 15,
+    targetMode: "candleClose",
+    trailingMode: "candleClose",
     waitStrategyEnabled: false,
     buyOverrideSize: 15,
     waitAfterSellEnabled: false,
@@ -324,9 +324,9 @@ export const STRATEGY_DEFAULTS = {
     sellWhenLossCandlesEnabled: false,
     sellWhenLossCandles: 5,
     minToHoldEnabled: true,
-    minToHold: 5,
+    minToHold: 2,
     minToHoldTrigger: 5,
-    minToHoldTrailing: true,
+    minToHoldTrailing: false,
     trailingAfterTargetEnabled: true,
     trailingAfterTarget: 15,
     rangeEnabled: true,
@@ -336,18 +336,18 @@ export const STRATEGY_DEFAULTS = {
     timeToAmpm: 'pm',
     lotValue: 1,
     maxProfitLossEnabled: true,
-    maxProfit: 4500,
+    maxProfit: 3500,
     maxLoss: 1500,
     signalReEntryEnabled: true,
     reEntryStopLossEnabled: true,
-    reEntryStopLoss: 5,
+    reEntryStopLoss: 10,
     reEntryAsTrailingEnabled: true,
-    reEntryTrailingPoints: 20,
+    reEntryTrailingPoints: 15,
     reEntryMinTargetEnabled: true,
-    reEntryMinTargetPoints: 4,
-    reEntryMinTargetTrigger: 4,
+    reEntryMinTargetPoints: 2,
+    reEntryMinTargetTrigger: 5,
     reEntryMinTargetTrailing: true,
-    reEntryAfterTargetEnabled: true,
+    reEntryAfterTargetEnabled: false,
     reEntryCandles: 10,
     reEntryPoints: 4
   }
