@@ -1070,8 +1070,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         outline: "none",
                       }}
                     >
-                      <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Local V1 (Rule Engine) — free, no API key</option>
-                      <option value="local_v2" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Local V2 (Choppy & Spike Guard) — free, no API key</option>
+                      <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Luttappi V1 (Rule Engine)</option>
+                      <option value="local_v2" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Puttalu V2 (Choppy & Spike Guard)</option>
                       <option value="groq" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Groq (free)</option>
                       <option value="claude" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 3.5 (paid)</option>
                     </select>
