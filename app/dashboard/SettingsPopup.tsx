@@ -93,7 +93,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [aiRecentCandlesCount, setAiRecentCandlesCount] = useState(30);
   const [aiConsiderVolume, setAiConsiderVolume] = useState(false);
   const [aiUseHeikinAshi, setAiUseHeikinAshi] = useState(true);
-  const [aiProvider, setAiProvider] = useState("groq");
+  const [aiProvider, setAiProvider] = useState("local");
   const [aiModel, setAiModel] = useState("openai/gpt-oss-120b");
   const [aiApiKey, setAiApiKey] = useState("");
 
@@ -124,14 +124,14 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [aiTestError, setAiTestError] = useState("");
   const aiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiPrevKeyRef = useRef<string>("");
-  const aiPrevProviderRef = useRef<string>("groq");
+  const aiPrevProviderRef = useRef<string>("local");
   const aiPrevModelRef = useRef<string>("openai/gpt-oss-120b");
 
   // TEMP AI Testing
   const [tempCandleText, setTempCandleText] = useState("");
   const [tempStatus, setTempStatus] = useState<"idle" | "testing" | "done" | "error">("idle");
   const [tempTestingEnabled, setTempTestingEnabled] = useState(false);
-  const [tempResult, setTempResult] = useState<null | { parsed: { marketRegime?: string; blockEntry?: boolean; suggestExit?: boolean; confidence?: number; reason?: string; rangeHigh?: number; rangeLow?: number } | null; rawResponse: string; candleCount: number; usedCount: number; model?: string; promptSent?: string; error?: string }>(null);
+  const [tempResult, setTempResult] = useState<null | { parsed: { marketRegime?: string; blockEntry?: boolean; suggestExit?: boolean; confidence?: number; reason?: string; rangeHigh?: number; rangeLow?: number } | null; rawResponse: string; candleCount: number; usedCount: number; model?: string; promptSent?: string; error?: string; ruleBreakdown?: { name: string; value: string; triggered: boolean }[] }>(null);
 
   // Load AI Guard settings from server on mount (cross-device), fall back to localStorage
   const aiSettingsLoadedRef = useRef(false);
@@ -301,6 +301,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
   }, [aiApiKey, aiProvider, aiModel]);
 
   useEffect(() => {
+    if (aiProvider === "local" || aiProvider === "local_v2") {
+      setAiTestStatus("idle");
+      return;
+    }
     if (aiApiKey && (aiApiKey !== aiPrevKeyRef.current || aiProvider !== aiPrevProviderRef.current || aiModel !== aiPrevModelRef.current)) {
       aiPrevKeyRef.current = aiApiKey;
       aiPrevProviderRef.current = aiProvider;
@@ -761,7 +765,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
               </div>
 
               <div className="text-xs mb-3 font-semibold" style={{ color: aiGuardEnabled ? "var(--theme-status-success)" : "var(--theme-popup-label)" }}>
-                {aiGuardEnabled ? (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate") : "Disabled"}
+                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2") ? `Active — ${aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
               </div>
 
               {aiGuardEnabled && (
@@ -1038,20 +1042,22 @@ export default function SettingsPopup({ open, onClose }: Props) {
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
-                            Groq is free and fast. Claude Haiku is paid but offers strong reasoning quality.
+                            Local V1/V2: free rule-based engines, no API key needed. Groq is free and fast. Claude Haiku is paid but offers strong reasoning quality.
                           </div>
                         )}
                       </div>
-                      <a
-                        href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs underline font-semibold"
-                        style={{ color: "var(--theme-accent-gold, var(--theme-popup-border))" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Get API key ↗
-                      </a>
+                      {aiProvider !== "local" && aiProvider !== "local_v2" && (
+                        <a
+                          href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs underline font-semibold"
+                          style={{ color: "var(--theme-accent-gold, var(--theme-popup-border))" }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Get API key ↗
+                        </a>
+                      )}
                     </div>
                     <select
                       value={aiProvider}
@@ -1064,6 +1070,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         outline: "none",
                       }}
                     >
+                      <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Luttappi V1 (Rule Engine)</option>
+                      <option value="local_v2" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Puttalu V2 (Choppy & Spike Guard)</option>
                       <option value="groq" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Groq (free)</option>
                       <option value="claude" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 3.5 (paid)</option>
                     </select>
@@ -1094,6 +1102,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   )}
 
                   {/* API Key input */}
+                  {aiProvider !== "local" && aiProvider !== "local_v2" && (
                   <div>
                     <div className="relative flex items-center gap-1.5 mb-1.5">
                       <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>AI API Keys</label>
@@ -1148,6 +1157,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1262,7 +1272,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 {tempStatus === "testing" ? (
                   <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
                 ) : (
-                  <><FlaskConical className="w-3.5 h-3.5" /> Send to AI</>
+                  <><FlaskConical className="w-3.5 h-3.5" /> {(aiProvider === "local" || aiProvider === "local_v2") ? "Analyze" : "Send to AI"}</>
                 )}
               </button>
 
@@ -1287,6 +1297,22 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         <div><span style={{ color: "var(--theme-popup-label)" }}>Reason:</span> {tempResult.parsed.reason}</div>
                         {tempResult.parsed.rangeHigh != null && <div><span style={{ color: "var(--theme-popup-label)" }}>Range High:</span> {tempResult.parsed.rangeHigh}</div>}
                         {tempResult.parsed.rangeLow != null && <div><span style={{ color: "var(--theme-popup-label)" }}>Range Low:</span> {tempResult.parsed.rangeLow}</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rule breakdown (local engine only) */}
+                  {tempResult.ruleBreakdown && tempResult.ruleBreakdown.length > 0 && (
+                    <div className="p-3 rounded-lg" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                      <div className="text-xs font-bold mb-2" style={{ color: "#a855f7" }}>Rule Breakdown</div>
+                      <div className="space-y-1 text-xs" style={{ color: "var(--theme-popup-text)" }}>
+                        {tempResult.ruleBreakdown.map((rule, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: rule.triggered ? "#22c55e" : "var(--theme-popup-field-border)" }} />
+                            <span style={{ color: "var(--theme-popup-label)", minWidth: 140 }}>{rule.name}</span>
+                            <span style={{ fontWeight: 600 }}>{rule.value}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
