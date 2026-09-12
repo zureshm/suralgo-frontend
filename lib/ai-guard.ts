@@ -141,7 +141,7 @@ export function setAiConnected(connected: boolean) {
 }
 
 export function isAiGuardActive(): boolean {
-  if (aiGuardSettings.provider === "local") {
+  if (aiGuardSettings.provider === "local" || aiGuardSettings.provider === "local_v2") {
     return aiGuardSettings.enabled;
   }
   return aiGuardSettings.enabled && (aiGuardSettings.apiKeys?.length || 0) > 0 && aiConnected;
@@ -827,6 +827,253 @@ export function analyzeMarketRegimeLocal(
   };
 }
 
+// ── Helper: Exponential Moving Average ──
+function calculateEMA(prices: number[], period: number): number[] {
+  const k = 2 / (period + 1);
+  const emaArray: number[] = new Array(prices.length);
+  if (prices.length === 0) return emaArray;
+  emaArray[0] = prices[0];
+  for (let i = 1; i < prices.length; i++) {
+    emaArray[i] = prices[i] * k + emaArray[i - 1] * (1 - k);
+  }
+  return emaArray;
+}
+
+// ── Local Rule Engine V2 (Choppy & Spike Guard) ──
+
+export function analyzeMarketRegimeLocalV2(
+  symbol: string,
+  candles: any[],
+  tradeContext?: { entryPrice?: string; ltp?: number; pnl?: number; signal?: string }
+): AiAnalysisResult {
+  const settings = getAiGuardSettings();
+  const candleCount = settings.candlesCount || 120;
+  const useHA = settings.useHeikinAshi !== false;
+
+  if (!Array.isArray(candles) || candles.length === 0) {
+    return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "No candle data" };
+  }
+
+  const rawSlice = candles.slice(-candleCount);
+  const n = rawSlice.length;
+  if (n < 5) {
+    return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "Insufficient candle history for V2 engine (min 5 required)" };
+  }
+
+  const closes = rawSlice.map((c) => Number(c.close));
+  const highs = rawSlice.map((c) => Number(c.high));
+  const lows = rawSlice.map((c) => Number(c.low));
+  const opens = rawSlice.map((c) => Number(c.open));
+  const lastClose = closes[n - 1];
+
+  // 1. EMA 10 & EMA 30 Calculation
+  const ema10 = calculateEMA(closes, 10);
+  const ema30 = calculateEMA(closes, 30);
+  const currEma10 = ema10[n - 1];
+  const currEma30 = ema30[n - 1];
+  const emaSpreadPct = lastClose > 0 ? ((currEma10 - currEma30) / lastClose) * 100 : 0;
+
+  const slopeLookback = Math.min(4, n - 1);
+  const ema10Slope = slopeLookback > 0 ? ((currEma10 - ema10[n - 1 - slopeLookback]) / ema10[n - 1 - slopeLookback]) * 100 : 0;
+  const ema30Slope = slopeLookback > 0 ? ((currEma30 - ema30[n - 1 - slopeLookback]) / ema30[n - 1 - slopeLookback]) * 100 : 0;
+
+  // 2. Kaufman Efficiency Ratio (KER) over last 20 bars
+  const kerPeriod = Math.min(20, n);
+  const kerStart = n - kerPeriod;
+  const netDisplacement = Math.abs(closes[n - 1] - closes[kerStart]);
+  let totalPath = 0;
+  for (let i = kerStart + 1; i < n; i++) {
+    totalPath += Math.abs(closes[i] - closes[i - 1]);
+  }
+  const ker = totalPath > 0 ? netDisplacement / totalPath : 0;
+
+  // 3. EMA 10 Whipsaw / Cross Frequency over last 20 bars
+  const whipsawPeriod = Math.min(20, n);
+  let emaCrosses = 0;
+  let prevDiff = closes[n - whipsawPeriod] - ema10[n - whipsawPeriod];
+  for (let i = n - whipsawPeriod + 1; i < n; i++) {
+    const diff = closes[i] - ema10[i];
+    if ((diff >= 0 && prevDiff < 0) || (diff < 0 && prevDiff >= 0)) {
+      emaCrosses++;
+    }
+    prevDiff = diff;
+  }
+
+  // 4. Spike Exhaustion & Bull Trap Detection (SS1 & SS3)
+  let atrSum = 0;
+  const atrPeriod = Math.min(14, n - 1);
+  for (let i = n - atrPeriod; i < n; i++) {
+    const tr = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+    atrSum += tr;
+  }
+  const atr = atrPeriod > 0 ? atrSum / atrPeriod : (highs[n - 1] - lows[n - 1]);
+
+  const lastRange = highs[n - 1] - lows[n - 1];
+  const lastUpperWick = highs[n - 1] - Math.max(opens[n - 1], closes[n - 1]);
+  const lastUpperWickRatio = lastRange > 0 ? (lastUpperWick / lastRange) * 100 : 0;
+  const lastRangeVsAtr = atr > 0 ? lastRange / atr : 1;
+
+  const prevRange = n > 1 ? highs[n - 2] - lows[n - 2] : 0;
+  const prevUpperWick = n > 1 ? highs[n - 2] - Math.max(opens[n - 2], closes[n - 2]) : 0;
+  const prevUpperWickRatio = prevRange > 0 ? (prevUpperWick / prevRange) * 100 : 0;
+  const prevRangeVsAtr = atr > 0 ? prevRange / atr : 1;
+
+  const isRecentSpike = lastRangeVsAtr > 2.0 || prevRangeVsAtr > 2.0;
+  const isSevereRejection = lastUpperWickRatio > 40 || (prevUpperWickRatio > 45 && closes[n - 1] < closes[n - 2]);
+  const isFlatBase = Math.abs(ema30Slope) < 0.04 && Math.abs(emaSpreadPct) < 0.12;
+  const isSpikeTrap = isRecentSpike && (isSevereRejection || isFlatBase);
+  const isOverextended = ((lastClose - currEma10) / currEma10) * 100 > 1.6 && Math.abs(ema30Slope) < 0.03;
+
+  // 5. Heikin-Ashi Bilateral Shadow Index & Color Flips (SS3)
+  const haCandles = convertToHeikinAshi(rawSlice);
+  const haPeriod = Math.min(20, n);
+  let bilateralCount = 0;
+  let haColorFlips = 0;
+  let prevHaGreen = haCandles[n - haPeriod].close >= haCandles[n - haPeriod].open;
+
+  for (let i = n - haPeriod; i < n; i++) {
+    const c = haCandles[i];
+    const body = Math.abs(c.close - c.open);
+    const uw = c.high - Math.max(c.open, c.close);
+    const lw = Math.min(c.open, c.close) - c.low;
+    if (uw > 0.15 * (body || 1) && lw > 0.15 * (body || 1)) {
+      bilateralCount++;
+    }
+    const isGreen = c.close >= c.open;
+    if (isGreen !== prevHaGreen) {
+      haColorFlips++;
+    }
+    prevHaGreen = isGreen;
+  }
+  const bilateralRatio = (bilateralCount / haPeriod) * 100;
+
+  // 6. Price Riding Above/Below Fast EMA
+  let consecutiveAboveEma10 = 0;
+  for (let i = n - 1; i >= Math.max(0, n - 8); i--) {
+    if (closes[i] >= ema10[i]) consecutiveAboveEma10++;
+    else break;
+  }
+  let consecutiveBelowEma10 = 0;
+  for (let i = n - 1; i >= Math.max(0, n - 8); i--) {
+    if (closes[i] <= ema10[i]) consecutiveBelowEma10++;
+    else break;
+  }
+
+  // ── Rule Scoring ──
+  const breakdown: RuleBreakdownEntry[] = [];
+  let sidewaysScore = 0;
+  let trendScore = 0;
+
+  // R1: Kaufman Efficiency Ratio (< 0.24 = high noise chop)
+  const r1Triggered = ker < 0.24;
+  if (r1Triggered) sidewaysScore += 3;
+  breakdown.push({ name: "Kaufman Efficiency Ratio", value: `${ker.toFixed(2)} ${ker < 0.24 ? "(Choppy Noise)" : "(Directional)"}`, triggered: r1Triggered });
+
+  // R2: EMA 10/30 Spread (flat/intertwined < 0.06%)
+  const r2Triggered = Math.abs(emaSpreadPct) < 0.06;
+  if (r2Triggered) sidewaysScore += 3;
+  breakdown.push({ name: "EMA 10/30 Spread", value: `${emaSpreadPct >= 0 ? "+" : ""}${emaSpreadPct.toFixed(2)}% ${r2Triggered ? "(Flat/Intertwined)" : "(Separated)"}`, triggered: r2Triggered });
+
+  // R3: EMA 10 Whipsaw Crosses (>= 4 crosses in 20 bars)
+  const r3Triggered = emaCrosses >= 4;
+  if (r3Triggered) sidewaysScore += 2;
+  breakdown.push({ name: "EMA 10 Whipsaw Crosses", value: `${emaCrosses} crosses / 20 bars`, triggered: r3Triggered });
+
+  // R4: Spike Exhaustion / Bull Trap
+  const r4Triggered = isSpikeTrap || isOverextended;
+  if (r4Triggered) sidewaysScore += 4;
+  breakdown.push({ name: "Spike Exhaustion Trap", value: r4Triggered ? `Triggered (${lastRangeVsAtr.toFixed(1)}x ATR, ${lastUpperWickRatio.toFixed(0)}% wick)` : "Clear (No Trap)", triggered: r4Triggered });
+
+  // R5: Heikin-Ashi Bilateral Shadows (> 35% indecision wicks)
+  const r5Triggered = useHA && bilateralRatio > 35;
+  if (r5Triggered) sidewaysScore += 2;
+  breakdown.push({ name: "HA Bilateral Shadow Ratio", value: `${bilateralRatio.toFixed(0)}% ${r5Triggered ? "(Indecision Wicks)" : "(Decisive)"}`, triggered: r5Triggered });
+
+  // R6: Heikin-Ashi Color Flips (>= 5 flips in 20 bars)
+  const r6Triggered = useHA && haColorFlips >= 5;
+  if (r6Triggered) sidewaysScore += 2;
+  breakdown.push({ name: "HA Direction Flips", value: `${haColorFlips} flips / 20 bars`, triggered: r6Triggered });
+
+  // T1: EMA Bullish Alignment (EMA10 > EMA30 with positive slopes)
+  const t1Triggered = currEma10 > currEma30 && ema10Slope > 0.03 && ema30Slope > 0.01;
+  if (t1Triggered) trendScore += 3;
+  breakdown.push({ name: "EMA Trend Alignment", value: `Fast: ${ema10Slope >= 0 ? "+" : ""}${ema10Slope.toFixed(2)}% | Slow: ${ema30Slope >= 0 ? "+" : ""}${ema30Slope.toFixed(2)}%`, triggered: t1Triggered });
+
+  // T2: High Efficiency Trend (KER >= 0.45)
+  const t2Triggered = ker >= 0.45;
+  if (t2Triggered) trendScore += 2;
+  breakdown.push({ name: "High Trend Efficiency", value: `KER ${ker.toFixed(2)}`, triggered: t2Triggered });
+
+  // T3: Price Riding Above EMA 10 (>= 3 bars)
+  const t3Triggered = consecutiveAboveEma10 >= 3;
+  if (t3Triggered) trendScore += 2;
+  breakdown.push({ name: "Riding Above Fast EMA", value: `${consecutiveAboveEma10} consecutive bars`, triggered: t3Triggered });
+
+  // T4: Clean HA Expansion (bilateral < 20% and no recent trap)
+  const t4Triggered = useHA && bilateralRatio < 20 && !r4Triggered && haColorFlips <= 2;
+  if (t4Triggered) trendScore += 2;
+  breakdown.push({ name: "Clean HA Momentum", value: t4Triggered ? "Confirmed" : "Not Active", triggered: t4Triggered });
+
+  let marketRegime: string;
+  let blockEntry: boolean;
+  let suggestExit: boolean;
+  let confidence: number;
+  let reason: string;
+
+  if (r4Triggered) {
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = Math.min(95, 75 + (lastRangeVsAtr > 2.5 ? 15 : 10));
+    reason = `Spike Exhaustion Trap: ${lastRangeVsAtr.toFixed(1)}x ATR bar with ${lastUpperWickRatio.toFixed(0)}% upper rejection wick near flat base — avoiding bull trap`;
+  } else if (sidewaysScore > trendScore) {
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = Math.min(95, 60 + sidewaysScore * 4);
+    if (r1Triggered && r2Triggered) {
+      reason = `Choppy sideways: Kaufman efficiency ${ker.toFixed(2)} with flat EMA spread (${emaSpreadPct.toFixed(2)}%) — price oscillating without trend`;
+    } else if (r3Triggered) {
+      reason = `Whipsaw chop: price crossed EMA 10 ${emaCrosses} times in 20 bars — moving averages tangled`;
+    } else if (r5Triggered) {
+      reason = `Heikin-Ashi indecision: ${bilateralRatio.toFixed(0)}% of recent bars have bilateral shadows (spinning tops)`;
+    } else {
+      reason = `Sideways structure: sideways score ${sidewaysScore} vs trend score ${trendScore} — market compressed in chop`;
+    }
+  } else if (trendScore >= 4) {
+    if (currEma10 >= currEma30 && ema10Slope >= 0) {
+      marketRegime = "UPWARDS";
+      blockEntry = false;
+      suggestExit = false;
+      confidence = Math.min(95, 65 + trendScore * 4);
+      reason = `Confirmed Uptrend: EMA spread +${emaSpreadPct.toFixed(2)}%, KER ${ker.toFixed(2)}, price riding above EMA 10 (${consecutiveAboveEma10} bars) with positive slopes`;
+    } else {
+      marketRegime = "DOWNWARDS";
+      blockEntry = true;
+      suggestExit = true;
+      confidence = Math.min(95, 65 + trendScore * 4);
+      reason = `Confirmed Downtrend: EMA spread ${emaSpreadPct.toFixed(2)}%, KER ${ker.toFixed(2)}, price riding below EMA 10 (${consecutiveBelowEma10} bars)`;
+    }
+  } else {
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = 65;
+    reason = `Inconclusive momentum: sideways score ${sidewaysScore}, trend score ${trendScore} — defaulting to sideways guard`;
+  }
+
+  addAiLog(`[ai-guard:local-v2] ${symbol}: ${marketRegime} (${confidence}%) — ${reason}`);
+
+  return {
+    marketRegime,
+    blockEntry,
+    suggestExit,
+    confidence,
+    reason,
+    ruleBreakdown: breakdown,
+  };
+}
+
 export async function analyzeMarketRegime(
   symbol: string,
   candles: any[],
@@ -834,9 +1081,14 @@ export async function analyzeMarketRegime(
 ): Promise<AiAnalysisResult> {
   const settings = getAiGuardSettings();
 
-  // Local rule engine — no API call needed
+  // Local rule engine V1 — no API call needed
   if (settings.provider === "local") {
     return Promise.resolve(analyzeMarketRegimeLocal(symbol, candles, tradeContext));
+  }
+
+  // Local rule engine V2 (Choppy & Spike Guard) — no API call needed
+  if (settings.provider === "local_v2") {
+    return Promise.resolve(analyzeMarketRegimeLocalV2(symbol, candles, tradeContext));
   }
 
   const candleCount = settings.candlesCount || 120;

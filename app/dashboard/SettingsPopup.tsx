@@ -301,7 +301,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   }, [aiApiKey, aiProvider, aiModel]);
 
   useEffect(() => {
-    if (aiProvider === "local") {
+    if (aiProvider === "local" || aiProvider === "local_v2") {
       setAiTestStatus("idle");
       return;
     }
@@ -765,7 +765,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
               </div>
 
               <div className="text-xs mb-3 font-semibold" style={{ color: aiGuardEnabled ? "var(--theme-status-success)" : "var(--theme-popup-label)" }}>
-                {aiGuardEnabled ? (aiProvider === "local" ? "Active — Rule Engine" : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
+                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2") ? `Active — ${aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
               </div>
 
               {aiGuardEnabled && (
@@ -1042,11 +1042,11 @@ export default function SettingsPopup({ open, onClose }: Props) {
                             className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
                             style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
                           >
-                            Local: free rule-based engine, no API key needed. Groq is free and fast. Claude Haiku is paid but offers strong reasoning quality.
+                            Local V1/V2: free rule-based engines, no API key needed. Groq is free and fast. Claude Haiku is paid but offers strong reasoning quality.
                           </div>
                         )}
                       </div>
-                      {aiProvider !== "local" && (
+                      {aiProvider !== "local" && aiProvider !== "local_v2" && (
                         <a
                           href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
                           target="_blank"
@@ -1070,7 +1070,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         outline: "none",
                       }}
                     >
-                      <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Local (Rule Engine) — free, no API key</option>
+                      <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Local V1 (Rule Engine) — free, no API key</option>
+                      <option value="local_v2" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Local V2 (Choppy & Spike Guard) — free, no API key</option>
                       <option value="groq" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Groq (free)</option>
                       <option value="claude" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 3.5 (paid)</option>
                     </select>
@@ -1101,7 +1102,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   )}
 
                   {/* API Key input */}
-                  {aiProvider !== "local" && (
+                  {aiProvider !== "local" && aiProvider !== "local_v2" && (
                   <div>
                     <div className="relative flex items-center gap-1.5 mb-1.5">
                       <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>AI API Keys</label>
@@ -1271,7 +1272,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 {tempStatus === "testing" ? (
                   <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
                 ) : (
-                  <><FlaskConical className="w-3.5 h-3.5" /> {aiProvider === "local" ? "Analyze" : "Send to AI"}</>
+                  <><FlaskConical className="w-3.5 h-3.5" /> {(aiProvider === "local" || aiProvider === "local_v2") ? "Analyze" : "Send to AI"}</>
                 )}
               </button>
 
