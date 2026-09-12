@@ -51,6 +51,12 @@ export const GROQ_MODELS = [
   { value: "qwen/qwen3.6-27b", label: "Qwen 3.6 27B — preview" },
 ];
 
+export type RuleBreakdownEntry = {
+  name: string;
+  value: string;
+  triggered: boolean;
+};
+
 export type AiAnalysisResult = {
   marketRegime: string;
   blockEntry: boolean;
@@ -59,6 +65,7 @@ export type AiAnalysisResult = {
   reason: string;
   rangeHigh?: number;
   rangeLow?: number;
+  ruleBreakdown?: RuleBreakdownEntry[];
 };
 
 export type AiSuggestion = {
@@ -77,7 +84,7 @@ const DEFAULT_SETTINGS: AiGuardSettings = {
   autoExitEnabled: false,
   confidenceThreshold: 70,
   candlesCount: 120,
-  provider: "groq",
+  provider: "local",
   model: "openai/gpt-oss-120b",
   recentCandlesCount: 30,
   considerVolume: false,
@@ -134,6 +141,9 @@ export function setAiConnected(connected: boolean) {
 }
 
 export function isAiGuardActive(): boolean {
+  if (aiGuardSettings.provider === "local") {
+    return aiGuardSettings.enabled;
+  }
   return aiGuardSettings.enabled && (aiGuardSettings.apiKeys?.length || 0) > 0 && aiConnected;
 }
 
@@ -491,12 +501,344 @@ export function buildMarketMetrics(candles: any[], maxCount: number, recentCandl
   return lines.join("\n");
 }
 
+// ── Local Rule Engine ──
+
+const UPWARDS_REASONS = [
+  (v: { consec: number; netMove: string }) => `Strong uptrend: ${v.consec} consecutive bullish candles, net move ${v.netMove}`,
+  (v: { rnNetPct: string }) => `Upward momentum confirmed: recent candles show higher highs, net move ${v.rnNetPct}`,
+  (v: { rangePos: string }) => `Bullish bias: price at ${v.rangePos}% of range, buying pressure dominant`,
+  (v: { last10: string }) => `Trending up: last 10 candles net move ${v.last10}, consistent direction`,
+  (v: { consec: number }) => `Uptrend intact: ${v.consec} consecutive same-direction candles with upward bias`,
+  (v: { rnNetPct: string; rangePos: string }) => `Higher highs and higher lows: net move ${v.rnNetPct}, range position ${v.rangePos}%`,
+];
+
+const SIDEWAYS_REASONS = [
+  (v: { dirRatio: string }) => `Sideways: direction change ratio ${v.dirRatio} — price oscillating without clear direction`,
+  (v: { bodyRange: string }) => `Choppy market: body-to-range ratio ${v.bodyRange}, small candles with no conviction`,
+  (v: { dirRatio: string; rnDirRatio: string }) => `Range-bound: full dir changes ${v.dirRatio}, recent dir changes ${v.rnDirRatio}`,
+  (v: { narrowing: string }) => `Volatility narrowing: range compressed by ${v.narrowing}, no breakout`,
+  (v: { rnNetPct: string }) => `No trend: recent net move only ${v.rnNetPct}, price stuck in range`,
+  (v: { last10: string; bodyRange: string }) => `Sideways: last 10 candle move ${v.last10}, body-to-range ${v.bodyRange}`,
+];
+
+const DOWNWARDS_REASONS = [
+  (v: { consec: number; netMove: string }) => `Strong downtrend: ${v.consec} consecutive bearish candles, net move ${v.netMove}`,
+  (v: { rnNetPct: string }) => `Downward momentum: recent candles show lower highs, net move ${v.rnNetPct}`,
+  (v: { rangePos: string }) => `Bearish bias: price at ${v.rangePos}% of range, selling pressure dominant`,
+  (v: { last10: string }) => `Trending down: last 10 candles net move ${v.last10}, consistent selling`,
+  (v: { consec: number }) => `Downtrend intact: ${v.consec} consecutive same-direction candles with downward bias`,
+  (v: { rnNetPct: string; rangePos: string }) => `Lower highs and lower lows: net move ${v.rnNetPct}, range position ${v.rangePos}%`,
+];
+
+export function analyzeMarketRegimeLocal(
+  symbol: string,
+  candles: any[],
+  tradeContext?: { entryPrice?: string; ltp?: number; pnl?: number; signal?: string }
+): AiAnalysisResult {
+  const settings = getAiGuardSettings();
+  const candleCount = settings.candlesCount || 120;
+  const useHA = settings.useHeikinAshi !== false;
+  const recentCandlesCount = settings.recentCandlesCount || 30;
+
+  if (!Array.isArray(candles) || candles.length === 0) {
+    return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "No candle data" };
+  }
+
+  // Apply Heikin-Ashi if enabled
+  const processedCandles = useHA ? convertToHeikinAshi(candles) : candles;
+  const slice = processedCandles.slice(-candleCount);
+  const n = slice.length;
+
+  if (n === 0) {
+    return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "No candle data after slicing" };
+  }
+
+  // ── Compute metrics (same as buildMarketMetrics but as numeric values) ──
+
+  let high = -Infinity, low = Infinity;
+  let totalBodySize = 0;
+  let dirChanges = 0;
+  let maxConsecutiveSame = 0;
+  let currentConsecutive = 1;
+  let prevDir: "up" | "down" | null = null;
+
+  for (const c of slice) {
+    const o = Number(c.open);
+    const cl = Number(c.close);
+    const h = Number(c.high);
+    const l = Number(c.low);
+
+    if (h > high) high = h;
+    if (l < low) low = l;
+    totalBodySize += Math.abs(cl - o);
+
+    let dir: "up" | "down";
+    if (cl >= o) dir = "up";
+    else dir = "down";
+
+    if (prevDir) {
+      if (dir !== prevDir) {
+        dirChanges++;
+        maxConsecutiveSame = Math.max(maxConsecutiveSame, currentConsecutive);
+        currentConsecutive = 1;
+      } else {
+        currentConsecutive++;
+      }
+    }
+    prevDir = dir;
+  }
+  maxConsecutiveSame = Math.max(maxConsecutiveSame, currentConsecutive);
+
+  const rangeWidth = high - low;
+  const avgBody = totalBodySize / n;
+  const lastClose = Number(slice[n - 1].close);
+  const rangePosition = rangeWidth > 0 ? ((lastClose - low) / rangeWidth) * 100 : 50;
+  const dirChangeRatio = n > 1 ? (dirChanges / (n - 1)) * 100 : 0;
+  const bodyToRangeRatio = rangeWidth > 0 ? (avgBody / rangeWidth) * 100 : 0;
+
+  // Net move over full period
+  const firstOpen = Number(slice[0].open);
+  const netMove = lastClose - firstOpen;
+  const netMovePct = firstOpen !== 0 ? (netMove / firstOpen) * 100 : 0;
+
+  // Last 10 candles net move
+  const last10Start = Math.max(0, n - 10);
+  const last10Open = Number(slice[last10Start].open);
+  const last10Close = Number(slice[n - 1].close);
+  const last10Move = last10Close - last10Open;
+  const last10MovePct = last10Open !== 0 ? (last10Move / last10Open) * 100 : 0;
+
+  // Recent N-candle window
+  const recentNStart = Math.max(0, n - recentCandlesCount);
+  const recentN = slice.slice(recentNStart);
+  const rn = recentN.length;
+  let rnHigh = -Infinity, rnLow = Infinity, rnDirChanges = 0;
+  let rnMaxConsecutive = 0, rnCurrentConsecutive = 1;
+  let rnPrevDir: "up" | "down" | null = null;
+
+  for (const c of recentN) {
+    const o = Number(c.open), cl = Number(c.close), h = Number(c.high), l = Number(c.low);
+    if (h > rnHigh) rnHigh = h;
+    if (l < rnLow) rnLow = l;
+    const d: "up" | "down" = cl >= o ? "up" : "down";
+    if (rnPrevDir) {
+      if (d !== rnPrevDir) {
+        rnDirChanges++;
+        rnMaxConsecutive = Math.max(rnMaxConsecutive, rnCurrentConsecutive);
+        rnCurrentConsecutive = 1;
+      } else {
+        rnCurrentConsecutive++;
+      }
+    }
+    rnPrevDir = d;
+  }
+  rnMaxConsecutive = Math.max(rnMaxConsecutive, rnCurrentConsecutive);
+
+  const rnFirstOpen = Number(recentN[0].open);
+  const rnLastClose = Number(recentN[rn - 1].close);
+  const rnNetMove = rnLastClose - rnFirstOpen;
+  const rnNetMovePct = rnFirstOpen !== 0 ? (rnNetMove / rnFirstOpen) * 100 : 0;
+  const rnDirRatio = rn > 1 ? (rnDirChanges / (rn - 1)) * 100 : 0;
+
+  // Volatility narrowing
+  const recentStart = Math.floor(n * 0.7);
+  const olderEnd = Math.floor(n * 0.4);
+  const olderStart = Math.floor(n * 0.1);
+  let recentHigh2 = -Infinity, recentLow2 = Infinity;
+  let olderHigh = -Infinity, olderLow = Infinity;
+  for (let i = recentStart; i < n; i++) {
+    const h = Number(slice[i].high);
+    const l = Number(slice[i].low);
+    if (h > recentHigh2) recentHigh2 = h;
+    if (l < recentLow2) recentLow2 = l;
+  }
+  for (let i = olderStart; i < olderEnd && i < n; i++) {
+    const h = Number(slice[i].high);
+    const l = Number(slice[i].low);
+    if (h > olderHigh) olderHigh = h;
+    if (l < olderLow) olderLow = l;
+  }
+  const recentWidth2 = recentHigh2 > -Infinity ? recentHigh2 - recentLow2 : 0;
+  const olderWidth = olderHigh > -Infinity ? olderHigh - olderLow : 0;
+  const rangeNarrowing = olderWidth > 0 ? ((olderWidth - recentWidth2) / olderWidth) * 100 : 0;
+
+  // ── Rule engine (10 rules) ──
+
+  const breakdown: RuleBreakdownEntry[] = [];
+  let sidewaysScore = 0;
+  let trendScore = 0;
+  let trendDirection: "up" | "down" = "up";
+
+  // Rule 1: Direction change ratio (full) > 60% → SIDEWAYS
+  const r1Triggered = dirChangeRatio > 60;
+  if (r1Triggered) sidewaysScore += 2;
+  breakdown.push({ name: "Dir change ratio (full)", value: `${dirChangeRatio.toFixed(0)}%`, triggered: r1Triggered });
+
+  // Rule 2: Direction change ratio (recent) > 60% → SIDEWAYS
+  const r2Triggered = rnDirRatio > 60;
+  if (r2Triggered) sidewaysScore += 2;
+  breakdown.push({ name: "Dir change ratio (recent)", value: `${rnDirRatio.toFixed(0)}%`, triggered: r2Triggered });
+
+  // Rule 3: Body-to-range ratio < 20% → SIDEWAYS
+  const r3Triggered = bodyToRangeRatio < 20;
+  if (r3Triggered) sidewaysScore += 2;
+  breakdown.push({ name: "Body-to-range ratio", value: `${bodyToRangeRatio.toFixed(1)}%`, triggered: r3Triggered });
+
+  // Rule 4: Volatility narrowing > 30% → SIDEWAYS
+  const r4Triggered = rangeNarrowing > 30;
+  if (r4Triggered) sidewaysScore += 1;
+  breakdown.push({ name: "Volatility narrowing", value: `${rangeNarrowing > 0 ? "-" : "+"}${Math.abs(rangeNarrowing).toFixed(0)}%`, triggered: r4Triggered });
+
+  // Rule 5: Net move (recent N) abs < 2% → SIDEWAYS
+  const r5Triggered = Math.abs(rnNetMovePct) < 2;
+  if (r5Triggered) sidewaysScore += 1;
+  breakdown.push({ name: "Net move (recent)", value: `${rnNetMovePct >= 0 ? "+" : ""}${rnNetMovePct.toFixed(2)}%`, triggered: r5Triggered });
+
+  // Rule 6: Last 10 candle net move abs < 1.5% → SIDEWAYS
+  const r6Triggered = Math.abs(last10MovePct) < 1.5;
+  if (r6Triggered) sidewaysScore += 1;
+  breakdown.push({ name: "Last 10 move", value: `${last10MovePct >= 0 ? "+" : ""}${last10MovePct.toFixed(2)}%`, triggered: r6Triggered });
+
+  // Rule 7: Max consecutive same dir (full) >= 5 → TREND
+  const r7Triggered = maxConsecutiveSame >= 5;
+  if (r7Triggered) trendScore += 2;
+  breakdown.push({ name: "Max consecutive (full)", value: `${maxConsecutiveSame} candles`, triggered: r7Triggered });
+
+  // Rule 8: Max consecutive same dir (recent) >= 4 → TREND
+  const r8Triggered = rnMaxConsecutive >= 4;
+  if (r8Triggered) trendScore += 2;
+  breakdown.push({ name: "Max consecutive (recent)", value: `${rnMaxConsecutive} candles`, triggered: r8Triggered });
+
+  // Rule 9: Net move (recent N) abs >= 2% → TREND
+  const r9Triggered = Math.abs(rnNetMovePct) >= 2;
+  if (r9Triggered) trendScore += 2;
+  breakdown.push({ name: "Net move strength (recent)", value: `${Math.abs(rnNetMovePct).toFixed(2)}%`, triggered: r9Triggered });
+
+  // Rule 10: Last 10 candle net move abs >= 1.5% → TREND
+  const r10Triggered = Math.abs(last10MovePct) >= 1.5;
+  if (r10Triggered) trendScore += 1;
+  breakdown.push({ name: "Last 10 move strength", value: `${Math.abs(last10MovePct).toFixed(2)}%`, triggered: r10Triggered });
+
+  // Determine direction from net moves
+  if (rnNetMove < 0 || last10Move < 0) trendDirection = "down";
+  else trendDirection = "up";
+
+  // ── Decision ──
+
+  let marketRegime: string;
+  let blockEntry: boolean;
+  let suggestExit: boolean;
+  let confidence: number;
+  let reason: string;
+  let rangeHigh: number | undefined;
+  let rangeLow: number | undefined;
+
+  if (sidewaysScore > trendScore) {
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = Math.min(95, 60 + sidewaysScore * 5);
+    if (rnHigh > -Infinity) rangeHigh = rnHigh;
+    if (rnLow < Infinity) rangeLow = rnLow;
+
+    // Pick reason based on which rules triggered
+    const reasons = SIDEWAYS_REASONS;
+    let reasonIdx = 0;
+    if (r1Triggered) reasonIdx = 0;
+    else if (r3Triggered) reasonIdx = 1;
+    else if (r2Triggered) reasonIdx = 2;
+    else if (r4Triggered) reasonIdx = 3;
+    else if (r5Triggered) reasonIdx = 4;
+    else reasonIdx = 5;
+    reason = reasons[reasonIdx]({
+      dirRatio: `${dirChangeRatio.toFixed(0)}%`,
+      rnDirRatio: `${rnDirRatio.toFixed(0)}%`,
+      bodyRange: `${bodyToRangeRatio.toFixed(1)}%`,
+      narrowing: `${Math.abs(rangeNarrowing).toFixed(0)}%`,
+      rnNetPct: `${rnNetMovePct.toFixed(2)}%`,
+      last10: `${last10MovePct.toFixed(2)}%`,
+    });
+  } else if (trendScore >= 3) {
+    if (trendDirection === "up") {
+      marketRegime = "UPWARDS";
+      blockEntry = false;
+      suggestExit = false;
+      confidence = Math.min(95, 65 + trendScore * 5);
+
+      const reasons = UPWARDS_REASONS;
+      let reasonIdx = 0;
+      if (r7Triggered) reasonIdx = 0;
+      else if (r9Triggered) reasonIdx = 1;
+      else if (rangePosition > 60) reasonIdx = 2;
+      else if (r10Triggered) reasonIdx = 3;
+      else if (r8Triggered) reasonIdx = 4;
+      else reasonIdx = 5;
+      reason = reasons[reasonIdx]({
+        consec: maxConsecutiveSame,
+        netMove: `${netMovePct.toFixed(2)}%`,
+        rnNetPct: `${rnNetMovePct.toFixed(2)}%`,
+        rangePos: `${rangePosition.toFixed(0)}%`,
+        last10: `${last10MovePct.toFixed(2)}%`,
+      });
+    } else {
+      marketRegime = "DOWNWARDS";
+      blockEntry = true;
+      suggestExit = true;
+      confidence = Math.min(95, 65 + trendScore * 5);
+
+      const reasons = DOWNWARDS_REASONS;
+      let reasonIdx = 0;
+      if (r7Triggered) reasonIdx = 0;
+      else if (r9Triggered) reasonIdx = 1;
+      else if (rangePosition < 40) reasonIdx = 2;
+      else if (r10Triggered) reasonIdx = 3;
+      else if (r8Triggered) reasonIdx = 4;
+      else reasonIdx = 5;
+      reason = reasons[reasonIdx]({
+        consec: maxConsecutiveSame,
+        netMove: `${netMovePct.toFixed(2)}%`,
+        rnNetPct: `${rnNetMovePct.toFixed(2)}%`,
+        rangePos: `${rangePosition.toFixed(0)}%`,
+        last10: `${last10MovePct.toFixed(2)}%`,
+      });
+    }
+  } else {
+    // Ambiguous — conservative default
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = 65;
+    if (rnHigh > -Infinity) rangeHigh = rnHigh;
+    if (rnLow < Infinity) rangeLow = rnLow;
+    reason = `Ambiguous signals: sideways score ${sidewaysScore}, trend score ${trendScore} — defaulting to sideways`;
+  }
+
+  addAiLog(`[ai-guard:local] ${symbol}: ${marketRegime} (${confidence}%) — ${reason}`);
+
+  return {
+    marketRegime,
+    blockEntry,
+    suggestExit,
+    confidence,
+    reason,
+    rangeHigh,
+    rangeLow,
+    ruleBreakdown: breakdown,
+  };
+}
+
 export async function analyzeMarketRegime(
   symbol: string,
   candles: any[],
   tradeContext?: { entryPrice?: string; ltp?: number; pnl?: number; signal?: string }
 ): Promise<AiAnalysisResult> {
   const settings = getAiGuardSettings();
+
+  // Local rule engine — no API call needed
+  if (settings.provider === "local") {
+    return Promise.resolve(analyzeMarketRegimeLocal(symbol, candles, tradeContext));
+  }
+
   const candleCount = settings.candlesCount || 120;
   let useVolume = settings.considerVolume || false;
   const useHA = settings.useHeikinAshi !== false;
