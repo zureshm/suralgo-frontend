@@ -78,6 +78,32 @@
     background: var(--theme-input-bg) !important;
     border-color: var(--theme-input-border) !important;
     color: var(--theme-input-text) !important;
+    font-size: 14px;
+  }
+
+  label {
+    font-size: 14px;
+  }
+
+  @media (max-width: 420px) {
+    padding: calc(var(--spacing, 0.25rem) * 2) !important;
+
+    input[type="text"]:not([class*="text-lg"]):not([class*="text-base"]):not([class*="text-xs"]),
+    input[type="number"]:not([class*="text-lg"]):not([class*="text-base"]):not([class*="text-xs"]),
+    select {
+      font-size: 13px !important;
+    }
+
+    label,
+    span[class*="text-sm"],
+    label[class*="text-sm"] {
+      font-size: 13px !important;
+    }
+
+    p[class*="text-xs"],
+    span[class*="text-xs"] {
+      font-size: 11px !important;
+    }
   }
 }
 
