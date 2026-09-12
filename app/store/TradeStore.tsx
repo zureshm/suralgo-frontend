@@ -26,6 +26,7 @@ export type WaitingTrade = {
   minToHold: number;
   minToHoldTrigger: number;
   minToHoldTrailing: boolean;
+  minToHoldMode?: "live" | "candleClose";
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
   trailingMode: "live" | "candleClose";
@@ -86,6 +87,7 @@ export type ActiveTrade = {
   minToHold: number;
   minToHoldTrigger: number;
   minToHoldTrailing: boolean;
+  minToHoldMode?: "live" | "candleClose";
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
   trailingMode: "live" | "candleClose";

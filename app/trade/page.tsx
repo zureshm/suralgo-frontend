@@ -153,6 +153,7 @@ export default function TradePage() {
     setMinToHold(defaults.minToHold);
     setMinToHoldTrigger(defaults.minToHoldTrigger);
     setMinToHoldTrailing(defaults.minToHoldTrailing ? "yes" : "no");
+    setMinToHoldMode((defaults.minToHoldMode as "live" | "candleClose") || "live");
     setTrailingAfterTargetEnabled(defaults.trailingAfterTargetEnabled);
     setTrailingAfterTarget(defaults.trailingAfterTarget);
     setTargetMode(defaults.targetMode as "live" | "candleClose");
@@ -208,6 +209,7 @@ export default function TradePage() {
   const [minToHold, setMinToHold] = useState(8);
   const [minToHoldTrigger, setMinToHoldTrigger] = useState(2);
   const [minToHoldTrailing, setMinToHoldTrailing] = useState("no");
+  const [minToHoldMode, setMinToHoldMode] = useState<"live" | "candleClose">("live");
   const [isMinToHoldInfoOpen, setIsMinToHoldInfoOpen] = useState(false);
   const [trailingAfterTargetEnabled, setTrailingAfterTargetEnabled] = useState(false);
   const [trailingAfterTarget, setTrailingAfterTarget] = useState(15);
@@ -343,6 +345,7 @@ export default function TradePage() {
       setMinToHold(data.minToHold || 8);
       setMinToHoldTrigger(data.minToHoldTrigger || 2);
       setMinToHoldTrailing(data.minToHoldTrailing === true ? "yes" : "no");
+      setMinToHoldMode(data.minToHoldMode === "candleClose" ? "candleClose" : "live");
       setTrailingAfterTargetEnabled(Boolean(data.trailingAfterTargetEnabled ?? false));
       setTrailingAfterTarget(data.trailingAfterTarget || 15);
       setRangeEnabled(Boolean(data.rangeEnabled ?? false));
@@ -404,6 +407,7 @@ export default function TradePage() {
       minToHoldEnabled,
       minToHold,
       minToHoldTrigger,
+      minToHoldMode,
       waitStrategyEnabled,
       buyOverrideSize,
       waitAfterSellEnabled,
@@ -1077,6 +1081,40 @@ export default function TradePage() {
                     </label>
                   </div>
                 </div>
+
+                <div className="flex items-center space-x-4 pl-6 pt-1">
+                  <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Use price:</label>
+                  <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
+                    <input
+                      type="radio"
+                      name="minToHoldPriceMode"
+                      value="live"
+                      checked={minToHoldMode === "live"}
+                      onChange={(e) => {
+                        const mode = e.target.value as "live" | "candleClose";
+                        setMinToHoldMode(mode);
+                      }}
+                      className="h-3 w-3"
+                      disabled={!minToHoldEnabled}
+                    />
+                    <span>LTP</span>
+                  </label>
+                  <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
+                    <input
+                      type="radio"
+                      name="minToHoldPriceMode"
+                      value="candleClose"
+                      checked={minToHoldMode === "candleClose"}
+                      onChange={(e) => {
+                        const mode = e.target.value as "live" | "candleClose";
+                        setMinToHoldMode(mode);
+                      }}
+                      className="h-3 w-3"
+                      disabled={!minToHoldEnabled}
+                    />
+                    <span>Candle close</span>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -1294,7 +1332,9 @@ export default function TradePage() {
                         disabled={!isReEntryActive}
                         className="h-4 w-4"
                       />
-                      <label htmlFor="reEntryMinTargetEnabled" className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>ReEntry Minimum Target</label>
+                      <label htmlFor="reEntryMinTargetEnabled" className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>
+                          ReEntry Minimum Target <span className="text-xs text-gray-500 font-normal">({minToHoldMode === "candleClose" ? "Candle close" : "Live price"})</span>
+                        </label>
                     </div>
 
                     <div className="relative">
@@ -1546,6 +1586,7 @@ export default function TradePage() {
                         minToHold,
                         minToHoldTrigger,
                         minToHoldTrailing: minToHoldTrailing === "yes",
+                        minToHoldMode,
                         trailingAfterTarget,
                         trailingMode,
                         rangeEnabled,
@@ -1617,6 +1658,7 @@ export default function TradePage() {
                         minToHold,
                         minToHoldTrigger,
                         minToHoldTrailing: minToHoldTrailing === "yes",
+                        minToHoldMode,
                         trailingAfterTargetEnabled,
                         trailingAfterTarget,
                         rangeEnabled,

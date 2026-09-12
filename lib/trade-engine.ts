@@ -224,6 +224,8 @@ type WaitingTrade = {
 
   minToHoldTrailing: boolean;
 
+  minToHoldMode?: "live" | "candleClose";
+
   trailingAfterTargetEnabled: boolean;
 
   trailingAfterTarget: number;
@@ -324,6 +326,8 @@ type ActiveTrade = {
   minToHoldTrigger: number;
 
   minToHoldTrailing: boolean;
+
+  minToHoldMode?: "live" | "candleClose";
 
   trailingAfterTargetEnabled: boolean;
 
@@ -459,6 +463,8 @@ type TradeHistoryItem = {
 
     minToHoldTrigger?: number;
 
+    minToHoldMode?: "live" | "candleClose";
+
     sellWhenLossCandlesEnabled?: boolean;
 
     sellWhenLossCandles?: number;
@@ -482,6 +488,9 @@ let watchlist: string[] = [];
 let lastStrategyCandleTime = "";
 
 let lastHandledSignalKey: Record<string, string> = {};
+
+// Tracks the candle time when a waiting trade was added so it ignores the current candle's signal and waits for the next new candle
+const tradeAddedCandleTime: Record<string, string> = {};
 
 // Trigger Timer state — tracks which symbols have already fired today to prevent re-firing
 const triggerTimerFired: Set<string> = new Set();
@@ -998,6 +1007,8 @@ function buildConfigSnapshot(trade: ActiveTrade): TradeHistoryItem["config"] {
 
     minToHoldTrigger: trade.minToHoldEnabled ? trade.minToHoldTrigger : undefined,
 
+    minToHoldMode: trade.minToHoldEnabled ? trade.minToHoldMode : undefined,
+
     sellWhenLossCandlesEnabled: Boolean(trade.sellWhenLossCandlesEnabled),
 
     sellWhenLossCandles: trade.sellWhenLossCandlesEnabled ? trade.sellWhenLossCandles : undefined,
@@ -1111,6 +1122,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
     minToHoldTrailing: trade.minToHoldTrailing,
 
+    minToHoldMode: trade.minToHoldMode,
+
     trailingAfterTargetEnabled: trade.trailingAfterTargetEnabled,
 
     trailingAfterTarget: trade.trailingAfterTarget,
@@ -1217,6 +1230,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
   // Track the candle time of this BUY so strategy exit signals on the same candle are blocked
   lastBuyCandleTime[symbol] = lastStrategyCandleTime;
+
+  delete tradeAddedCandleTime[symbol];
 
   // Send real BUY order to broker
   sendBrokerOrder(symbol, getTradeQty(trade), "BUY");
@@ -1591,6 +1606,8 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
 
   // Track the candle time of this BUY so strategy exit signals on the same candle are blocked
   lastBuyCandleTime[symbol] = lastStrategyCandleTime;
+
+  delete tradeAddedCandleTime[symbol];
 
   // Send real BUY order to broker (re-entry)
   if (matchedTrade) {
@@ -2147,7 +2164,11 @@ function handleStrategySignal(signal: any) {
 
     const matchingTrade = waitingTrades.find((t) => t.symbol === signal.symbol);
 
-
+    // If this waiting trade was added on this exact candle, wait for the next new candle before entering
+    if (matchingTrade && tradeAddedCandleTime[signalSymbol] && signal.lastCandleTime === tradeAddedCandleTime[signalSymbol]) {
+      lastHandledSignalKey[signalSymbol] = signalKey;
+      return;
+    }
 
     // Candle size check for Wait Strategy (buyOverride)
 
@@ -2414,6 +2435,8 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     const targetPrice = trade.targetMode === "candleClose" && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
     const trailingPrice = trade.trailingMode === "candleClose" && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
 
+    const minTargetPrice = trade.minToHoldMode === "candleClose" && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
+
     // Use real-time LTP for SL/Minimum Target. Target/Trailing may use LTP or last candle close based on mode.
 
     const currentTime = marketTime || fmtTime();
@@ -2594,25 +2617,25 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
       const activationLevel = trailLevel + effectiveMinTrigger;
 
       if (!trailingArmedPositions.has(positionKey)) {
-        if (ltp >= activationLevel) {
+        if (minTargetPrice >= activationLevel) {
           trailingArmedPositions.add(positionKey);
-          addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Minimum target armed at ₹${ltp.toFixed(2)} (activation: ₹${activationLevel.toFixed(2)}) at ${currentTime}`);
+          addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Minimum target armed at ₹${minTargetPrice.toFixed(2)} (activation: ₹${activationLevel.toFixed(2)}) at ${currentTime}`);
           persistState();
         }
       } else {
         if (effectiveMinTrailing && trade.minTargetLockedPrice === undefined) {
-          updateMinTargetHighWatermark(trade.symbol, ltp);
+          updateMinTargetHighWatermark(trade.symbol, minTargetPrice);
         }
-        const minTargetHigh = trade.minTargetHighWatermark ?? ltp;
+        const minTargetHigh = trade.minTargetHighWatermark ?? minTargetPrice;
         const minTargetFloor = (trade.minTargetLockedPrice !== undefined)
           ? trade.minTargetLockedPrice
           : (effectiveMinTrailing ? minTargetHigh - effectiveMinTrigger : trailLevel);
 
-        if (ltp <= minTargetFloor) {
+        if (minTargetPrice <= minTargetFloor) {
           if (effectiveSLEnabled && effectiveSL > 0 && trailedSLLevel > minTargetFloor) {
             // Defer to Trailing SL check below
           } else {
-            const exitPrice = Math.min(ltp, minTargetFloor);
+            const exitPrice = Math.min(minTargetPrice, minTargetFloor);
             triggeredPositions.add(positionKey);
             trailingArmedPositions.delete(positionKey);
             completeCycleWithoutExit(trade.symbol, String(exitPrice), `${useReEntryMinTarget ? "ReEntry " : ""}${effectiveMinTrailing ? "TRAILING MIN TARGET" : "MINIMUM TARGET"} hit for ₹${exitPrice.toFixed(2)} at ${currentTime}`);
@@ -3070,8 +3093,10 @@ export function addWaitingTrade(trade: WaitingTrade) {
 
   if (waitingTrades.some((t) => t.symbol === trade.symbol)) return;
 
-  // Clear stale signal state from any previous trade cycle for this symbol
-  delete lastHandledSignalKey[trade.symbol];
+  // Track the candle time when this waiting trade was created so it ignores the current candle's signal
+  if (lastStrategyCandleTime) {
+    tradeAddedCandleTime[trade.symbol] = lastStrategyCandleTime;
+  }
   delete lastBuyCandleTime[trade.symbol];
   triggerTimerFired.delete(trade.symbol);
 
@@ -3117,7 +3142,7 @@ export function updateActiveTradeConfig(symbol: string, config: Record<string, u
     "trailingStopLossEnabled", "trailingStopLossSteps",
     "targetPointsEnabled", "targetPoints", "targetMode",
     "trailingAfterTarget", "trailingMode",
-    "minToHoldEnabled", "minToHold", "minToHoldTrigger", "minToHoldTrailing",
+    "minToHoldEnabled", "minToHold", "minToHoldTrigger", "minToHoldTrailing", "minToHoldMode",
     "maxProfitLossEnabled", "maxProfit", "maxLoss",
     "sellWhenLossCandlesEnabled", "sellWhenLossCandles",
     "reEntryAfterTargetEnabled", "reEntryStartCandle", "reEntryCandles", "reEntryPoints",
@@ -3263,6 +3288,7 @@ export function cancelWaitingTrade(symbol: string) {
   waitingTrades = waitingTrades.filter((t) => t.symbol !== symbol);
 
   delete pendingBuyBuffer[symbol];
+  delete tradeAddedCandleTime[symbol];
   delete lastHandledSignalKey[symbol];
   delete lastBuyCandleTime[symbol];
 
@@ -3340,8 +3366,12 @@ export function manualExit(symbol: string, exitPrice: string, lastCandleTime: st
 
   activeTrades = activeTrades.filter((t) => !(t.symbol === symbol && t.status === "COMPLETED"));
 
-  // Clear stale signal state so re-adding the symbol starts fresh
-  delete lastHandledSignalKey[symbol];
+  delete tradeAddedCandleTime[symbol];
+  if (lastCandleTime) {
+    lastHandledSignalKey[symbol] = `EXIT-${lastCandleTime}`;
+  } else {
+    delete lastHandledSignalKey[symbol];
+  }
   delete lastBuyCandleTime[symbol];
 
   persistState();
@@ -3357,6 +3387,7 @@ export function removeCompletedTrade(symbol: string) {
   activeTrades = activeTrades.filter((t) => t.symbol !== symbol);
 
   delete pendingBuyBuffer[symbol];
+  delete tradeAddedCandleTime[symbol];
   delete lastHandledSignalKey[symbol];
   delete lastBuyCandleTime[symbol];
 
