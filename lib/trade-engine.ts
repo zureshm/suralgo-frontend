@@ -1766,7 +1766,7 @@ function handleStrategySignal(signal: any) {
   if (signal.lastCandleTime) {
     const hasDate = String(signal.lastCandleTime).includes("-");
     if (hasDate) {
-      const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+      const todayStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10); // "YYYY-MM-DD" in IST
       if (!String(signal.lastCandleTime).startsWith(todayStr)) {
         console.log(`[trade-engine] Ignoring stale signal from previous day: ${signal.lastCandleTime} (${signal.signal})`);
         return;
