@@ -141,7 +141,7 @@ export function setAiConnected(connected: boolean) {
 }
 
 export function isAiGuardActive(): boolean {
-  if (aiGuardSettings.provider === "local" || aiGuardSettings.provider === "local_v2") {
+  if (aiGuardSettings.provider === "local" || aiGuardSettings.provider === "local_v2" || aiGuardSettings.provider === "local_v3") {
     return aiGuardSettings.enabled;
   }
   return aiGuardSettings.enabled && (aiGuardSettings.apiKeys?.length || 0) > 0 && aiConnected;
@@ -1074,6 +1074,205 @@ export function analyzeMarketRegimeLocalV2(
   };
 }
 
+// ── Local Rule Engine V3 (Swift Trend Sniper) ──
+// Fewer, faster indicators tuned for 1-minute options data.
+// Momentum-first: follows price action instead of defaulting to sideways.
+
+export function analyzeMarketRegimeLocalV3(
+  symbol: string,
+  candles: { time?: string; open: number; high: number; low: number; close: number; volume?: number }[],
+  _tradeContext?: { entryPrice?: string; ltp?: number; pnl?: number; signal?: string }
+): AiAnalysisResult {
+  const settings = getAiGuardSettings();
+  const candleCount = settings.candlesCount || 90;
+  const useHA = settings.useHeikinAshi !== false;
+
+  if (!Array.isArray(candles) || candles.length === 0) {
+    return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "No candle data" };
+  }
+
+  const rawSlice = candles.slice(-candleCount);
+  const n = rawSlice.length;
+  if (n < 8) {
+    return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "Insufficient candle history for V3 engine (min 8 required)" };
+  }
+
+  const closes = rawSlice.map((c) => Number(c.close));
+  const highs = rawSlice.map((c) => Number(c.high));
+  const lows = rawSlice.map((c) => Number(c.low));
+  const opens = rawSlice.map((c) => Number(c.open));
+  const lastClose = closes[n - 1];
+
+  // 1. EMA 5 (fast) & EMA 13 (medium) — no EMA 30, faster response
+  const ema5 = calculateEMA(closes, 5);
+  const ema13 = calculateEMA(closes, 13);
+  const currEma5 = ema5[n - 1];
+  const currEma13 = ema13[n - 1];
+  const emaSpreadPct = lastClose > 0 ? ((currEma5 - currEma13) / lastClose) * 100 : 0;
+
+  // Slope over 3 bars (faster than V2's 4-bar lookback)
+  const slopeLookback = Math.min(3, n - 1);
+  const ema5Slope = slopeLookback > 0 && ema5[n - 1 - slopeLookback] !== 0
+    ? ((currEma5 - ema5[n - 1 - slopeLookback]) / ema5[n - 1 - slopeLookback]) * 100 : 0;
+  const ema13Slope = slopeLookback > 0 && ema13[n - 1 - slopeLookback] !== 0
+    ? ((currEma13 - ema13[n - 1 - slopeLookback]) / ema13[n - 1 - slopeLookback]) * 100 : 0;
+
+  // 2. ATR(10) — adaptive thresholds
+  const atrPeriod = Math.min(10, n - 1);
+  let atrSum = 0;
+  for (let i = n - atrPeriod; i < n; i++) {
+    const tr = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+    atrSum += tr;
+  }
+  const atr = atrPeriod > 0 ? atrSum / atrPeriod : (highs[n - 1] - lows[n - 1]);
+
+  // 3. Rate of Change (ROC) — 5-bar momentum normalized by ATR
+  const rocPeriod = Math.min(5, n - 1);
+  const rocRaw = closes[n - 1] - closes[n - 1 - rocPeriod];
+  const roc = atr > 0 ? rocRaw / atr : 0; // normalized: >0 bullish, <0 bearish
+
+  // 4. Heikin-Ashi body strength — last 3 HA candles
+  const haCandles = convertToHeikinAshi(rawSlice);
+  let haConsecutiveBull = 0;
+  let haConsecutiveBear = 0;
+  let haBodyStrength = 0;
+  for (let i = n - 1; i >= Math.max(0, n - 3); i--) {
+    const c = haCandles[i];
+    const body = Math.abs(c.close - c.open);
+    const range = c.high - c.low;
+    const strength = range > 0 ? body / range : 0;
+    if (c.close >= c.open) {
+      haConsecutiveBull++;
+      haBodyStrength += strength;
+    } else {
+      haConsecutiveBear++;
+      haBodyStrength += strength;
+    }
+  }
+  const haAvgBodyStrength = haBodyStrength / Math.min(3, n);
+
+  // 5. Smarter Spike Trap — only if rejection wick > 50% AND overextended > 2x ATR AND EMA5 flattening
+  const lastRange = highs[n - 1] - lows[n - 1];
+  const lastUpperWick = highs[n - 1] - Math.max(opens[n - 1], closes[n - 1]);
+  const lastLowerWick = Math.min(opens[n - 1], closes[n - 1]) - lows[n - 1];
+  const lastUpperWickRatio = lastRange > 0 ? (lastUpperWick / lastRange) * 100 : 0;
+  const lastLowerWickRatio = lastRange > 0 ? (lastLowerWick / lastRange) * 100 : 0;
+  const distInAtr = atr > 0 ? Math.abs(lastClose - currEma5) / atr : 0;
+  const isOverextended = distInAtr > 2.0;
+  const isEmaFlattening = Math.abs(ema5Slope) < 0.02;
+  const isSevereRejection = lastUpperWickRatio > 50 || lastLowerWickRatio > 50;
+  const isSpikeTrap = isSevereRejection && isOverextended && isEmaFlattening;
+
+  // ── Rule Breakdown ──
+  const breakdown: RuleBreakdownEntry[] = [];
+  let trendScore = 0;
+  let sidewaysScore = 0;
+
+  // T1: EMA 5/13 Alignment (fast above medium with positive slopes)
+  const t1Triggered = currEma5 > currEma13 && ema5Slope > 0.01 && ema13Slope > 0;
+  if (t1Triggered) trendScore += 3;
+  breakdown.push({ name: "EMA 5/13 Alignment", value: `Spread ${emaSpreadPct >= 0 ? "+" : ""}${emaSpreadPct.toFixed(2)}% | Slope5 ${ema5Slope >= 0 ? "+" : ""}${ema5Slope.toFixed(2)}% | Slope13 ${ema13Slope >= 0 ? "+" : ""}${ema13Slope.toFixed(2)}%`, triggered: t1Triggered });
+
+  // T2: ROC Momentum (normalized by ATR, > 0.3 = strong directional)
+  const t2Triggered = roc > 0.3;
+  if (t2Triggered) trendScore += 2;
+  breakdown.push({ name: "ROC Momentum", value: `${roc.toFixed(2)} ATR ${t2Triggered ? "(Strong)" : roc > 0 ? "(Building)" : "(Weak/Negative)"}`, triggered: t2Triggered });
+
+  // T3: HA Body Strength (consecutive same color with strong bodies)
+  const t3Triggered = (haConsecutiveBull >= 3 || haConsecutiveBear >= 3) && haAvgBodyStrength > 0.5;
+  if (t3Triggered) trendScore += 2;
+  breakdown.push({ name: "HA Body Strength", value: `${haConsecutiveBull >= 3 ? `${haConsecutiveBull} bull` : haConsecutiveBear >= 3 ? `${haConsecutiveBear} bear` : "mixed"} | Body ${haAvgBodyStrength.toFixed(2)}`, triggered: t3Triggered });
+
+  // T4: Clean expansion (no spike trap, HA bodies dominant)
+  const t4Triggered = !isSpikeTrap && haAvgBodyStrength > 0.6 && (haConsecutiveBull >= 2 || haConsecutiveBear >= 2);
+  if (t4Triggered) trendScore += 1;
+  breakdown.push({ name: "Clean HA Expansion", value: t4Triggered ? "Confirmed" : "Not Active", triggered: t4Triggered });
+
+  // S1: True Chop (flat EMAs + near-zero ROC)
+  const s1Triggered = Math.abs(emaSpreadPct) < 0.15 && Math.abs(roc) < 0.1;
+  if (s1Triggered) sidewaysScore += 3;
+  breakdown.push({ name: "True Chop (Flat EMAs + Zero ROC)", value: `Spread ${Math.abs(emaSpreadPct).toFixed(2)}% | ROC ${Math.abs(roc).toFixed(2)}`, triggered: s1Triggered });
+
+  // S2: Spike Trap (smarter — requires wick + overextension + flattening)
+  const s2Triggered = isSpikeTrap;
+  if (s2Triggered) sidewaysScore += 4;
+  breakdown.push({ name: "Spike Trap (Smart)", value: s2Triggered ? `Triggered (${distInAtr.toFixed(1)}x ATR, ${lastUpperWickRatio > lastLowerWickRatio ? lastUpperWickRatio.toFixed(0) : lastLowerWickRatio.toFixed(0)}% wick)` : "Clear", triggered: s2Triggered });
+
+  // ── Decision Logic ──
+  let marketRegime: string;
+  let blockEntry: boolean;
+  let suggestExit: boolean;
+  let confidence: number;
+  let reason: string;
+
+  if (s2Triggered) {
+    // Spike trap — exit immediately
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = Math.min(95, 80 + (distInAtr > 3 ? 10 : 5));
+    reason = `Spike Trap: price ${distInAtr.toFixed(1)}x ATR from EMA5 with ${lastUpperWickRatio > lastLowerWickRatio ? "upper" : "lower"} rejection wick ${Math.max(lastUpperWickRatio, lastLowerWickRatio).toFixed(0)}% — momentum exhaustion`;
+  } else if (s1Triggered) {
+    // True chop — flat EMAs + zero ROC
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = Math.min(95, 65 + sidewaysScore * 5);
+    reason = `True chop: EMA spread ${Math.abs(emaSpreadPct).toFixed(2)}% with ROC ${roc.toFixed(2)} — price oscillating without direction`;
+  } else if (trendScore >= 4) {
+    // Strong trend confirmed
+    if (currEma5 >= currEma13 && ema5Slope >= 0) {
+      marketRegime = "UPWARDS";
+      blockEntry = false;
+      suggestExit = false;
+      confidence = Math.min(95, 70 + trendScore * 5);
+      reason = `Confirmed uptrend: EMA5 > EMA13 (+${emaSpreadPct.toFixed(2)}%), ROC ${roc.toFixed(2)}, HA ${haConsecutiveBull} bull bodies (${haAvgBodyStrength.toFixed(2)} strength)`;
+    } else {
+      marketRegime = "DOWNWARDS";
+      blockEntry = true;
+      suggestExit = true;
+      confidence = Math.min(95, 70 + trendScore * 5);
+      reason = `Confirmed downtrend: EMA5 < EMA13 (${emaSpreadPct.toFixed(2)}%), ROC ${roc.toFixed(2)}, HA ${haConsecutiveBear} bear bodies (${haAvgBodyStrength.toFixed(2)} strength)`;
+    }
+  } else {
+    // Momentum building — follow price action instead of defaulting to sideways
+    const priceMoving = Math.abs(roc) > 0.05 || Math.abs(ema5Slope) > 0.01;
+    if (priceMoving && ema5Slope > 0 && roc > 0) {
+      // Bullish momentum building — allow entry
+      marketRegime = "UPWARDS";
+      blockEntry = false;
+      suggestExit = false;
+      confidence = Math.min(85, 55 + Math.abs(roc) * 20);
+      reason = `Bullish momentum building: EMA5 slope ${ema5Slope.toFixed(2)}%, ROC ${roc.toFixed(2)} — trend forming, not yet fully confirmed`;
+    } else if (priceMoving && ema5Slope < 0 && roc < 0) {
+      // Bearish momentum building — block entry but don't force exit
+      marketRegime = "DOWNWARDS";
+      blockEntry = true;
+      suggestExit = false;
+      confidence = Math.min(85, 55 + Math.abs(roc) * 20);
+      reason = `Bearish momentum building: EMA5 slope ${ema5Slope.toFixed(2)}%, ROC ${roc.toFixed(2)} — downtrend forming, monitoring`;
+    } else {
+      // Genuinely ambiguous — sideways
+      marketRegime = "SIDEWAYS";
+      blockEntry = true;
+      suggestExit = true;
+      confidence = 60;
+      reason = `Ambiguous: EMA spread ${emaSpreadPct.toFixed(2)}%, ROC ${roc.toFixed(2)}, EMA5 slope ${ema5Slope.toFixed(2)}% — no clear momentum`;
+    }
+  }
+
+  addAiLog(`[ai-guard:local-v3] ${symbol}: ${marketRegime} (${confidence}%) — ${reason}`);
+
+  return {
+    marketRegime,
+    blockEntry,
+    suggestExit,
+    confidence,
+    reason,
+    ruleBreakdown: breakdown,
+  };
+}
+
 export async function analyzeMarketRegime(
   symbol: string,
   candles: any[],
@@ -1089,6 +1288,11 @@ export async function analyzeMarketRegime(
   // Local rule engine V2 (Choppy & Spike Guard) — no API call needed
   if (settings.provider === "local_v2") {
     return Promise.resolve(analyzeMarketRegimeLocalV2(symbol, candles, tradeContext));
+  }
+
+  // Local rule engine V3 (Swift Trend Sniper) — no API call needed
+  if (settings.provider === "local_v3") {
+    return Promise.resolve(analyzeMarketRegimeLocalV3(symbol, candles, tradeContext));
   }
 
   const candleCount = settings.candlesCount || 120;

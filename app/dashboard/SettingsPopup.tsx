@@ -301,7 +301,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   }, [aiApiKey, aiProvider, aiModel]);
 
   useEffect(() => {
-    if (aiProvider === "local" || aiProvider === "local_v2") {
+    if (aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3") {
       setAiTestStatus("idle");
       return;
     }
@@ -765,7 +765,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
               </div>
 
               <div className="text-xs mb-3 font-semibold" style={{ color: aiGuardEnabled ? "var(--theme-status-success)" : "var(--theme-popup-label)" }}>
-                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2") ? `Active — ${aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
+                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3") ? `Active — ${aiProvider === "local_v3" ? "Swift Trend Sniper" : aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
               </div>
 
               {aiGuardEnabled && (
@@ -1046,7 +1046,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                           </div>
                         )}
                       </div>
-                      {aiProvider !== "local" && aiProvider !== "local_v2" && (
+                      {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && (
                         <a
                           href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
                           target="_blank"
@@ -1072,6 +1072,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     >
                       <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V1 (Rule Engine)</option>
                       <option value="local_v2" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V2 (Choppy & Spike Guard)</option>
+                      <option value="local_v3" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V3 (Swift Trend Sniper)</option>
                       <option value="groq" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Groq (free)</option>
                       <option value="claude" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 3.5 (paid)</option>
                     </select>
@@ -1102,7 +1103,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   )}
 
                   {/* API Key input */}
-                  {aiProvider !== "local" && aiProvider !== "local_v2" && (
+                  {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && (
                   <div>
                     <div className="relative flex items-center gap-1.5 mb-1.5">
                       <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>AI API Keys</label>
@@ -1272,7 +1273,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 {tempStatus === "testing" ? (
                   <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
                 ) : (
-                  <><FlaskConical className="w-3.5 h-3.5" /> {(aiProvider === "local" || aiProvider === "local_v2") ? "Analyze" : "Send to AI"}</>
+                  <><FlaskConical className="w-3.5 h-3.5" /> {(aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3") ? "Analyze" : "Send to AI"}</>
                 )}
               </button>
 
