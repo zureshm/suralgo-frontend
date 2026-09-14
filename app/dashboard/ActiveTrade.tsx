@@ -16,21 +16,8 @@ function TradeLogsConsole({ logs }: { logs: string[] }) {
 
   useEffect(() => {
     const container = containerRef.current;
-    if (logs.length > prevLogsLengthRef.current) {
-      // Log new broker-related entries to browser console
-      const newLogs = logs.slice(prevLogsLengthRef.current);
-      for (const line of newLogs) {
-        if (line.includes("[BROKER]")) {
-          if (line.includes("SUCCESS")) {
-            console.log(`%c${line}`, "color: #22c55e; font-weight: bold;");
-          } else if (line.includes("FAILED") || line.includes("ERROR")) {
-            console.error(`%c${line}`, "color: #ef4444; font-weight: bold;");
-          } else {
-            console.log(line);
-          }
-        }
-      }
-      if (container) container.scrollTop = container.scrollHeight;
+    if (container && logs.length > prevLogsLengthRef.current) {
+      container.scrollTop = container.scrollHeight;
     }
     prevLogsLengthRef.current = logs.length;
   }, [logs]);
@@ -41,10 +28,6 @@ function TradeLogsConsole({ logs }: { logs: string[] }) {
         <div
           key={i}
           className={styles.logLine}
-          style={line.includes("[BROKER]") ? {
-            fontWeight: "bold",
-            color: line.includes("SUCCESS") ? "#22c55e" : line.includes("FAILED") || line.includes("ERROR") ? "#ef4444" : undefined,
-          } : undefined}
           dangerouslySetInnerHTML={{
             __html: line
               .replace(
@@ -112,17 +95,22 @@ export default function ActiveTrade({
   }, [waitingTrades]);
 
   // Stable "now" timestamp updated every second while any symbol is loading.
-  // Stored in state to avoid calling Date.now() during render (React Compiler impure-function).
+  // Used during render to avoid calling Date.now() directly (impure function).
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
-    const ticker = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(ticker);
-  }, []);
+    const hasLoading = waitingTrades.some((t) => !initializedSymbols.has(t.symbol));
+    if (!hasLoading) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [waitingTrades, initializedSymbols]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
+
+  const safeActiveTrades = mounted ? activeTrades : [];
+  const safeWaitingTrades = mounted ? waitingTrades : [];
 
   // AI regime badge — shared by waiting and active trades (only when symbol AI is enabled)
   const renderAiRegimeBadge = (symbol: string, marginLeft = 6) => {
@@ -130,8 +118,12 @@ export default function ActiveTrade({
     const r = aiRegime[symbol];
     if (!r) return <span style={{ marginLeft, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>ANALYZING</span>;
     const ru = r.regime.toUpperCase();
-    const color = (ru.includes("UP") || ru.includes("BULL")) ? "#22c55e" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "#a855f7" : (ru === "CHOPPY" || ru === "CHOP") ? "#ec4899" : ru === "TRADEABLE" ? "#06b6d4" : "#ef4444";
-    const label = (ru.includes("UP") || ru.includes("BULL")) ? "UPWARDS" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "SIDEWAYS" : (ru === "CHOPPY" || ru === "CHOP") ? "CHOPPY" : ru === "TRADEABLE" ? "TRADEABLE" : "DOWNWARDS";
+    if (ru === "UNKNOWN") return <span style={{ marginLeft, background: "#f59e0b", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>ERROR</span>;
+    let label = "SIDEWAYS", color = "#a855f7";
+    if (ru.includes("UP") || ru.includes("BULL")) { label = "UPWARDS"; color = "#22c55e"; }
+    else if (ru.includes("DOWN") || ru.includes("BEAR")) { label = "DOWNWARDS"; color = "#ef4444"; }
+    else if (ru === "CHOPPY" || ru === "CHOP") { label = "CHOPPY"; color = "#ec4899"; }
+    else if (ru === "TRADEABLE") { label = "TRADEABLE"; color = "#06b6d4"; }
     return <span style={{ marginLeft, background: color, color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>{label}</span>;
   };
 
@@ -159,9 +151,6 @@ export default function ActiveTrade({
       </button>
     );
   };
-
-  const safeActiveTrades = mounted ? activeTrades : [];
-  const safeWaitingTrades = mounted ? waitingTrades : [];
 
   return (
     <Card className="w-full">
@@ -216,10 +205,10 @@ export default function ActiveTrade({
                 </div>
               </div>
 
-              {/* Price + Exit row — toggle left, price/exit right-aligned */}
+              {/* Price + Exit row — toggle absolutely positioned left, price/exit right-aligned */}
               <div style={{ display: "flex", justifyContent: aiGuardActive ? "space-between" : "flex-end", alignItems: "center", marginTop: "2px", marginBottom: "4px" }}>
                 {renderAiToggle(t.symbol)}
-                <div className={styles.tradeRight}>
+                <div className={styles.tradeRight} style={!aiGuardActive ? { position: "relative", marginBottom: -32, bottom: 32 } : undefined}>
                   {(() => {
                     const ltp = activeLtps[t.symbol];
                     const entry = Number(t.entryPrice);
@@ -353,7 +342,7 @@ export default function ActiveTrade({
                         type="button"
                         style={{ padding: "2px 8px", fontSize: "11px" }}
                         onClick={() => {
-                          fetch("/next-api/ai/dismiss", {
+                          fetch(`/next-api/ai/dismiss`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ symbol: t.symbol }),
@@ -442,13 +431,13 @@ export default function ActiveTrade({
                           bottom: 6,
                           right: 26,
                           width: 32,
-                          height: 32,
+                            height: 32,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                           borderRadius: 6,
                           border: "1px solid rgba(245,158,11,0.4)",
-                          background: "rgba(245,158,11,0.15)",
+                            background: "rgba(245,158,11,0.15)",
                           color: "#f59e0b",
                           cursor: "pointer",
                           zIndex: 1,
@@ -607,10 +596,12 @@ export default function ActiveTrade({
             });
           })()}
 
-          {/* waiting trades — only initialized symbols shown here */}
+          {/* Ready waiting trades — only shown after strategy engine confirms */}
           {mounted &&
             isHydrated &&
-            safeWaitingTrades.filter((t) => initializedSymbols.has(t.symbol)).map((t: WaitingTrade, index: number) => (
+            safeWaitingTrades
+              .filter((t) => initializedSymbols.has(t.symbol))
+              .map((t: WaitingTrade, index: number) => (
               <div key={index} className={styles.trade}>
                 <div className={styles.tradeRow}>
                   <div className={styles.tradeSymbol}>
