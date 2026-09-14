@@ -131,8 +131,8 @@ export default function ActiveTrade({
     const r = aiRegime[symbol];
     if (!r) return <span style={{ marginLeft, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>ANALYZING</span>;
     const ru = r.regime.toUpperCase();
-    const color = (ru.includes("UP") || ru.includes("BULL")) ? "#22c55e" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "#a855f7" : "#ef4444";
-    const label = (ru.includes("UP") || ru.includes("BULL")) ? "UPWARDS" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "SIDEWAYS" : "DOWNWARDS";
+    const color = (ru.includes("UP") || ru.includes("BULL")) ? "#22c55e" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "#a855f7" : (ru === "CHOPPY" || ru === "CHOP") ? "#ec4899" : ru === "TRADEABLE" ? "#06b6d4" : "#ef4444";
+    const label = (ru.includes("UP") || ru.includes("BULL")) ? "UPWARDS" : (ru.includes("SIDE") || ru.includes("RANGE")) ? "SIDEWAYS" : (ru === "CHOPPY" || ru === "CHOP") ? "CHOPPY" : ru === "TRADEABLE" ? "TRADEABLE" : "DOWNWARDS";
     return <span style={{ marginLeft, background: color, color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>{label}</span>;
   };
 
@@ -333,6 +333,12 @@ export default function ActiveTrade({
                 } else if (ru.includes("DOWN") || ru.includes("BEAR")) {
                   themeColor = "#ef4444"; // DOWNWARDS (Red)
                   label = "AI suggests ending cycle";
+                } else if (ru === "CHOPPY" || ru === "CHOP") {
+                  themeColor = "#ec4899"; // CHOPPY (Pink)
+                  label = "AI suggests CHOPPY — exit";
+                } else if (ru === "TRADEABLE") {
+                  themeColor = "#06b6d4"; // TRADEABLE (Cyan)
+                  label = "AI confirms TRADEABLE";
                 }
 
                 return (
@@ -723,6 +729,12 @@ export default function ActiveTrade({
                   } else if (ru.includes("DOWN") || ru.includes("BEAR")) {
                     themeColor = "#ef4444"; // DOWNWARDS (Red)
                     label = "AI blocked entry (Downwards)";
+                  } else if (ru === "CHOPPY" || ru === "CHOP") {
+                    themeColor = "#ec4899"; // CHOPPY (Pink)
+                    label = "AI blocked entry (Choppy)";
+                  } else if (ru === "TRADEABLE") {
+                    themeColor = "#06b6d4"; // TRADEABLE (Cyan)
+                    label = "AI confirms TRADEABLE";
                   }
 
                   return (

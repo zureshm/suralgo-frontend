@@ -301,7 +301,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   }, [aiApiKey, aiProvider, aiModel]);
 
   useEffect(() => {
-    if (aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3") {
+    if (aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") {
       setAiTestStatus("idle");
       return;
     }
@@ -765,7 +765,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
               </div>
 
               <div className="text-xs mb-3 font-semibold" style={{ color: aiGuardEnabled ? "var(--theme-status-success)" : "var(--theme-popup-label)" }}>
-                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3") ? `Active — ${aiProvider === "local_v3" ? "Swift Trend Sniper" : aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
+                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") ? `Active — ${aiProvider === "local_v4" ? "Chop & Trade Guard" : aiProvider === "local_v3" ? "Swift Trend Sniper" : aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
               </div>
 
               {aiGuardEnabled && (
@@ -1046,7 +1046,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                           </div>
                         )}
                       </div>
-                      {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && (
+                      {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                         <a
                           href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
                           target="_blank"
@@ -1073,6 +1073,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V1 (Rule Engine)</option>
                       <option value="local_v2" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V2 (Choppy & Spike Guard)</option>
                       <option value="local_v3" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V3 (Swift Trend Sniper)</option>
+                      <option value="local_v4" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V4 (Chop & Trade Guard)</option>
                       <option value="groq" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Groq (free)</option>
                       <option value="claude" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 3.5 (paid)</option>
                     </select>
@@ -1103,7 +1104,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   )}
 
                   {/* API Key input */}
-                  {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && (
+                  {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                   <div>
                     <div className="relative flex items-center gap-1.5 mb-1.5">
                       <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>AI API Keys</label>
@@ -1273,7 +1274,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 {tempStatus === "testing" ? (
                   <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
                 ) : (
-                  <><FlaskConical className="w-3.5 h-3.5" /> {(aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3") ? "Analyze" : "Send to AI"}</>
+                  <><FlaskConical className="w-3.5 h-3.5" /> {(aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") ? "Analyze" : "Send to AI"}</>
                 )}
               </button>
 
@@ -1291,7 +1292,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     <div className="p-3 rounded-lg" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.2)" }}>
                       <div className="text-xs font-bold mb-2" style={{ color: "#a855f7" }}>AI Response</div>
                       <div className="space-y-1 text-xs" style={{ color: "var(--theme-popup-text)" }}>
-                        <div><span style={{ color: "var(--theme-popup-label)" }}>Regime:</span> <span style={{ fontWeight: 600, color: tempResult.parsed.marketRegime === "UPWARDS" ? "#22c55e" : tempResult.parsed.marketRegime === "SIDEWAYS" ? "#f59e0b" : "#ef4444" }}>{tempResult.parsed.marketRegime}</span></div>
+                        <div><span style={{ color: "var(--theme-popup-label)" }}>Regime:</span> <span style={{ fontWeight: 600, color: tempResult.parsed.marketRegime === "UPWARDS" ? "#22c55e" : tempResult.parsed.marketRegime === "SIDEWAYS" ? "#f59e0b" : (tempResult.parsed.marketRegime === "CHOPPY" || tempResult.parsed.marketRegime === "CHOP") ? "#ec4899" : tempResult.parsed.marketRegime === "TRADEABLE" ? "#06b6d4" : "#ef4444" }}>{tempResult.parsed.marketRegime}</span></div>
                         <div><span style={{ color: "var(--theme-popup-label)" }}>Block Entry:</span> {String(tempResult.parsed.blockEntry)}</div>
                         <div><span style={{ color: "var(--theme-popup-label)" }}>Suggest Exit:</span> {String(tempResult.parsed.suggestExit)}</div>
                         <div><span style={{ color: "var(--theme-popup-label)" }}>Confidence:</span> <span style={{ fontWeight: 600 }}>{tempResult.parsed.confidence}%</span></div>
