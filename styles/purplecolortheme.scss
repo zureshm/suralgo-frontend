@@ -362,7 +362,9 @@
 /* ============================================ */
 
 [data-theme="purple"] button:has(svg.lucide-zap),
-[data-theme="purple"] [class*="waitingActions"] button[class*="dark"] {
+[data-theme="purple"] [class*="waitingActions"] button[class*="dark"],
+[data-theme="purple"] [class*="tradeRight"] button[class*="dark"],
+[data-theme="purple"] [class*="bannerActions"] button[class*="dark"] {
   background: #9f1239 !important; /* Ruby Crimson Red */
   color: #ffffff !important;
   border: 1px solid #be123c !important;
@@ -595,6 +597,34 @@
   color: #fef3c7 !important;
   font-weight: 500 !important;
   opacity: 0.92 !important;
+}
+
+/* AI Toggle Overrides for Purple Theme */
+[data-theme="purple"] [class*="aiToggle"] {
+  color: #c4b5fd !important;
+  &[class*="enabled"] {
+    color: #fcd34d !important;
+  }
+}
+
+[data-theme="purple"] [class*="aiToggleTrack"] {
+  width: 28px !important;
+  height: 16px !important;
+  border-radius: 8px !important;
+  background: #3f2177 !important;
+  [class*="enabled"] & {
+    background: #fcd34d !important;
+    box-shadow: 0 0 8px rgba(252, 211, 77, 0.4) !important;
+  }
+}
+
+[data-theme="purple"] [class*="aiToggleThumb"] {
+  width: 12px !important;
+  height: 12px !important;
+  background: #ffffff !important;
+  [class*="enabled"] & {
+    left: 14px !important;
+  }
 }
 
 [data-theme="purple"] [class*="historyDetails"] {
