@@ -182,3 +182,67 @@
   border-top: 1px solid var(--theme-border-subtle-very);
   text-align: center;
 }
+
+.pendingBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--theme-card-white);
+  border: 1px solid var(--theme-border-light);
+  margin-bottom: 12px;
+}
+
+.loadingBarContainer {
+  position: relative;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--theme-border-subtle);
+}
+
+.loadingBar {
+  height: 100%;
+  background: var(--theme-btn-primary);
+  opacity: 0.8;
+  transition: width 0.3s linear;
+}
+
+.loadingText {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.bannerBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bannerSymbol {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bannerActions {
+  display: flex;
+  gap: 8px;
+}

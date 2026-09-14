@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
@@ -76,7 +75,6 @@ type Props = {
   waitingTrades: WaitingTrade[];
   activeLtps: Record<string, number>;
   isHydrated: boolean;
-  strategyLastCandleTime?: string;
   onManualExit: (symbol: string, exitPrice: string, pnl: number, lastCandleTime: string) => void;
   onCancelWaiting: (symbol: string) => void;
 };
@@ -86,7 +84,6 @@ export default function ActiveTrade({
   waitingTrades,
   activeLtps,
   isHydrated,
-  strategyLastCandleTime,
   onManualExit,
   onCancelWaiting,
 }: Props) {
@@ -103,6 +100,7 @@ export default function ActiveTrade({
 
   // Register add-time for new symbols; clean up removed ones
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAddedAtMap((prev) => {
       const now = Date.now();
       const next: Record<string, number> = {};
@@ -122,6 +120,7 @@ export default function ActiveTrade({
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -511,111 +510,125 @@ export default function ActiveTrade({
               const errorMessage = "History fetch failed (0 candles). Strategy may not work correctly without history. Remove and re-add, or keep with limited accuracy.";
 
               return showError ? (
-                <div key={`pending-${t.symbol}`} style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "8px 10px", borderRadius: "6px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", marginBottom: "6px" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-                    <AlertTriangle className="w-4 h-4" style={{ color: "#f59e0b", flexShrink: 0, marginTop: "1px" }} />
-                    <div style={{ flex: 1, fontSize: "12px", lineHeight: "16px" }}>
-                      <span style={{ fontWeight: 600, color: "#f59e0b" }}>{t.symbol}</span>
-                      <span style={{ color: "var(--theme-text-gray-500)", marginLeft: "6px" }}>— {errorMessage}</span>
-                    </div>
+                <div key={`pending-${t.symbol}`} className={styles.pendingBanner} style={{ borderColor: "rgba(245,158,11,0.25)", background: "rgba(245,158,11,0.04)" }}>
+                  <div className={styles.loadingBarContainer} style={{ background: "rgba(245,158,11,0.1)", borderColor: "rgba(245,158,11,0.2)" }}>
+                    <div className={styles.loadingBar} style={{ width: "100%", background: "#f59e0b", opacity: 0.6 }} />
+                    <span className={styles.loadingText} style={{ color: "#fef3c7" }}>
+                      <AlertTriangle className="w-3 h-3 inline mr-1" />
+                      {errorMessage}
+                    </span>
                   </div>
-                  <div style={{ display: "flex", gap: "6px", marginLeft: "26px" }}>
-                    <button
-                      className={`${styles.waitingBtn} ${styles.danger}`}
-                      type="button"
-                      style={{ padding: "2px 8px", fontSize: "11px" }}
-                      onClick={() => {
-                        fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
-                        onCancelWaiting(t.symbol);
-                      }}
-                    >
-                      <XCircle className="w-3 h-3" />
-                      Remove
-                    </button>
-                    {historyFailed && (
+                  <div className={styles.bannerBottom}>
+                    <span className={styles.bannerSymbol} style={{ color: "#f59e0b" }}>
+                      {t.symbol}
+                      {t.symbol.endsWith("CE") && (
+                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                          <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
+                        </span>
+                      )}
+                      {t.symbol.endsWith("PE") && (
+                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                          <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
+                        </span>
+                      )}
+                    </span>
+                    <div className={styles.bannerActions}>
                       <button
-                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        className={`${styles.waitingBtn} ${styles.danger}`}
                         type="button"
                         style={{ padding: "2px 8px", fontSize: "11px" }}
                         onClick={() => {
-                          // Force symbol into initialized set — user accepts limited accuracy
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                          onCancelWaiting(t.symbol);
+                        }}
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Remove
+                      </button>
+                      {historyFailed && (
+                        <button
+                          className={`${styles.waitingBtn} ${styles.dark}`}
+                          type="button"
+                          style={{ padding: "2px 8px", fontSize: "11px" }}
+                          onClick={() => {
+                            fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
+                          }}
+                        >
+                          Keep anyway
+                        </button>
+                      )}
+                      <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        title="Force Init — skip history and mark as ready"
+                        style={{ padding: "2px 6px", fontSize: "11px", background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}
+                        onClick={() => {
                           fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
                         }}
                       >
-                        Keep anyway
+                        <Play className="w-3 h-3" />
+                        Force&nbsp;Init
                       </button>
-                    )}
-                    <button
-                      className={`${styles.waitingBtn} ${styles.dark}`}
-                      type="button"
-                      title="Force Init — skip history and mark as ready"
-                      style={{ padding: "2px 6px", fontSize: "11px", background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}
-                      onClick={() => {
-                        fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
-                      }}
-                    >
-                      <Play className="w-3 h-3" />
-                      Force&nbsp;Init
-                    </button>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div key={`pending-${t.symbol}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", borderRadius: "6px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "12px", fontWeight: 500, flexShrink: 0 }}>{t.symbol}
-                    {t.symbol.endsWith("CE") && (
-                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
-                      </span>
-                    )}
-                    {t.symbol.endsWith("PE") && (
-                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
-                      </span>
-                    )}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "11px", color: "var(--theme-text-gray-500)", marginBottom: "4px" }}>
-                      {historyFailed ? "Retrying history fetch..." : "Initializing strategy engine..."}
-                    </div>
-                    <div style={{ height: 3, borderRadius: 2, background: "rgba(99,102,241,0.15)", overflow: "hidden" }}>
-                      <div style={{
-                        height: "100%",
-                        borderRadius: 2,
-                        background: "#6366f1",
-                        width: `${(() => {
-                          const cycleMs = historyFailed ? 30000 : 5000;
-                          const elapsed = nowMs - (addedAtMap[t.symbol] ?? nowMs);
-                          const cycleProgress = (elapsed % cycleMs) / cycleMs;
-                          return Math.min(cycleProgress * 100, 100);
-                        })()}%`,
-                        transition: "width 0.3s linear",
-                      }} />
+                <div key={`pending-${t.symbol}`} className={styles.pendingBanner}>
+                  <div className={styles.loadingBarContainer}>
+                    <div className={styles.loadingBar} style={{ 
+                      width: `${(() => {
+                        const cycleMs = 5000;
+                        const elapsed = nowMs - (addedAtMap[t.symbol] ?? nowMs);
+                        const cycleProgress = (elapsed % cycleMs) / cycleMs;
+                        return Math.min(cycleProgress * 100, 100);
+                      })()}%`,
+                      background: "var(--theme-status-waiting)"
+                    }} />
+                    <span className={styles.loadingText}>
+                      {historyFailed ? "RETRYING HISTORY FETCH..." : "INITIALIZING STRATEGY ENGINE..."}
+                    </span>
+                  </div>
+                  <div className={styles.bannerBottom}>
+                    <span className={styles.bannerSymbol}>
+                      {t.symbol}
+                      {t.symbol.endsWith("CE") && (
+                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                          <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
+                        </span>
+                      )}
+                      {t.symbol.endsWith("PE") && (
+                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
+                          <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
+                        </span>
+                      )}
+                    </span>
+                    <div className={styles.bannerActions}>
+                      <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        title="Force Init — skip history and mark as ready"
+                        style={{ padding: "2px 6px", fontSize: "11px" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
+                        }}
+                      >
+                        <Play className="w-3 h-3" />
+                        Force&nbsp;Init
+                      </button>
+                      <button
+                        className={`${styles.waitingBtn} ${styles.danger}`}
+                        type="button"
+                        style={{ padding: "2px 8px", fontSize: "11px" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                          onCancelWaiting(t.symbol);
+                        }}
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Cancel
+                      </button>
                     </div>
                   </div>
-                  <button
-                    className={`${styles.waitingBtn} ${styles.dark}`}
-                    type="button"
-                    title="Force Init — skip history and mark as ready"
-                    style={{ flexShrink: 0, padding: "2px 6px", fontSize: "11px", background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}
-                    onClick={() => {
-                      fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
-                    }}
-                  >
-                    <Play className="w-3 h-3" />
-                    Force&nbsp;Init
-                  </button>
-                  <button
-                    className={`${styles.waitingBtn} ${styles.danger}`}
-                    type="button"
-                    style={{ flexShrink: 0, padding: "2px 8px", fontSize: "11px" }}
-                    onClick={() => {
-                      fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
-                      onCancelWaiting(t.symbol);
-                    }}
-                  >
-                    <XCircle className="w-3 h-3" />
-                    Cancel
-                  </button>
                 </div>
               );
             });

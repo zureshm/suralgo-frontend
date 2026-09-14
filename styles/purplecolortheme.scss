@@ -477,33 +477,41 @@
 /* ============================================ */
 
 /* Pending Banner Container */
-[data-theme="purple"] div[style*="rgba(99,102,241,0.06)"],
-[data-theme="purple"] div[style*="rgba(99, 102, 241, 0.06)"] {
+[data-theme="purple"] [class*="pendingBanner"] {
   background: #170d2b !important;
   border: 1px solid #4a2182 !important;
   border-radius: 8px !important;
-  padding: 8px 12px !important;
+  padding: 10px 12px !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* Symbol font: Soft Lavender Cream */
-[data-theme="purple"] div[style*="rgba(99,102,241,0.06)"] > span:first-child,
-[data-theme="purple"] div[style*="rgba(99, 102, 241, 0.06)"] > span:first-child {
+[data-theme="purple"] [class*="bannerSymbol"] {
   color: #ede9fe !important;
   font-weight: 700 !important;
   font-size: 13px !important;
 }
 
-/* "Initializing strategy engine..." text: Luminous Lite Purple */
-[data-theme="purple"] div[style*="rgba(99,102,241,0.06)"] div[style*="color: var(--theme-text-gray-500)"],
-[data-theme="purple"] div[style*="rgba(99, 102, 241, 0.06)"] div[style*="color: var(--theme-text-gray-500)"] {
-  color: #c4b5fd !important;
-  font-weight: 600 !important;
+/* Progress bar inside pending banner */
+[data-theme="purple"] [class*="loadingBarContainer"] {
+  background: rgba(0, 0, 0, 0.4) !important;
+  border: 1.5px solid rgba(147, 51, 234, 0.3) !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+  height: 22px !important;
 }
 
-/* Progress bar inside pending banner */
-[data-theme="purple"] div[style*="background: rgb(99, 102, 241)"],
-[data-theme="purple"] div[style*="background: #6366f1"] {
-  background: #fcd34d !important;
+[data-theme="purple"] [class*="loadingBar"] {
+  background: linear-gradient(90deg, #9333ea, #c4b5fd) !important;
+  box-shadow: 0 0 10px rgba(147, 51, 234, 0.4) !important;
+}
+
+[data-theme="purple"] [class*="loadingText"] {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+  letter-spacing: 1px !important;
+  font-size: 10px !important;
 }
 
 /* =================================================================== */
