@@ -152,34 +152,36 @@ export default function ActiveTrade({
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: "4px",
+          gap: "6px",
           cursor: "pointer",
           border: "none",
           background: "transparent",
           padding: 0,
           fontSize: 10,
-          fontWeight: 600,
-          color: enabled ? "var(--theme-popup-border)" : "#6b7280",
+          fontWeight: 700,
+          color: enabled ? "var(--theme-toggle-on)" : "var(--theme-text-gray-400)",
         }}
         aria-label={enabled ? "AI Guard ON — click to disable" : "AI Guard OFF — click to enable"}
       >
         <span style={{
           position: "relative",
-          width: 24,
-          height: 14,
-          borderRadius: 7,
-          background: enabled ? "var(--theme-popup-border)" : "#ccc",
-          transition: "background 0.15s",
+          width: 28,
+          height: 16,
+          borderRadius: 8,
+          background: enabled ? "var(--theme-toggle-on)" : "var(--theme-toggle-off)",
+          transition: "all 0.2s ease",
+          boxShadow: enabled ? "0 0 8px rgba(252, 211, 77, 0.4)" : "none",
         }}>
           <span style={{
             position: "absolute",
             top: 2,
-            left: enabled ? 12 : 2,
-            width: 10,
-            height: 10,
+            left: enabled ? 14 : 2,
+            width: 12,
+            height: 12,
             borderRadius: "50%",
-            background: "#fff",
-            transition: "left 0.15s",
+            background: "var(--theme-toggle-dot)",
+            transition: "left 0.2s ease",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.4)",
           }} />
         </span>
         AI

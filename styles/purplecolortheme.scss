@@ -186,7 +186,8 @@
   
   /* Accents & Toggles */
   --theme-toggle-on: #fcd34d;
-  --theme-toggle-off: #2f1454;
+  --theme-toggle-off: #3f2177;
+  --theme-toggle-dot: #ffffff;
   --theme-accent-gold: #fcd34d;
   --theme-accent-pink: #f472b6;
   
@@ -599,6 +600,68 @@
 [data-theme="purple"] [class*="historyDetails"] {
   color: #fbbf24 !important;
   font-weight: 600 !important;
+}
+
+/* Trade Page Summary Card */
+[data-theme="purple"] .trade-summary-card {
+  background: var(--theme-trade-summary-bg) !important;
+  border: 1.5px solid var(--theme-trade-summary-border) !important;
+  color: #ede9fe !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="purple"] .trade-summary-card span,
+[data-theme="purple"] .trade-summary-card label {
+  color: #ede9fe !important;
+}
+
+[data-theme="purple"] .trade-summary-card .text-gray-600,
+[data-theme="purple"] .trade-summary-card div[style*="color"] {
+  color: #c4b5fd !important;
+}
+
+[data-theme="purple"] .trade-summary-card .font-bold {
+  color: #fcd34d !important;
+}
+
+[data-theme="purple"] .trade-summary-card.bg-red-50 {
+  background: rgba(159, 18, 57, 0.15) !important;
+  border-color: #be123c !important;
+}
+
+[data-theme="purple"] .trade-summary-card .text-red-600 {
+  color: #fda4af !important;
+  font-weight: 700 !important;
+}
+
+/* Global status text colors for Purple Theme */
+[data-theme="purple"] .text-green-600 {
+  color: #34d399 !important;
+}
+
+[data-theme="purple"] .text-red-600:not(.trade-summary-card *) {
+  color: #fb7185 !important;
+}
+
+/* Trade Page Buttons */
+[data-theme="purple"] .trade-enter-btn,
+[data-theme="purple"] [data-slot="trade-enter-btn"] {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  border: 1px solid #a855f7 !important;
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.4) !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="purple"] .trade-enter-btn:hover {
+  background: #9333ea !important;
+}
+
+[data-theme="purple"] button[data-variant="outline"]:not(.trade-enter-btn *) {
+  background: rgba(24, 13, 44, 0.5) !important;
+  color: #ede9fe !important;
+  border: 1px solid #4a2182 !important;
 }
 
 /* ============================================ */
