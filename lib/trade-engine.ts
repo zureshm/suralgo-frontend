@@ -1955,7 +1955,7 @@ function handleStrategySignal(signal: any) {
         // Exit Guard — suggest or auto-execute exit
         if (result.suggestExit && activeTrade && activeTrade.inPosition) {
           if (settings.autoExitEnabled) {
-            // SIDEWAYS/CHOP require 2-candle confirmation before exiting; DOWNWARDS/REVERSING exit immediately
+            // SIDEWAYS/CHOPPY require 2-candle confirmation before exiting; DOWNWARDS/REVERSING exit immediately
             if (result.marketRegime === "SIDEWAYS" || result.marketRegime === "CHOPPY") {
               if (!pendingSidewaysExits[signalSymbol]) {
                 // First sideways candle — wait for confirmation
