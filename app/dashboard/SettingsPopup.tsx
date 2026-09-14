@@ -765,7 +765,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
               </div>
 
               <div className="text-xs mb-3 font-semibold" style={{ color: aiGuardEnabled ? "var(--theme-status-success)" : "var(--theme-popup-label)" }}>
-                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") ? `Active — ${aiProvider === "local_v4" ? "Chop & Trade Guard" : aiProvider === "local_v3" ? "Swift Trend Sniper" : aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
+                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") ? `Active — ${aiProvider === "local_v4" ? "Choppy Filter" : aiProvider === "local_v3" ? "Swift Trend Sniper" : aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
               </div>
 
               {aiGuardEnabled && (
@@ -1073,7 +1073,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V1 (Rule Engine)</option>
                       <option value="local_v2" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V2 (Choppy & Spike Guard)</option>
                       <option value="local_v3" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V3 (Swift Trend Sniper)</option>
-                      <option value="local_v4" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V4 (Chop & Trade Guard)</option>
+                      <option value="local_v4" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V4 (Choppy Filter)</option>
                       <option value="groq" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Groq (free)</option>
                       <option value="claude" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 3.5 (paid)</option>
                     </select>

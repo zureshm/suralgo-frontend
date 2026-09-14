@@ -1215,7 +1215,7 @@ export function analyzeMarketRegimeLocalV3(
 
   // S2: Tangled EMA 5/13 Spread (< 0.08% flat or >= 3 crosses)
   const s2Triggered = Math.abs(emaSpreadPct) < 0.08 || emaCrosses10 >= 3;
-  if (s2Triggered) sidewaysScore += 3;
+  if (s2Triggered) sidewaysScore += 2;
   breakdown.push({ name: "EMA Tangled / Crosses", value: `Spread: ${emaSpreadPct.toFixed(2)}% | Crosses: ${emaCrosses10}/10 bars`, triggered: s2Triggered });
 
   // S3: Heikin-Ashi Indecision / Color Flips (bilateral > 35% or >= 3 flips)
@@ -1323,7 +1323,7 @@ export function analyzeMarketRegimeLocalV3(
   };
 }
 
-// ── Local Rule Engine V4 (Chop & Trade Guard) ──
+// ── Local Rule Engine V4 (Choppy Filter) ──
 // Direction-agnostic: only answers "tradeable or chop?", never UP/DOWN.
 // Short 8-10 bar lookbacks — faster than V3. No UT bot logic.
 
@@ -1572,7 +1572,7 @@ export async function analyzeMarketRegime(
     return Promise.resolve(analyzeMarketRegimeLocalV3(symbol, candles, tradeContext));
   }
 
-  // Local rule engine V4 (Chop & Trade Guard) — no API call needed
+  // Local rule engine V4 (Choppy Filter) — no API call needed
   if (settings.provider === "local_v4") {
     return Promise.resolve(analyzeMarketRegimeLocalV4(symbol, candles, tradeContext));
   }

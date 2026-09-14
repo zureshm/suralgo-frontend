@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Local rule engine V4 (Chop & Trade Guard) — no API key or fetch needed
+    // Local rule engine V4 (Choppy Filter) — no API key or fetch needed
     if (provider === "local_v4") {
       const result = analyzeMarketRegimeLocalV4(displaySymbol, candles);
       return NextResponse.json({
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
           rangeLow: result.rangeLow,
         },
         ruleBreakdown: result.ruleBreakdown || [],
-        model: "Local V4 (Chop & Trade Guard)",
+        model: "Local V4 (Choppy Filter)",
       });
     }
 
