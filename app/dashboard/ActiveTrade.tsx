@@ -505,7 +505,7 @@ export default function ActiveTrade({
                         }}
                       >
                         <XCircle className="w-3 h-3" />
-                        <span className={styles.hideMobile}>Remove</span>
+                        <span>Remove</span>
                       </button>
                       {historyFailed && (
                         <button
@@ -516,7 +516,7 @@ export default function ActiveTrade({
                             fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
                           }}
                         >
-                          <span className={styles.hideMobile}>Keep anyway</span>
+                          <span>Keep anyway</span>
                         </button>
                       )}
                       <button
@@ -529,7 +529,7 @@ export default function ActiveTrade({
                         }}
                       >
                         <Play className="w-3 h-3" />
-                        <span className={styles.hideMobile}>Force&nbsp;Init</span>
+                        <span>Force&nbsp;Init</span>
                       </button>
                     </div>
                   </div>
@@ -575,7 +575,7 @@ export default function ActiveTrade({
                         }}
                       >
                         <Play className="w-3 h-3" />
-                        <span className={styles.hideMobile}>Force&nbsp;Init</span>
+                        <span>Force&nbsp;Init</span>
                       </button>
                       <button
                         className={`${styles.waitingBtn} ${styles.danger}`}
@@ -587,7 +587,7 @@ export default function ActiveTrade({
                         }}
                       >
                         <XCircle className="w-3 h-3" />
-                        <span className={styles.hideMobile}>Cancel</span>
+                        <span>Cancel</span>
                       </button>
                     </div>
                   </div>

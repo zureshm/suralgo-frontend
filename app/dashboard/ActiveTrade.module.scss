@@ -222,8 +222,9 @@
 
 .bannerBottom {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .bannerSymbol {
@@ -237,12 +238,6 @@
 .bannerActions {
   display: flex;
   gap: 8px;
-}
-
-.hideMobile {
-  @media (max-width: 420px) {
-    display: none;
-  }
 }
 
 .aiToggle {
