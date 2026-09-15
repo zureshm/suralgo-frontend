@@ -31,6 +31,7 @@ export default function DashboardPage() {
   } = useTradeStore();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsHydrated(true);
   }, []);
 
@@ -78,7 +79,6 @@ export default function DashboardPage() {
           waitingTrades={waitingTrades}
           activeLtps={activeLtps}
           isHydrated={isHydrated}
-          strategyLastCandleTime={undefined}
           onManualExit={logManualExit}
           onCancelWaiting={removeWaitingTrade}
         />
