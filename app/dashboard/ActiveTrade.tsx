@@ -475,10 +475,17 @@ export default function ActiveTrade({
                 <div key={`pending-${t.symbol}`} className={styles.pendingBanner} style={{ borderColor: "rgba(245,158,11,0.25)", background: "rgba(245,158,11,0.04)" }}>
                   <div className={styles.loadingBarContainer} style={{ background: "rgba(245,158,11,0.1)", borderColor: "rgba(245,158,11,0.2)" }}>
                     <div className={styles.loadingBar} style={{ width: "100%", background: "#f59e0b", opacity: 0.6 }} />
-                    <span className={styles.loadingText} style={{ color: "#fef3c7" }}>
-                      <AlertTriangle className="w-3 h-3 inline mr-1" />
-                      {errorMessage}
-                    </span>
+                    <div className={styles.errorContent} style={{ color: "#fef3c7" }}>
+                      <span className={styles.errorIconBox}>
+                        <AlertTriangle className="w-4 h-4" />
+                      </span>
+                      <span className={styles.errorMarquee}>
+                        <span className={styles.errorMarqueeInner}>
+                          <span>{errorMessage}</span>
+                          <span aria-hidden="true">{errorMessage}</span>
+                        </span>
+                      </span>
+                    </div>
                   </div>
                   <div className={styles.bannerBottom}>
                     <span className={styles.bannerSymbol} style={{ color: "#f59e0b" }}>
