@@ -849,6 +849,7 @@ export function analyzeMarketRegimeLocalV2(
   const settings = getAiGuardSettings();
   const candleCount = settings.candlesCount || 120;
   const useHA = settings.useHeikinAshi !== false;
+  const recentCandlesCount = settings.recentCandlesCount || 30;
 
   if (!Array.isArray(candles) || candles.length === 0) {
     return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "No candle data" };
@@ -866,9 +867,9 @@ export function analyzeMarketRegimeLocalV2(
   const opens = rawSlice.map((c) => Number(c.open));
   const lastClose = closes[n - 1];
 
-  // 1. EMA 10 & EMA 30 Calculation
-  const ema10 = calculateEMA(closes, 10);
-  const ema30 = calculateEMA(closes, 30);
+  // 1. EMA 9 & EMA 18 Calculation
+  const ema10 = calculateEMA(closes, 9);
+  const ema30 = calculateEMA(closes, 18);
   const currEma10 = ema10[n - 1];
   const currEma30 = ema30[n - 1];
   const emaSpreadPct = lastClose > 0 ? ((currEma10 - currEma30) / lastClose) * 100 : 0;
@@ -969,8 +970,8 @@ export function analyzeMarketRegimeLocalV2(
   if (r1Triggered) sidewaysScore += 3;
   breakdown.push({ name: "Kaufman Efficiency Ratio", value: `${ker.toFixed(2)} ${ker < 0.24 ? "(Choppy Noise)" : "(Directional)"}`, triggered: r1Triggered });
 
-  // R2: EMA 10/30 Spread (flat/intertwined < 0.06%)
-  const r2Triggered = Math.abs(emaSpreadPct) < 0.06;
+  // R2: EMA 9/18 Spread (flat/intertwined < 0.04%)
+  const r2Triggered = Math.abs(emaSpreadPct) < 0.04;
   if (r2Triggered) sidewaysScore += 3;
   breakdown.push({ name: "EMA 10/30 Spread", value: `${emaSpreadPct >= 0 ? "+" : ""}${emaSpreadPct.toFixed(2)}% ${r2Triggered ? "(Flat/Intertwined)" : "(Separated)"}`, triggered: r2Triggered });
 
@@ -1014,6 +1015,27 @@ export function analyzeMarketRegimeLocalV2(
   if (t4Triggered) trendScore += 2;
   breakdown.push({ name: "Clean HA Momentum", value: t4Triggered ? "Confirmed" : "Not Active", triggered: t4Triggered });
 
+  // R7: Sustained Chop (Recent Window) — broad-window chop the 20-bar view may miss
+  const rcPeriod = Math.min(recentCandlesCount, n);
+  const rcStart = n - rcPeriod;
+  const rcNetDisplacement = Math.abs(closes[n - 1] - closes[rcStart]);
+  let rcTotalPath = 0;
+  for (let i = rcStart + 1; i < n; i++) {
+    rcTotalPath += Math.abs(closes[i] - closes[i - 1]);
+  }
+  const kerRecent = rcTotalPath > 0 ? rcNetDisplacement / rcTotalPath : 0;
+  let rcDirChanges = 0;
+  let rcPrevDir: "up" | "down" | null = null;
+  for (let i = rcStart; i < n; i++) {
+    const d: "up" | "down" = closes[i] >= opens[i] ? "up" : "down";
+    if (rcPrevDir && d !== rcPrevDir) rcDirChanges++;
+    rcPrevDir = d;
+  }
+  const rcDirRatio = rcPeriod > 1 ? (rcDirChanges / (rcPeriod - 1)) * 100 : 0;
+  const r7Triggered = kerRecent < 0.25 && rcDirRatio > 55;
+  if (r7Triggered) sidewaysScore += 2;
+  breakdown.push({ name: `Sustained Chop (${rcPeriod}-bar)`, value: `KER ${kerRecent.toFixed(2)} | Dir changes ${rcDirRatio.toFixed(0)}%`, triggered: r7Triggered });
+
   let marketRegime: string;
   let blockEntry: boolean;
   let suggestExit: boolean;
@@ -1037,6 +1059,8 @@ export function analyzeMarketRegimeLocalV2(
       reason = `Whipsaw chop: price crossed EMA 10 ${emaCrosses} times in 20 bars — moving averages tangled`;
     } else if (r5Triggered) {
       reason = `Heikin-Ashi indecision: ${bilateralRatio.toFixed(0)}% of recent bars have bilateral shadows (spinning tops)`;
+    } else if (r7Triggered) {
+      reason = `Sustained chop: ${rcPeriod}-bar window shows KER ${kerRecent.toFixed(2)} with ${rcDirRatio.toFixed(0)}% direction changes — broader chop pattern`;
     } else {
       reason = `Sideways structure: sideways score ${sidewaysScore} vs trend score ${trendScore} — market compressed in chop`;
     }
