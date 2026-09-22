@@ -38,6 +38,7 @@ export type AiGuardSettings = {
   confidenceThreshold: number;
   candlesCount: number;
   recentCandlesCount: number;
+  entryBufferMaxCandles: number;
   considerVolume: boolean;
   useHeikinAshi: boolean;
   provider: string;
@@ -87,6 +88,7 @@ const DEFAULT_SETTINGS: AiGuardSettings = {
   provider: "local",
   model: "openai/gpt-oss-120b",
   recentCandlesCount: 30,
+  entryBufferMaxCandles: 1,
   considerVolume: false,
   useHeikinAshi: true,
   apiKeys: [],

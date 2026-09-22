@@ -925,7 +925,6 @@ interface PendingBuyBuffer {
   originalSignal: unknown;
 }
 const pendingBuyBuffer: Record<string, PendingBuyBuffer> = {};
-const AI_BUFFER_MAX_CANDLES = 1;
 
 // â”€â”€â”€ Helpers â”€â”€â”€
 
@@ -1922,18 +1921,18 @@ function handleStrategySignal(signal: any) {
           const buffered = pendingBuyBuffer[signalSymbol];
           if (buffered) {
             buffered.candlesElapsed++;
-            if (buffered.candlesElapsed >= AI_BUFFER_MAX_CANDLES) {
+            if (buffered.candlesElapsed >= settings.entryBufferMaxCandles) {
               // Buffer expired â€” AI never confirmed upwards within 5 candles
               delete pendingBuyBuffer[signalSymbol];
-              const expireLog = `BUY buffer expired after ${AI_BUFFER_MAX_CANDLES} candles â€” AI never confirmed upwards at ${now}`;
+              const expireLog = `BUY buffer expired after ${settings.entryBufferMaxCandles} candles â€” AI never confirmed upwards at ${now}`;
               if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, expireLog); }
               else if (activeTrades.find((t) => t.symbol === signalSymbol)) { addLogToActive(signalSymbol, expireLog); }
-              addAiLog(`[ai-guard] BUY buffer expired for ${signalSymbol} after ${AI_BUFFER_MAX_CANDLES} candles`);
+              addAiLog(`[ai-guard] BUY buffer expired for ${signalSymbol} after ${settings.entryBufferMaxCandles} candles`);
             } else {
-              const waitLog = `BUY buffer waiting â€” AI still sideways (${result.reason}, ${result.confidence}%) â€” candle ${buffered.candlesElapsed}/${AI_BUFFER_MAX_CANDLES} at ${now}`;
+              const waitLog = `BUY buffer waiting â€” AI still sideways (${result.reason}, ${result.confidence}%) â€” candle ${buffered.candlesElapsed}/${settings.entryBufferMaxCandles} at ${now}`;
               if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, waitLog); }
               else if (activeTrades.find((t) => t.symbol === signalSymbol)) { addLogToActive(signalSymbol, waitLog); }
-              addAiLog(`[ai-guard] BUY buffer waiting for ${signalSymbol}: candle ${buffered.candlesElapsed}/${AI_BUFFER_MAX_CANDLES}`);
+              addAiLog(`[ai-guard] BUY buffer waiting for ${signalSymbol}: candle ${buffered.candlesElapsed}/${settings.entryBufferMaxCandles}`);
             }
           }
 
@@ -2288,7 +2287,7 @@ function handleStrategySignal(signal: any) {
         candlesElapsed: 0,
         originalSignal: signal,
       };
-      const blockedLog = `BUY buffered by AI Guard â€” ${aiResult.reason} (${aiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${AI_BUFFER_MAX_CANDLES} candles)`;
+      const blockedLog = `BUY buffered by AI Guard â€” ${aiResult.reason} (${aiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${aiSettings.entryBufferMaxCandles} candles)`;
       if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, blockedLog); }
       else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, blockedLog); }
       addAiLog(`[ai-guard] BUY buffered for ${signalSymbol}: ${aiResult.reason} (${aiResult.confidence}%)`);
@@ -2394,7 +2393,7 @@ function handleStrategySignal(signal: any) {
         candlesElapsed: 0,
         originalSignal: signal,
       };
-      const blockedLog = `REENTER buffered by AI Guard â€” ${reAiResult.reason} (${reAiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${AI_BUFFER_MAX_CANDLES} candles)`;
+      const blockedLog = `REENTER buffered by AI Guard â€” ${reAiResult.reason} (${reAiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${reAiSettings.entryBufferMaxCandles} candles)`;
       if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, blockedLog); }
       else { addLogToActive(signalSymbol, blockedLog); }
       addAiLog(`[ai-guard] REENTER buffered for ${signalSymbol}: ${reAiResult.reason} (${reAiResult.confidence}%)`);
@@ -2988,7 +2987,7 @@ export function getEngineState() {
       Object.entries(pendingBuyBuffer).map(([k, v]) => [k, {
         signalType: v.signalType,
         candlesElapsed: v.candlesElapsed,
-        maxCandles: AI_BUFFER_MAX_CANDLES,
+        maxCandles: getAiGuardSettings().entryBufferMaxCandles,
       }])
     ),
 

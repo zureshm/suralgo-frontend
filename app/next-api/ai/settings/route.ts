@@ -20,6 +20,7 @@ export async function POST(request: Request) {
       confidenceThreshold: Number(body.confidenceThreshold) || 70,
       candlesCount: Number(body.candlesCount) || 120,
       recentCandlesCount: Number(body.recentCandlesCount) || 30,
+      entryBufferMaxCandles: Number(body.entryBufferMaxCandles) || 1,
       considerVolume: Boolean(body.considerVolume),
       useHeikinAshi: body.useHeikinAshi !== false,
       provider: String(body.provider || "groq"),
