@@ -154,6 +154,7 @@ export default function TradePage() {
     setMinToHoldTrigger(defaults.minToHoldTrigger);
     setMinToHoldTrailing(defaults.minToHoldTrailing ? "yes" : "no");
     setMinToHoldMode((defaults.minToHoldMode as "live" | "candleClose") || "live");
+    setMinToHoldArmMode((defaults.minToHoldArmMode as "live" | "candleClose") || "live");
     setTrailingAfterTargetEnabled(defaults.trailingAfterTargetEnabled);
     setTrailingAfterTarget(defaults.trailingAfterTarget);
     setTargetMode(defaults.targetMode as "live" | "candleClose");
@@ -210,6 +211,7 @@ export default function TradePage() {
   const [minToHoldTrigger, setMinToHoldTrigger] = useState(2);
   const [minToHoldTrailing, setMinToHoldTrailing] = useState("no");
   const [minToHoldMode, setMinToHoldMode] = useState<"live" | "candleClose">("live");
+  const [minToHoldArmMode, setMinToHoldArmMode] = useState<"live" | "candleClose">("live");
   const [isMinToHoldInfoOpen, setIsMinToHoldInfoOpen] = useState(false);
   const [trailingAfterTargetEnabled, setTrailingAfterTargetEnabled] = useState(false);
   const [trailingAfterTarget, setTrailingAfterTarget] = useState(15);
@@ -346,6 +348,7 @@ export default function TradePage() {
       setMinToHoldTrigger(data.minToHoldTrigger || 2);
       setMinToHoldTrailing(data.minToHoldTrailing === true ? "yes" : "no");
       setMinToHoldMode(data.minToHoldMode === "candleClose" ? "candleClose" : "live");
+      setMinToHoldArmMode(data.minToHoldArmMode === "candleClose" ? "candleClose" : "live");
       setTrailingAfterTargetEnabled(Boolean(data.trailingAfterTargetEnabled ?? false));
       setTrailingAfterTarget(data.trailingAfterTarget || 15);
       setRangeEnabled(Boolean(data.rangeEnabled ?? false));
@@ -408,6 +411,7 @@ export default function TradePage() {
       minToHold,
       minToHoldTrigger,
       minToHoldMode,
+      minToHoldArmMode,
       waitStrategyEnabled,
       buyOverrideSize,
       waitAfterSellEnabled,
@@ -1083,7 +1087,41 @@ export default function TradePage() {
                 </div>
 
                 <div className="flex items-center space-x-4 pl-6 pt-1">
-                  <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Use price:</label>
+                  <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Arming</label>
+                  <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
+                    <input
+                      type="radio"
+                      name="minToHoldArmMode"
+                      value="live"
+                      checked={minToHoldArmMode === "live"}
+                      onChange={(e) => {
+                        const mode = e.target.value as "live" | "candleClose";
+                        setMinToHoldArmMode(mode);
+                      }}
+                      className="h-3 w-3"
+                      disabled={!minToHoldEnabled}
+                    />
+                    <span>LTP</span>
+                  </label>
+                  <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
+                    <input
+                      type="radio"
+                      name="minToHoldArmMode"
+                      value="candleClose"
+                      checked={minToHoldArmMode === "candleClose"}
+                      onChange={(e) => {
+                        const mode = e.target.value as "live" | "candleClose";
+                        setMinToHoldArmMode(mode);
+                      }}
+                      className="h-3 w-3"
+                      disabled={!minToHoldEnabled}
+                    />
+                    <span>Candle close</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center space-x-4 pl-6 pt-1">
+                  <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trigger:</label>
                   <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
                     <input
                       type="radio"
@@ -1587,6 +1625,7 @@ export default function TradePage() {
                         minToHoldTrigger,
                         minToHoldTrailing: minToHoldTrailing === "yes",
                         minToHoldMode,
+                        minToHoldArmMode,
                         trailingAfterTarget,
                         trailingMode,
                         rangeEnabled,
@@ -1659,6 +1698,7 @@ export default function TradePage() {
                         minToHoldTrigger,
                         minToHoldTrailing: minToHoldTrailing === "yes",
                         minToHoldMode,
+                        minToHoldArmMode,
                         trailingAfterTargetEnabled,
                         trailingAfterTarget,
                         rangeEnabled,

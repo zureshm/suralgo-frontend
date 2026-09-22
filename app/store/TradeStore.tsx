@@ -27,6 +27,7 @@ export type WaitingTrade = {
   minToHoldTrigger: number;
   minToHoldTrailing: boolean;
   minToHoldMode?: "live" | "candleClose";
+  minToHoldArmMode?: "live" | "candleClose";
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
   trailingMode: "live" | "candleClose";
@@ -88,6 +89,7 @@ export type ActiveTrade = {
   minToHoldTrigger: number;
   minToHoldTrailing: boolean;
   minToHoldMode?: "live" | "candleClose";
+  minToHoldArmMode?: "live" | "candleClose";
   trailingAfterTargetEnabled: boolean;
   trailingAfterTarget: number;
   trailingMode: "live" | "candleClose";
@@ -174,6 +176,8 @@ export type TradeHistoryItem = {
     minToHold?: number;
     minToHoldEnabled: boolean;
     minToHoldTrigger?: number;
+    minToHoldMode?: "live" | "candleClose";
+    minToHoldArmMode?: "live" | "candleClose";
     sellWhenLossCandlesEnabled?: boolean;
     sellWhenLossCandles?: number;
   };
@@ -192,6 +196,8 @@ type TradeConfigSnapshotSource = {
   minToHoldEnabled: boolean;
   minToHold: number;
   minToHoldTrigger: number;
+  minToHoldMode?: "live" | "candleClose";
+  minToHoldArmMode?: "live" | "candleClose";
   sellWhenLossCandlesEnabled: boolean;
   sellWhenLossCandles: number;
 };
@@ -211,6 +217,8 @@ const buildTradeConfigSnapshot = (
   minToHoldEnabled: Boolean(trade.minToHoldEnabled),
   minToHold: trade.minToHoldEnabled ? trade.minToHold : undefined,
   minToHoldTrigger: trade.minToHoldEnabled ? trade.minToHoldTrigger : undefined,
+  minToHoldMode: trade.minToHoldEnabled ? trade.minToHoldMode : undefined,
+  minToHoldArmMode: trade.minToHoldEnabled ? trade.minToHoldArmMode : undefined,
   sellWhenLossCandlesEnabled: Boolean(trade.sellWhenLossCandlesEnabled),
   sellWhenLossCandles: trade.sellWhenLossCandlesEnabled ? trade.sellWhenLossCandles : undefined,
 });
@@ -291,7 +299,7 @@ type TradeStoreValue = {
 
 const TradeStoreContext = createContext<TradeStoreValue | null>(null);
 
-function readFormField(symbol: string, field: string, fallback: any) {
+function readFormField(symbol: string, field: string, fallback: unknown) {
   try {
     const saved = localStorage.getItem("tradeForm_" + symbol);
     if (!saved) return fallback;
@@ -353,7 +361,7 @@ export function TradeStoreProvider({
     lastStrategyCandleTimeRef.current = time;
   }, []);
 
-  const addWaitingTradeFromSelection = () => {
+  const addWaitingTradeFromSelection = useCallback(() => {
     if (!selection) return;
     const alreadyExists = waitingTrades.some((trade) => trade.symbol === selection.symbol);
 
@@ -377,6 +385,8 @@ export function TradeStoreProvider({
       minToHold: readFormNumber(sym, "minToHold", 8),
       minToHoldTrigger: readFormNumber(sym, "minToHoldTrigger", 2),
       minToHoldTrailing: readFormBool(sym, "minToHoldTrailing", false),
+      minToHoldMode: (readFormString(sym, "minToHoldMode", "live") as "live" | "candleClose"),
+      minToHoldArmMode: (readFormString(sym, "minToHoldArmMode", "live") as "live" | "candleClose"),
       trailingAfterTargetEnabled: readFormBool(sym, "trailingAfterTargetEnabled", false),
       trailingAfterTarget: readFormNumber(sym, "trailingAfterTarget", 15),
       trailingMode: readFormString(sym, "trailingMode", "live") as "live" | "candleClose",
@@ -445,26 +455,26 @@ export function TradeStoreProvider({
       setWaitingTrades([newTrade, ...waitingTrades]);
     }
     setSelection(null);
-  };
+  }, [selection, waitingTrades]);
 
-  const removeWaitingTrade = (symbol: string) => {
+  const removeWaitingTrade = useCallback((symbol: string) => {
     const newWaitingTrades = waitingTrades.filter(
       (trade) => trade.symbol !== symbol
     );
     setWaitingTrades(newWaitingTrades);
     localStorage.removeItem("tradeForm_" + symbol);
-  };
+  }, [waitingTrades]);
 
-  const addLogToWaitingTrade = (symbol: string, log: string) => {
+  const addLogToWaitingTrade = useCallback((symbol: string, log: string) => {
     setWaitingTrades((prev) =>
       prev.map((t) =>
         t.symbol === symbol ? { ...t, logs: [...t.logs, log] } : t
       )
     );
-  };
+  }, []);
 
   // move a waiting trade to active after strategy signal
-  const activateWaitingTrade = (
+  const activateWaitingTrade = useCallback((
     symbol: string,
     entryPrice: string,
     logLine: string
@@ -491,6 +501,8 @@ export function TradeStoreProvider({
       minToHold: tradeToActivate.minToHold,
       minToHoldTrigger: tradeToActivate.minToHoldTrigger,
       minToHoldTrailing: tradeToActivate.minToHoldTrailing,
+      minToHoldMode: tradeToActivate.minToHoldMode,
+      minToHoldArmMode: tradeToActivate.minToHoldArmMode,
       trailingAfterTargetEnabled: tradeToActivate.trailingAfterTargetEnabled,
       trailingAfterTarget: tradeToActivate.trailingAfterTarget,
       trailingMode: tradeToActivate.trailingMode,
@@ -547,10 +559,52 @@ export function TradeStoreProvider({
 
     setActiveTrades((prev) => [...prev, newActiveTrade]);
     setWaitingTrades((prev) => prev.filter((t) => t.symbol !== symbol));
-  };
+  }, [waitingTrades]);
+
+  const appendTradeHistoryEntry = useCallback((
+    symbol: string,
+    pnl: number,
+    logs: string[],
+    config?: TradeHistoryItem["config"]
+  ) => {
+    setTradeHistory((historyPrev) => {
+      const latest = historyPrev[0];
+      const lastLog = logs[logs.length - 1] ?? "";
+      const latestLastLog = latest?.logs?.[latest.logs.length - 1] ?? "";
+
+      const now = Date.now();
+      const latestCreatedAt = latest?.createdAt ? new Date(latest.createdAt).getTime() : 0;
+      const timeDiffMs = now - latestCreatedAt;
+
+      if (
+        latest &&
+        latest.symbol === symbol &&
+        latest.pnl === pnl &&
+        latest.logs.length === logs.length &&
+        latestLastLog === lastLog &&
+        timeDiffMs < 2000
+      ) {
+        return historyPrev;
+      }
+
+      const historyEntry: TradeHistoryItem = {
+        id: `${symbol}-${Date.now()}`,
+        symbol,
+        pnl,
+        logs,
+        createdAt: new Date().toISOString(),
+        config,
+      };
+      return [historyEntry, ...historyPrev];
+    });
+  }, []);
+
+  const addTradeHistoryEntry = useCallback((entry: TradeHistoryItem) => {
+    appendTradeHistoryEntry(entry.symbol, entry.pnl, entry.logs, entry.config);
+  }, [appendTradeHistoryEntry]);
 
   // close an active trade when strategy gives SELL and accumulate pnl
-  const completeActiveTrade = (
+  const completeActiveTrade = useCallback((
     symbol: string,
     exitPrice: string,
     logLine: string
@@ -618,10 +672,10 @@ export function TradeStoreProvider({
       });
       return next;
     });
-  };
+  }, [appendTradeHistoryEntry]);
 
   // complete a cycle without exiting (for stop loss/target hits)
-  const completeCycleWithoutExit = (
+  const completeCycleWithoutExit = useCallback((
     symbol: string,
     exitPrice: string,
     logLine: string
@@ -689,9 +743,9 @@ export function TradeStoreProvider({
       });
       return next;
     });
-  };
+  }, [appendTradeHistoryEntry]);
 
-  const updateActiveTradeBuy = (
+  const updateActiveTradeBuy = useCallback((
     symbol: string,
     entryPrice: string,
     logLine: string
@@ -713,21 +767,21 @@ export function TradeStoreProvider({
       });
       return next;
     });
-  };
+  }, []);
 
-  const removeActiveTrade = (symbol: string) => {
+  const removeActiveTrade = useCallback((symbol: string) => {
     setActiveTrades((prev) => prev.filter((trade) => trade.symbol !== symbol));
-  };
+  }, []);
 
-  const removeTradeAndFreeSymbol = (symbol: string) => {
+  const removeTradeAndFreeSymbol = useCallback((symbol: string) => {
     removeActiveTrade(symbol);
     if (selection?.symbol === symbol) {
       setSelection(null);
     }
     localStorage.removeItem("tradeForm_" + symbol);
-  };
+  }, [removeActiveTrade, selection]);
 
-  const addLogToActiveTrade = (symbol: string, log: string) => {
+  const addLogToActiveTrade = useCallback((symbol: string, log: string) => {
     setActiveTrades((prev) =>
       prev.map((t) =>
         t.symbol === symbol && t.status === "ACTIVE"
@@ -735,9 +789,9 @@ export function TradeStoreProvider({
           : t
       )
     );
-  };
+  }, []);
 
-  const activateTrailingAfterTarget = (
+  const activateTrailingAfterTarget = useCallback((
     symbol: string,
     price: number,
     timeLabel: string
@@ -756,9 +810,9 @@ export function TradeStoreProvider({
         };
       })
     );
-  };
+  }, []);
 
-  const updateTrailingHighWatermark = (symbol: string, price: number) => {
+  const updateTrailingHighWatermark = useCallback((symbol: string, price: number) => {
     setActiveTrades((prev) =>
       prev.map((t) => {
         if (t.symbol !== symbol || t.status !== "ACTIVE") return t;
@@ -767,18 +821,18 @@ export function TradeStoreProvider({
         return { ...t, trailingHighWatermark: price };
       })
     );
-  };
+  }, []);
 
-  const updateLastSellCandleTime = (symbol: string, candleTime: string) => {
+  const updateLastSellCandleTime = useCallback((symbol: string, candleTime: string) => {
     setActiveTrades((prev) =>
       prev.map((t) => {
         if (t.symbol !== symbol || t.status !== "ACTIVE") return t;
         return { ...t, lastSellCandleTime: candleTime };
       })
     );
-  };
+  }, []);
 
-  const logManualExit = (
+  const logManualExit = useCallback((
     symbol: string,
     exitPrice: string,
     pnl: number,
@@ -809,61 +863,19 @@ export function TradeStoreProvider({
       // Remove the trade immediately — no COMPLETED limbo
       return prev.filter((t) => t.symbol !== symbol);
     });
-  };
+  }, [appendTradeHistoryEntry]);
 
-  const clearTradeHistory = () => {
+  const clearTradeHistory = useCallback(() => {
     pendingClearAll.current = true;
     setTradeHistory([]);
     setTimeout(() => { pendingClearAll.current = false; }, 3000);
-  };
+  }, []);
 
-  const removeTradeHistoryEntry = (id: string) => {
+  const removeTradeHistoryEntry = useCallback((id: string) => {
     pendingHistoryDeletes.current.add(id);
     setTradeHistory((prev) => prev.filter((item) => item.id !== id));
     setTimeout(() => { pendingHistoryDeletes.current.delete(id); }, 3000);
-  };
-
-  const appendTradeHistoryEntry = (
-    symbol: string,
-    pnl: number,
-    logs: string[],
-    config?: TradeHistoryItem["config"]
-  ) => {
-    setTradeHistory((historyPrev) => {
-      const latest = historyPrev[0];
-      const lastLog = logs[logs.length - 1] ?? "";
-      const latestLastLog = latest?.logs?.[latest.logs.length - 1] ?? "";
-
-      const now = Date.now();
-      const latestCreatedAt = latest?.createdAt ? new Date(latest.createdAt).getTime() : 0;
-      const timeDiffMs = now - latestCreatedAt;
-
-      if (
-        latest &&
-        latest.symbol === symbol &&
-        latest.pnl === pnl &&
-        latest.logs.length === logs.length &&
-        latestLastLog === lastLog &&
-        timeDiffMs < 2000
-      ) {
-        return historyPrev;
-      }
-
-      const historyEntry: TradeHistoryItem = {
-        id: `${symbol}-${Date.now()}`,
-        symbol,
-        pnl,
-        logs,
-        createdAt: new Date().toISOString(),
-        config,
-      };
-      return [historyEntry, ...historyPrev];
-    });
-  };
-
-  const addTradeHistoryEntry = (entry: TradeHistoryItem) => {
-    appendTradeHistoryEntry(entry.symbol, entry.pnl, entry.logs, entry.config);
-  };
+  }, []);
 
   const syncFromServer = useCallback((state: {
     waitingTrades: WaitingTrade[];
@@ -938,11 +950,11 @@ export function TradeStoreProvider({
     }
   }, []);
 
-  const updateActiveTradeConfig = (symbol: string, config: Partial<ActiveTrade>) => {
+  const updateActiveTradeConfig = useCallback((symbol: string, config: Partial<ActiveTrade>) => {
     setActiveTrades((prev) =>
       prev.map((t) => t.symbol === symbol && t.status === "ACTIVE" ? { ...t, ...config } as ActiveTrade : t)
     );
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -981,7 +993,18 @@ export function TradeStoreProvider({
       aiSymbolEnabled,
       aiRegime,
     }),
-    [selection, forceBuyEnabled, waitingTrades, activeTrades, tradeHistory, syncFromServer, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiSymbolEnabled, aiRegime]
+    [
+      selection, forceBuyEnabled, waitingTrades, activeTrades, tradeHistory, 
+      syncFromServer, initializedSymbols, symbolHistoryStatus, aiSuggestions, 
+      aiGuardActive, aiSymbolEnabled, aiRegime,
+      activateWaitingTrade, addTradeHistoryEntry, addWaitingTradeFromSelection,
+      completeActiveTrade, completeCycleWithoutExit, getLastStrategyCandleTime,
+      logManualExit, removeTradeAndFreeSymbol, removeWaitingTrade,
+      setLastStrategyCandleTime, addLogToWaitingTrade, updateActiveTradeBuy,
+      removeActiveTrade, addLogToActiveTrade, activateTrailingAfterTarget,
+      updateTrailingHighWatermark, updateLastSellCandleTime, updateActiveTradeConfig,
+      clearTradeHistory, removeTradeHistoryEntry
+    ]
   );
 
   return (
