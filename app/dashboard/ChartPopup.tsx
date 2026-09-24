@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { X, BarChart2, RefreshCw, Loader2 } from "lucide-react";
-import { createChart, CandlestickSeries, IChartApi, UTCTimestamp, SeriesMarker, Time, createSeriesMarkers, LineSeries, ISeriesApi, ISeriesMarkersPluginApi } from "lightweight-charts";
+import { createChart, CandlestickSeries, IChartApi, UTCTimestamp, SeriesMarker, Time, createSeriesMarkers, LineSeries, ISeriesApi, ISeriesMarkersPluginApi, ISeriesPrimitive, IPrimitivePaneView, IPrimitivePaneRenderer, SeriesAttachedParameter, ITimeScaleApi } from "lightweight-charts";
 import { useTradeStore } from "../store/TradeStore";
 
 interface NumericFieldProps extends Omit<React.ComponentProps<"input">, "value" | "onChange"> {
@@ -247,6 +247,134 @@ function calculateUTBot(candles: CandleData[], key: number, atrPeriod: number): 
   return signals;
 }
 
+// UTBot label — TradingView-style colored box with white text and arrow tail
+type UTBotLabel = { time: number; type: "BUY" | "SELL"; color: string };
+
+function roundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+class UTBotLabelsPrimitive implements ISeriesPrimitive<Time> {
+  private _timeScale: ITimeScaleApi<Time> | null = null;
+  private _series: ISeriesApi<"Candlestick"> | null = null;
+  private _requestUpdate: (() => void) | null = null;
+  private _labels: UTBotLabel[] = [];
+  private _candles = new Map<number, { high: number; low: number }>();
+  private _paneViews: IPrimitivePaneView[];
+
+  constructor() {
+    this._paneViews = [new UTBotLabelsPaneView(this)];
+  }
+
+  attached(param: SeriesAttachedParameter<Time>) {
+    this._timeScale = param.chart.timeScale();
+    this._series = param.series as ISeriesApi<"Candlestick">;
+    this._requestUpdate = param.requestUpdate;
+  }
+
+  detached() {
+    this._timeScale = null;
+    this._series = null;
+  }
+
+  setData(candles: { time: number; high: number; low: number }[], labels: UTBotLabel[]) {
+    this._candles = new Map(candles.map((c) => [c.time, { high: c.high, low: c.low }]));
+    this._labels = labels;
+    this._requestUpdate?.();
+  }
+
+  paneViews() {
+    return this._paneViews;
+  }
+
+  drawLabels(ctx: CanvasRenderingContext2D) {
+    const ts = this._timeScale;
+    const series = this._series;
+    if (!ts || !series || this._labels.length === 0) return;
+
+    ctx.font = "bold 9px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const boxH = 13;
+    const padX = 6;
+    const arrowH = 4;
+    const gap = 2;
+    const stackGap = 2;
+    const levels = new Map<string, number>();
+
+    for (const label of this._labels) {
+      const candle = this._candles.get(label.time);
+      if (!candle) continue;
+      const x = ts.timeToCoordinate(label.time as Time);
+      if (x === null) continue;
+      const edgeY = series.priceToCoordinate(label.type === "BUY" ? candle.low : candle.high);
+      if (edgeY === null) continue;
+
+      const text = label.type === "BUY" ? "Buy" : "Sell";
+      const boxW = Math.ceil(ctx.measureText(text).width) + padX * 2;
+
+      // Stack labels that share the same bar and side
+      const stackKey = `${label.time}:${label.type === "BUY" ? "b" : "a"}`;
+      const level = levels.get(stackKey) ?? 0;
+      levels.set(stackKey, level + 1);
+
+      let boxTop: number;
+      const tipY = edgeY + (label.type === "BUY" ? gap : -gap);
+      ctx.fillStyle = label.color;
+      ctx.beginPath();
+      if (label.type === "BUY") {
+        boxTop = tipY + arrowH + level * (boxH + stackGap);
+        // Arrow pointing up toward the candle
+        ctx.moveTo(x, tipY);
+        ctx.lineTo(x - 3.5, tipY + arrowH);
+        ctx.lineTo(x + 3.5, tipY + arrowH);
+      } else {
+        boxTop = tipY - arrowH - boxH - level * (boxH + stackGap);
+        // Arrow pointing down toward the candle
+        ctx.moveTo(x, tipY);
+        ctx.lineTo(x - 3.5, tipY - arrowH);
+        ctx.lineTo(x + 3.5, tipY - arrowH);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Rounded label box
+      roundedRectPath(ctx, x - boxW / 2, boxTop, boxW, boxH, 3);
+      ctx.fill();
+
+      // White text inside the box
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(text, x, boxTop + boxH / 2 + 0.5);
+    }
+  }
+}
+
+class UTBotLabelsPaneView implements IPrimitivePaneView {
+  constructor(private _source: UTBotLabelsPrimitive) {}
+
+  renderer(): IPrimitivePaneRenderer {
+    const source = this._source;
+    return {
+      draw(target) {
+        target.useMediaCoordinateSpace(({ context: ctx }) => {
+          source.drawLabels(ctx);
+        });
+      },
+    };
+  }
+}
+
 // Convert time string to Unix timestamp (seconds) for lightweight-charts
 // Handles: "2026-06-04 14:55" (live), "2026-06-05T11:36:00+05:30" (history), numeric
 // We strip timezone and treat as UTC so chart shows the local IST time as-is
@@ -298,7 +426,7 @@ export default function ChartPopup({ open, onClose }: Props) {
   const [nifty50Connected, setNifty50Connected] = useState(false);
   const nifty50ChartRef = useRef<HTMLDivElement | null>(null);
   const nifty50ChartInstance = useRef<IChartApi | null>(null);
-  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time> } | null>(null);
+  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; labelPlugin: UTBotLabelsPrimitive } | null>(null);
 
   // Indicators state
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -406,6 +534,14 @@ export default function ChartPopup({ open, onClose }: Props) {
     return false;
   });
 
+  // NIFTY live chart mode (Normal / Heiken Ashi)
+  const [niftyHeikenAshi, setNiftyHeikenAshi] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nifty_heiken_ashi") === "true";
+    }
+    return false;
+  });
+
   // Save indicator settings
   useEffect(() => {
     localStorage.setItem("nifty_ema1_enabled", String(ema1Enabled));
@@ -426,12 +562,13 @@ export default function ChartPopup({ open, onClose }: Props) {
     localStorage.setItem("nifty_utbot3_atr", String(utbot3Atr));
 
     localStorage.setItem("strategy_heiken_ashi", String(heikenAshi));
+    localStorage.setItem("nifty_heiken_ashi", String(niftyHeikenAshi));
   }, [
     ema1Enabled, ema1Period, ema2Enabled, ema2Period,
     utbot1Enabled, utbot1Key, utbot1Atr,
     utbot2Enabled, utbot2Key, utbot2Atr,
     utbot3Enabled, utbot3Key, utbot3Atr,
-    heikenAshi
+    heikenAshi, niftyHeikenAshi
   ]);
 
   // Only show charts for symbols in active/waiting trades
@@ -559,11 +696,14 @@ export default function ChartPopup({ open, onClose }: Props) {
       const ema1 = chart.addSeries(LineSeries, { color: "#2563eb", lineWidth: 1 });
       const ema2 = chart.addSeries(LineSeries, { color: "#f97316", lineWidth: 1 });
 
+      const labelPlugin = new UTBotLabelsPrimitive();
+      series.attachPrimitive(labelPlugin);
+
       nifty50ChartInstance.current = chart;
-      nifty50SeriesInstance.current = { main: series, ema1, ema2, markerPlugin: createSeriesMarkers(series) };
+      nifty50SeriesInstance.current = { main: series, ema1, ema2, labelPlugin };
     }
 
-    const { main, ema1, ema2, markerPlugin } = nifty50SeriesInstance.current!;
+    const { main, ema1, ema2, labelPlugin } = nifty50SeriesInstance.current!;
 
     const mapped = allCandles
       .filter((c) => c != null)
@@ -582,16 +722,17 @@ export default function ChartPopup({ open, onClose }: Props) {
       .sort((a, b) => (a.time as number) - (b.time as number));
 
     if (validCandles.length > 0) {
-      main.setData(validCandles);
+      const displayCandles = niftyHeikenAshi ? toHeikenAshi(validCandles) : validCandles;
+      main.setData(displayCandles);
 
-      // EMA overlays
-      const closePrices = validCandles.map(c => c.close);
+      // EMA overlays (computed on displayed candles — HA closes in Heiken Ashi mode)
+      const closePrices = displayCandles.map(c => c.close);
       
       if (ema1Enabled) {
         const ema1Values = calculateEMA(closePrices, ema1Period);
         if (ema1Values.length > 0) {
           ema1.setData(ema1Values.map((val, idx) => ({
-            time: validCandles[idx + (closePrices.length - ema1Values.length)].time,
+            time: displayCandles[idx + (closePrices.length - ema1Values.length)].time,
             value: val,
           })));
         } else {
@@ -605,7 +746,7 @@ export default function ChartPopup({ open, onClose }: Props) {
         const ema2Values = calculateEMA(closePrices, ema2Period);
         if (ema2Values.length > 0) {
           ema2.setData(ema2Values.map((val, idx) => ({
-            time: validCandles[idx + (closePrices.length - ema2Values.length)].time,
+            time: displayCandles[idx + (closePrices.length - ema2Values.length)].time,
             value: val,
           })));
         } else {
@@ -615,51 +756,30 @@ export default function ChartPopup({ open, onClose }: Props) {
         ema2.setData([]);
       }
 
-      // UTBot Markers
-      const markers: SeriesMarker<Time>[] = [];
-      
+      // UTBot labels — TradingView-style (computed on HA candles in Heiken Ashi mode)
+      const utbotCandles = niftyHeikenAshi ? toHeikenAshi(allCandles) : allCandles;
+      const utbotLabels: UTBotLabel[] = [];
+
       if (utbot1Enabled) {
-        const ut1Signals = calculateUTBot(allCandles, utbot1Key, utbot1Atr);
-        ut1Signals.forEach(s => {
-          markers.push({
-            time: s.time as Time,
-            position: s.type === "BUY" ? "belowBar" : "aboveBar",
-            color: s.type === "BUY" ? "#a855f7" : "#fbbf24",
-            shape: s.type === "BUY" ? "arrowUp" : "arrowDown",
-            text: "",
-          });
-        });
+        calculateUTBot(utbotCandles, utbot1Key, utbot1Atr).forEach(s =>
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#a855f7" : "#fbbf24" })
+        );
       }
-
       if (utbot2Enabled) {
-        const ut2Signals = calculateUTBot(allCandles, utbot2Key, utbot2Atr);
-        ut2Signals.forEach(s => {
-          markers.push({
-            time: s.time as Time,
-            position: s.type === "BUY" ? "belowBar" : "aboveBar",
-            color: s.type === "BUY" ? "#06b6d4" : "#f472b6",
-            shape: s.type === "BUY" ? "arrowUp" : "arrowDown",
-            text: "",
-          });
-        });
+        calculateUTBot(utbotCandles, utbot2Key, utbot2Atr).forEach(s =>
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#06b6d4" : "#f472b6" })
+        );
       }
-
       if (utbot3Enabled) {
-        const ut3Signals = calculateUTBot(allCandles, utbot3Key, utbot3Atr);
-        ut3Signals.forEach(s => {
-          markers.push({
-            time: s.time as Time,
-            position: s.type === "BUY" ? "belowBar" : "aboveBar",
-            color: s.type === "BUY" ? "#16a34a" : "#dc2626",
-            shape: s.type === "BUY" ? "arrowUp" : "arrowDown",
-            text: "",
-          });
-        });
+        calculateUTBot(utbotCandles, utbot3Key, utbot3Atr).forEach(s =>
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#16a34a" : "#dc2626" })
+        );
       }
 
-      // Sort markers by time before setting
-      markers.sort((a, b) => (a.time as number) - (b.time as number));
-      markerPlugin.setMarkers(markers);
+      labelPlugin.setData(
+        displayCandles.map((c) => ({ time: c.time as number, high: c.high, low: c.low })),
+        utbotLabels
+      );
     }
 
     return () => {
@@ -668,7 +788,7 @@ export default function ChartPopup({ open, onClose }: Props) {
   }, [nifty50Data, ema1Enabled, ema1Period, ema2Enabled, ema2Period, 
       utbot1Enabled, utbot1Key, utbot1Atr, 
       utbot2Enabled, utbot2Key, utbot2Atr, 
-      utbot3Enabled, utbot3Key, utbot3Atr]);
+      utbot3Enabled, utbot3Key, utbot3Atr, niftyHeikenAshi]);
 
   // Clean up Nifty50 chart on close
   useEffect(() => {
@@ -1149,6 +1269,38 @@ export default function ChartPopup({ open, onClose }: Props) {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Heiken Ashi (NIFTY live chart) */}
+              <div className="flex items-center justify-between pt-2" style={{ borderTop: "1px solid rgba(0,0,0,0.05)" }}>
+                <span className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>HEIKEN ASHI</span>
+                <button
+                  type="button"
+                  onClick={() => setNiftyHeikenAshi(!niftyHeikenAshi)}
+                  style={{
+                    width: 32,
+                    height: 18,
+                    borderRadius: 9,
+                    background: niftyHeikenAshi ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                    position: "relative",
+                    transition: "background 0.2s",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      left: niftyHeikenAshi ? 16 : 2,
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s",
+                    }}
+                  />
+                </button>
               </div>
             </div>
           )}
