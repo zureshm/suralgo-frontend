@@ -127,7 +127,7 @@ function parseCandlesFromLogs(logs: string[]): SymbolCandles {
 
 // Calculate EMA (Exponential Moving Average)
 function calculateEMA(prices: number[], period: number): number[] {
-  if (prices.length < period) return [];
+  if (!Number.isFinite(period) || period < 1 || prices.length < period) return [];
   
   const ema: number[] = [];
   const multiplier = 2 / (period + 1);
@@ -148,6 +148,24 @@ function calculateEMA(prices: number[], period: number): number[] {
   return ema;
 }
 
+// Convert candles to Heiken Ashi values (times unchanged)
+function toHeikenAshi<T extends { open: number; high: number; low: number; close: number }>(candles: T[]): T[] {
+  const ha: T[] = [];
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
+    const close = (c.open + c.high + c.low + c.close) / 4;
+    const open = i === 0 ? (c.open + c.close) / 2 : (ha[i - 1].open + ha[i - 1].close) / 2;
+    ha.push({
+      ...c,
+      open,
+      high: Math.max(c.high, open, close),
+      low: Math.min(c.low, open, close),
+      close,
+    });
+  }
+  return ha;
+}
+
 // UTBot Signal Type
 type UTBotSignal = {
   time: number;
@@ -156,7 +174,7 @@ type UTBotSignal = {
 
 // Calculate UTBot Signals
 function calculateUTBot(candles: CandleData[], key: number, atrPeriod: number): UTBotSignal[] {
-  if (candles.length < atrPeriod + 1) return [];
+  if (!Number.isFinite(key) || key <= 0 || !Number.isFinite(atrPeriod) || atrPeriod < 1 || candles.length < atrPeriod + 1) return [];
 
   // 1. Calculate TR (True Range)
   const trs: number[] = [];
@@ -380,6 +398,14 @@ export default function ChartPopup({ open, onClose }: Props) {
     return 10;
   });
 
+  // Strategy chart mode (Normal / Heiken Ashi)
+  const [heikenAshi, setHeikenAshi] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("strategy_heiken_ashi") === "true";
+    }
+    return false;
+  });
+
   // Save indicator settings
   useEffect(() => {
     localStorage.setItem("nifty_ema1_enabled", String(ema1Enabled));
@@ -398,11 +424,14 @@ export default function ChartPopup({ open, onClose }: Props) {
     localStorage.setItem("nifty_utbot3_enabled", String(utbot3Enabled));
     localStorage.setItem("nifty_utbot3_key", String(utbot3Key));
     localStorage.setItem("nifty_utbot3_atr", String(utbot3Atr));
+
+    localStorage.setItem("strategy_heiken_ashi", String(heikenAshi));
   }, [
     ema1Enabled, ema1Period, ema2Enabled, ema2Period,
     utbot1Enabled, utbot1Key, utbot1Atr,
     utbot2Enabled, utbot2Key, utbot2Atr,
-    utbot3Enabled, utbot3Key, utbot3Atr
+    utbot3Enabled, utbot3Key, utbot3Atr,
+    heikenAshi
   ]);
 
   // Only show charts for symbols in active/waiting trades
@@ -487,7 +516,7 @@ export default function ChartPopup({ open, onClose }: Props) {
     const container = nifty50ChartRef.current;
     if (!container) return;
 
-    const allCandles = [...(nifty50Data.completedCandles || [])];
+    const allCandles = [...(nifty50Data.completedCandles || [])].filter((c) => c != null);
     if (nifty50Data.currentCandle) {
       allCandles.push(nifty50Data.currentCandle);
     }
@@ -537,6 +566,7 @@ export default function ChartPopup({ open, onClose }: Props) {
     const { main, ema1, ema2, markerPlugin } = nifty50SeriesInstance.current!;
 
     const mapped = allCandles
+      .filter((c) => c != null)
       .map((c) => ({
         time: toChartTime(c.time),
         open: c.open,
@@ -771,6 +801,7 @@ export default function ChartPopup({ open, onClose }: Props) {
 
       // Filter invalid times, deduplicate, and sort ascending
       const mapped = candles
+        .filter((c) => c != null)
         .map((c) => ({
           time: toChartTime(c.time),
           open: c.open,
@@ -787,22 +818,23 @@ export default function ChartPopup({ open, onClose }: Props) {
         .sort((a, b) => (a.time as number) - (b.time as number));
 
       if (validCandles.length > 0) {
-        main.setData(validCandles);
+        const displayCandles = heikenAshi ? toHeikenAshi(validCandles) : validCandles;
+        main.setData(displayCandles);
 
-        // EMA lines
-        const closePrices = validCandles.map(c => c.close);
+        // EMA lines (computed on displayed candles — HA closes in Heiken Ashi mode)
+        const closePrices = displayCandles.map(c => c.close);
         const ema10Values = calculateEMA(closePrices, 10);
         const ema20Values = calculateEMA(closePrices, 20);
 
         if (ema10Values.length > 0) {
           ema1.setData(ema10Values.map((val, idx) => ({
-            time: validCandles[idx + (closePrices.length - ema10Values.length)].time,
+            time: displayCandles[idx + (closePrices.length - ema10Values.length)].time,
             value: val,
           })));
         }
         if (ema20Values.length > 0) {
           ema2.setData(ema20Values.map((val, idx) => ({
-            time: validCandles[idx + (closePrices.length - ema20Values.length)].time,
+            time: displayCandles[idx + (closePrices.length - ema20Values.length)].time,
             value: val,
           })));
         }
@@ -821,7 +853,7 @@ export default function ChartPopup({ open, onClose }: Props) {
         markerPlugin.setMarkers(markers);
       }
     });
-  }, [symbolCandles, activeSymbols]);
+  }, [symbolCandles, activeSymbols, heikenAshi]);
 
   // Clean up strategy charts on close
   useEffect(() => {
@@ -1172,6 +1204,41 @@ export default function ChartPopup({ open, onClose }: Props) {
                 })}
               </div>
             )}
+
+            {/* Heiken Ashi toggle */}
+            <div
+              className="flex items-center justify-between mt-3 py-2 px-3 rounded-lg cursor-pointer hover:bg-black/5 transition"
+              onClick={() => setHeikenAshi(!heikenAshi)}
+              style={{ background: "rgba(0,0,0,0.03)", border: "1px solid var(--theme-popup-field-border)" }}
+            >
+              <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Heiken Ashi</span>
+              <button
+                type="button"
+                style={{
+                  width: 32,
+                  height: 18,
+                  borderRadius: 9,
+                  background: heikenAshi ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                  position: "relative",
+                  transition: "background 0.2s",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    left: heikenAshi ? 16 : 2,
+                    width: 14,
+                    height: 14,
+                    borderRadius: "50%",
+                    background: "#fff",
+                    transition: "left 0.2s",
+                  }}
+                />
+              </button>
+            </div>
           </>
         )}
         </div>
