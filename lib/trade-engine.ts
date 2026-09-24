@@ -740,6 +740,9 @@ const BUY_GRACE_PERIOD_MS = 5000;
 // (SELL/STOPLOSS/TARGET/REEXIT) from firing on the same candle as entry
 const lastBuyCandleTime: Record<string, string> = {};
 
+// Per-symbol last candle time — tracks the latest candle time from strategy signals
+const lastCandleTimeMap: Record<string, string> = {};
+
 // Grace period after minimum-target arming: ignore stale candle data for trigger check
 
 
@@ -1834,6 +1837,7 @@ function handleStrategySignal(signal: any) {
   if (candleTime) {
 
     lastStrategyCandleTime = candleTime;
+    if (signalSymbol) lastCandleTimeMap[signalSymbol] = candleTime;
 
   }
 
@@ -2638,14 +2642,17 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         }
       } else {
         if (effectiveMinTrailing && trade.minTargetLockedPrice === undefined) {
-          updateMinTargetHighWatermark(trade.symbol, minTargetArmPrice);
+          updateMinTargetHighWatermark(trade.symbol, minTargetTriggerPrice);
         }
-        const minTargetHigh = trade.minTargetHighWatermark ?? minTargetArmPrice;
+        const minTargetHigh = trade.minTargetHighWatermark ?? minTargetTriggerPrice;
         const minTargetFloor = (trade.minTargetLockedPrice !== undefined)
           ? trade.minTargetLockedPrice
           : (effectiveMinTrailing ? minTargetHigh - effectiveMinTrigger : trailLevel);
 
-        if (minTargetTriggerPrice <= minTargetFloor) {
+        // Skip trigger check when using candle close and no real candle has arrived since BUY
+        const hasRealCloseAfterBuy = !useCloseForMinTrigger || !lastCandleTimeMap[trade.symbol] || !lastBuyCandleTime[trade.symbol] || lastCandleTimeMap[trade.symbol] !== lastBuyCandleTime[trade.symbol];
+
+        if (hasRealCloseAfterBuy && minTargetTriggerPrice <= minTargetFloor) {
           if (effectiveSLEnabled && effectiveSL > 0 && trailedSLLevel > minTargetFloor) {
             // Defer to Trailing SL check below
           } else {
