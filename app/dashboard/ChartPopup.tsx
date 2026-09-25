@@ -173,7 +173,7 @@ type UTBotSignal = {
 };
 
 // Calculate UTBot Signals
-function calculateUTBot(candles: CandleData[], key: number, atrPeriod: number): UTBotSignal[] {
+function calculateUTBot(candles: { time: string | number; open: number; high: number; low: number; close: number }[], key: number, atrPeriod: number): UTBotSignal[] {
   if (!Number.isFinite(key) || key <= 0 || !Number.isFinite(atrPeriod) || atrPeriod < 1 || candles.length < atrPeriod + 1) return [];
 
   // 1. Calculate TR (True Range)
@@ -419,7 +419,7 @@ export default function ChartPopup({ open, onClose }: Props) {
   const [spinning, setSpinning] = useState(false);
   const chartRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const chartInstances = useRef<Record<string, IChartApi>>({});
-  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time> }>>({});
+  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time>; labelPlugin: UTBotLabelsPrimitive }>>({});
 
   // Nifty50 live chart state
   const [nifty50Data, setNifty50Data] = useState<Nifty50CandleData>({ completedCandles: [], currentCandle: null });
@@ -542,6 +542,100 @@ export default function ChartPopup({ open, onClose }: Props) {
     return false;
   });
 
+  // Strategy chart indicator settings (separate from NIFTY)
+  const [strategyIndicatorsOpen, setStrategyIndicatorsOpen] = useState(false);
+  const [sEma1Enabled, setSEma1Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_ema1_enabled");
+      return saved !== null ? saved === "true" : true;
+    }
+    return true;
+  });
+  const [sEma1Period, setSEma1Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_ema1_period");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [sEma2Enabled, setSEma2Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_ema2_enabled");
+      return saved !== null ? saved === "true" : true;
+    }
+    return true;
+  });
+  const [sEma2Period, setSEma2Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_ema2_period");
+      return saved !== null ? parseInt(saved, 10) : 20;
+    }
+    return 20;
+  });
+  const [sUtbot1Enabled, setSUtbot1Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot1_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sUtbot1Key, setSUtbot1Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot1_key");
+      return saved !== null ? parseFloat(saved) : 2;
+    }
+    return 2;
+  });
+  const [sUtbot1Atr, setSUtbot1Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot1_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [sUtbot2Enabled, setSUtbot2Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot2_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sUtbot2Key, setSUtbot2Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot2_key");
+      return saved !== null ? parseFloat(saved) : 3;
+    }
+    return 3;
+  });
+  const [sUtbot2Atr, setSUtbot2Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot2_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [sUtbot3Enabled, setSUtbot3Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot3_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sUtbot3Key, setSUtbot3Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot3_key");
+      return saved !== null ? parseFloat(saved) : 4;
+    }
+    return 4;
+  });
+  const [sUtbot3Atr, setSUtbot3Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot3_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+
   // Save indicator settings
   useEffect(() => {
     localStorage.setItem("nifty_ema1_enabled", String(ema1Enabled));
@@ -563,12 +657,33 @@ export default function ChartPopup({ open, onClose }: Props) {
 
     localStorage.setItem("strategy_heiken_ashi", String(heikenAshi));
     localStorage.setItem("nifty_heiken_ashi", String(niftyHeikenAshi));
+
+    localStorage.setItem("strategy_ema1_enabled", String(sEma1Enabled));
+    localStorage.setItem("strategy_ema1_period", String(sEma1Period));
+    localStorage.setItem("strategy_ema2_enabled", String(sEma2Enabled));
+    localStorage.setItem("strategy_ema2_period", String(sEma2Period));
+
+    localStorage.setItem("strategy_utbot1_enabled", String(sUtbot1Enabled));
+    localStorage.setItem("strategy_utbot1_key", String(sUtbot1Key));
+    localStorage.setItem("strategy_utbot1_atr", String(sUtbot1Atr));
+
+    localStorage.setItem("strategy_utbot2_enabled", String(sUtbot2Enabled));
+    localStorage.setItem("strategy_utbot2_key", String(sUtbot2Key));
+    localStorage.setItem("strategy_utbot2_atr", String(sUtbot2Atr));
+
+    localStorage.setItem("strategy_utbot3_enabled", String(sUtbot3Enabled));
+    localStorage.setItem("strategy_utbot3_key", String(sUtbot3Key));
+    localStorage.setItem("strategy_utbot3_atr", String(sUtbot3Atr));
   }, [
     ema1Enabled, ema1Period, ema2Enabled, ema2Period,
     utbot1Enabled, utbot1Key, utbot1Atr,
     utbot2Enabled, utbot2Key, utbot2Atr,
     utbot3Enabled, utbot3Key, utbot3Atr,
-    heikenAshi, niftyHeikenAshi
+    heikenAshi, niftyHeikenAshi,
+    sEma1Enabled, sEma1Period, sEma2Enabled, sEma2Period,
+    sUtbot1Enabled, sUtbot1Key, sUtbot1Atr,
+    sUtbot2Enabled, sUtbot2Key, sUtbot2Atr,
+    sUtbot3Enabled, sUtbot3Key, sUtbot3Atr
   ]);
 
   // Only show charts for symbols in active/waiting trades
@@ -913,11 +1028,14 @@ export default function ChartPopup({ open, onClose }: Props) {
         const ema1 = chart.addSeries(LineSeries, { color: "#5488fa", lineWidth: 1 });
         const ema2 = chart.addSeries(LineSeries, { color: "#ffd932", lineWidth: 1 });
 
+        const labelPlugin = new UTBotLabelsPrimitive();
+        main.attachPrimitive(labelPlugin);
+
         chartInstances.current[symbol] = chart;
-        seriesInstances.current[symbol] = { main, ema1, ema2, markerPlugin: createSeriesMarkers(main) };
+        seriesInstances.current[symbol] = { main, ema1, ema2, markerPlugin: createSeriesMarkers(main), labelPlugin };
       }
 
-      const { main, ema1, ema2, markerPlugin } = seriesInstances.current[symbol];
+      const { main, ema1, ema2, markerPlugin, labelPlugin } = seriesInstances.current[symbol];
 
       // Filter invalid times, deduplicate, and sort ascending
       const mapped = candles
@@ -943,21 +1061,17 @@ export default function ChartPopup({ open, onClose }: Props) {
 
         // EMA lines (computed on displayed candles — HA closes in Heiken Ashi mode)
         const closePrices = displayCandles.map(c => c.close);
-        const ema10Values = calculateEMA(closePrices, 10);
-        const ema20Values = calculateEMA(closePrices, 20);
+        const ema1Values = sEma1Enabled ? calculateEMA(closePrices, sEma1Period) : [];
+        const ema2Values = sEma2Enabled ? calculateEMA(closePrices, sEma2Period) : [];
 
-        if (ema10Values.length > 0) {
-          ema1.setData(ema10Values.map((val, idx) => ({
-            time: displayCandles[idx + (closePrices.length - ema10Values.length)].time,
-            value: val,
-          })));
-        }
-        if (ema20Values.length > 0) {
-          ema2.setData(ema20Values.map((val, idx) => ({
-            time: displayCandles[idx + (closePrices.length - ema20Values.length)].time,
-            value: val,
-          })));
-        }
+        ema1.setData(ema1Values.map((val, idx) => ({
+          time: displayCandles[idx + (closePrices.length - ema1Values.length)].time,
+          value: val,
+        })));
+        ema2.setData(ema2Values.map((val, idx) => ({
+          time: displayCandles[idx + (closePrices.length - ema2Values.length)].time,
+          value: val,
+        })));
 
         // Add BUY/SELL markers
         const markers: SeriesMarker<Time>[] = candles
@@ -971,9 +1085,37 @@ export default function ChartPopup({ open, onClose }: Props) {
           }));
 
         markerPlugin.setMarkers(markers);
+
+        // UTBot labels — TradingView-style (computed on the displayed candles — HA in Heiken Ashi mode)
+        const utbotLabels: UTBotLabel[] = [];
+
+        if (sUtbot1Enabled) {
+          calculateUTBot(displayCandles, sUtbot1Key, sUtbot1Atr).forEach(s =>
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#a855f7" : "#fbbf24" })
+          );
+        }
+        if (sUtbot2Enabled) {
+          calculateUTBot(displayCandles, sUtbot2Key, sUtbot2Atr).forEach(s =>
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#06b6d4" : "#f472b6" })
+          );
+        }
+        if (sUtbot3Enabled) {
+          calculateUTBot(displayCandles, sUtbot3Key, sUtbot3Atr).forEach(s =>
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#16a34a" : "#dc2626" })
+          );
+        }
+
+        labelPlugin.setData(
+          displayCandles.map((c) => ({ time: c.time as number, high: c.high, low: c.low })),
+          utbotLabels
+        );
       }
     });
-  }, [symbolCandles, activeSymbols, heikenAshi]);
+  }, [symbolCandles, activeSymbols, heikenAshi,
+      sEma1Enabled, sEma1Period, sEma2Enabled, sEma2Period,
+      sUtbot1Enabled, sUtbot1Key, sUtbot1Atr,
+      sUtbot2Enabled, sUtbot2Key, sUtbot2Atr,
+      sUtbot3Enabled, sUtbot3Key, sUtbot3Atr]);
 
   // Clean up strategy charts on close
   useEffect(() => {
@@ -1357,39 +1499,260 @@ export default function ChartPopup({ open, onClose }: Props) {
               </div>
             )}
 
-            {/* Heiken Ashi toggle */}
-            <div
-              className="flex items-center justify-between mt-3 py-2 px-3 rounded-lg cursor-pointer hover:bg-black/5 transition"
-              onClick={() => setHeikenAshi(!heikenAshi)}
-              style={{ background: "rgba(0,0,0,0.03)", border: "1px solid var(--theme-popup-field-border)" }}
-            >
-              <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Heiken Ashi</span>
-              <button
-                type="button"
-                style={{
-                  width: 32,
-                  height: 18,
-                  borderRadius: 9,
-                  background: heikenAshi ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
-                  position: "relative",
-                  transition: "background 0.2s",
-                  border: "none",
-                  cursor: "pointer",
-                }}
+            {/* Strategy Indicators Panel */}
+            <div className="mt-3">
+              <div
+                className="flex items-center justify-between cursor-pointer py-2 px-3 rounded-lg hover:bg-black/5 transition"
+                onClick={() => setStrategyIndicatorsOpen(!strategyIndicatorsOpen)}
+                style={{ background: "rgba(0,0,0,0.03)", border: "1px solid var(--theme-popup-field-border)" }}
               >
-                <span
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Indicators</span>
+                </div>
+                <button
+                  type="button"
                   style={{
-                    position: "absolute",
-                    top: 2,
-                    left: heikenAshi ? 16 : 2,
-                    width: 14,
-                    height: 14,
-                    borderRadius: "50%",
-                    background: "#fff",
-                    transition: "left 0.2s",
+                    width: 32,
+                    height: 18,
+                    borderRadius: 9,
+                    background: strategyIndicatorsOpen ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                    position: "relative",
+                    transition: "background 0.2s",
+                    border: "none",
+                    cursor: "pointer",
                   }}
-                />
-              </button>
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      left: strategyIndicatorsOpen ? 16 : 2,
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s",
+                    }}
+                  />
+                </button>
+              </div>
+
+              {strategyIndicatorsOpen && (
+                <div className="mt-2 p-3 rounded-lg space-y-3" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid var(--theme-popup-field-border)" }}>
+                  {/* EMA 1 */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={sEma1Enabled}
+                        onChange={(e) => setSEma1Enabled(e.target.checked)}
+                        className="h-3.5 w-3.5 accent-blue-600"
+                      />
+                      <span className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>EMA 1</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <NumericField
+                        value={sEma1Period}
+                        onChange={setSEma1Period}
+                        className="w-12 h-7 rounded text-center text-xs font-bold"
+                        style={{
+                          background: "var(--theme-popup-field-bg)",
+                          color: "var(--theme-popup-text)",
+                          border: "1px solid var(--theme-popup-field-border)",
+                        }}
+                        fallback="10"
+                      />
+                    </div>
+                  </div>
+
+                  {/* EMA 2 */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={sEma2Enabled}
+                        onChange={(e) => setSEma2Enabled(e.target.checked)}
+                        className="h-3.5 w-3.5 accent-orange-600"
+                      />
+                      <span className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>EMA 2</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <NumericField
+                        value={sEma2Period}
+                        onChange={setSEma2Period}
+                        className="w-12 h-7 rounded text-center text-xs font-bold"
+                        style={{
+                          background: "var(--theme-popup-field-bg)",
+                          color: "var(--theme-popup-text)",
+                          border: "1px solid var(--theme-popup-field-border)",
+                        }}
+                        fallback="20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* UTBot 1 */}
+                  <div className="flex items-center justify-between pt-2" style={{ borderTop: "1px solid rgba(0,0,0,0.05)" }}>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={sUtbot1Enabled}
+                        onChange={(e) => setSUtbot1Enabled(e.target.checked)}
+                        className="h-3.5 w-3.5 accent-purple-600"
+                      />
+                      <span className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>UTBOT 1</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold opacity-50">KEY</span>
+                        <NumericField
+                          value={sUtbot1Key}
+                          onChange={setSUtbot1Key}
+                          className="w-10 h-7 rounded text-center text-xs font-bold"
+                          style={{
+                            background: "var(--theme-popup-field-bg)",
+                            color: "var(--theme-popup-text)",
+                            border: "1px solid var(--theme-popup-field-border)",
+                          }}
+                          fallback="2"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold opacity-50">ATR</span>
+                        <NumericField
+                          value={sUtbot1Atr}
+                          onChange={setSUtbot1Atr}
+                          className="w-10 h-7 rounded text-center text-xs font-bold"
+                          style={{
+                            background: "var(--theme-popup-field-bg)",
+                            color: "var(--theme-popup-text)",
+                            border: "1px solid var(--theme-popup-field-border)",
+                          }}
+                          fallback="10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* UTBot 2 */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={sUtbot2Enabled}
+                        onChange={(e) => setSUtbot2Enabled(e.target.checked)}
+                        className="h-3.5 w-3.5 accent-cyan-600"
+                      />
+                      <span className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>UTBOT 2</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold opacity-50">KEY</span>
+                        <NumericField
+                          value={sUtbot2Key}
+                          onChange={setSUtbot2Key}
+                          className="w-10 h-7 rounded text-center text-xs font-bold"
+                          style={{
+                            background: "var(--theme-popup-field-bg)",
+                            color: "var(--theme-popup-text)",
+                            border: "1px solid var(--theme-popup-field-border)",
+                          }}
+                          fallback="3"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold opacity-50">ATR</span>
+                        <NumericField
+                          value={sUtbot2Atr}
+                          onChange={setSUtbot2Atr}
+                          className="w-10 h-7 rounded text-center text-xs font-bold"
+                          style={{
+                            background: "var(--theme-popup-field-bg)",
+                            color: "var(--theme-popup-text)",
+                            border: "1px solid var(--theme-popup-field-border)",
+                          }}
+                          fallback="10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* UTBot 3 */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={sUtbot3Enabled}
+                        onChange={(e) => setSUtbot3Enabled(e.target.checked)}
+                        className="h-3.5 w-3.5 accent-green-600"
+                      />
+                      <span className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>UTBOT 3</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold opacity-50">KEY</span>
+                        <NumericField
+                          value={sUtbot3Key}
+                          onChange={setSUtbot3Key}
+                          className="w-10 h-7 rounded text-center text-xs font-bold"
+                          style={{
+                            background: "var(--theme-popup-field-bg)",
+                            color: "var(--theme-popup-text)",
+                            border: "1px solid var(--theme-popup-field-border)",
+                          }}
+                          fallback="4"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold opacity-50">ATR</span>
+                        <NumericField
+                          value={sUtbot3Atr}
+                          onChange={setSUtbot3Atr}
+                          className="w-10 h-7 rounded text-center text-xs font-bold"
+                          style={{
+                            background: "var(--theme-popup-field-bg)",
+                            color: "var(--theme-popup-text)",
+                            border: "1px solid var(--theme-popup-field-border)",
+                          }}
+                          fallback="10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Heiken Ashi (strategy charts) */}
+                  <div className="flex items-center justify-between pt-2" style={{ borderTop: "1px solid rgba(0,0,0,0.05)" }}>
+                    <span className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>HEIKEN ASHI</span>
+                    <button
+                      type="button"
+                      onClick={() => setHeikenAshi(!heikenAshi)}
+                      style={{
+                        width: 32,
+                        height: 18,
+                        borderRadius: 9,
+                        background: heikenAshi ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                        position: "relative",
+                        transition: "background 0.2s",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 2,
+                          left: heikenAshi ? 16 : 2,
+                          width: 14,
+                          height: 14,
+                          borderRadius: "50%",
+                          background: "#fff",
+                          transition: "left 0.2s",
+                        }}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
