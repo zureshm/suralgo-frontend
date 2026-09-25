@@ -38,6 +38,7 @@ export type AiGuardSettings = {
   confidenceThreshold: number;
   candlesCount: number;
   recentCandlesCount: number;
+  entryBufferMaxCandles: number;
   considerVolume: boolean;
   useHeikinAshi: boolean;
   provider: string;
@@ -87,6 +88,7 @@ const DEFAULT_SETTINGS: AiGuardSettings = {
   provider: "local",
   model: "openai/gpt-oss-120b",
   recentCandlesCount: 30,
+  entryBufferMaxCandles: 1,
   considerVolume: false,
   useHeikinAshi: true,
   apiKeys: [],
@@ -141,7 +143,7 @@ export function setAiConnected(connected: boolean) {
 }
 
 export function isAiGuardActive(): boolean {
-  if (aiGuardSettings.provider === "local" || aiGuardSettings.provider === "local_v2") {
+  if (aiGuardSettings.provider === "local" || aiGuardSettings.provider === "local_v2" || aiGuardSettings.provider === "local_v3" || aiGuardSettings.provider === "local_v4") {
     return aiGuardSettings.enabled;
   }
   return aiGuardSettings.enabled && (aiGuardSettings.apiKeys?.length || 0) > 0 && aiConnected;
@@ -849,6 +851,7 @@ export function analyzeMarketRegimeLocalV2(
   const settings = getAiGuardSettings();
   const candleCount = settings.candlesCount || 120;
   const useHA = settings.useHeikinAshi !== false;
+  const recentCandlesCount = settings.recentCandlesCount || 30;
 
   if (!Array.isArray(candles) || candles.length === 0) {
     return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "No candle data" };
@@ -866,9 +869,9 @@ export function analyzeMarketRegimeLocalV2(
   const opens = rawSlice.map((c) => Number(c.open));
   const lastClose = closes[n - 1];
 
-  // 1. EMA 10 & EMA 30 Calculation
-  const ema10 = calculateEMA(closes, 10);
-  const ema30 = calculateEMA(closes, 30);
+  // 1. EMA 9 & EMA 18 Calculation
+  const ema10 = calculateEMA(closes, 9);
+  const ema30 = calculateEMA(closes, 18);
   const currEma10 = ema10[n - 1];
   const currEma30 = ema30[n - 1];
   const emaSpreadPct = lastClose > 0 ? ((currEma10 - currEma30) / lastClose) * 100 : 0;
@@ -969,8 +972,8 @@ export function analyzeMarketRegimeLocalV2(
   if (r1Triggered) sidewaysScore += 3;
   breakdown.push({ name: "Kaufman Efficiency Ratio", value: `${ker.toFixed(2)} ${ker < 0.24 ? "(Choppy Noise)" : "(Directional)"}`, triggered: r1Triggered });
 
-  // R2: EMA 10/30 Spread (flat/intertwined < 0.06%)
-  const r2Triggered = Math.abs(emaSpreadPct) < 0.06;
+  // R2: EMA 9/18 Spread (flat/intertwined < 0.04%)
+  const r2Triggered = Math.abs(emaSpreadPct) < 0.04;
   if (r2Triggered) sidewaysScore += 3;
   breakdown.push({ name: "EMA 10/30 Spread", value: `${emaSpreadPct >= 0 ? "+" : ""}${emaSpreadPct.toFixed(2)}% ${r2Triggered ? "(Flat/Intertwined)" : "(Separated)"}`, triggered: r2Triggered });
 
@@ -1014,6 +1017,27 @@ export function analyzeMarketRegimeLocalV2(
   if (t4Triggered) trendScore += 2;
   breakdown.push({ name: "Clean HA Momentum", value: t4Triggered ? "Confirmed" : "Not Active", triggered: t4Triggered });
 
+  // R7: Sustained Chop (Recent Window) — broad-window chop the 20-bar view may miss
+  const rcPeriod = Math.min(recentCandlesCount, n);
+  const rcStart = n - rcPeriod;
+  const rcNetDisplacement = Math.abs(closes[n - 1] - closes[rcStart]);
+  let rcTotalPath = 0;
+  for (let i = rcStart + 1; i < n; i++) {
+    rcTotalPath += Math.abs(closes[i] - closes[i - 1]);
+  }
+  const kerRecent = rcTotalPath > 0 ? rcNetDisplacement / rcTotalPath : 0;
+  let rcDirChanges = 0;
+  let rcPrevDir: "up" | "down" | null = null;
+  for (let i = rcStart; i < n; i++) {
+    const d: "up" | "down" = closes[i] >= opens[i] ? "up" : "down";
+    if (rcPrevDir && d !== rcPrevDir) rcDirChanges++;
+    rcPrevDir = d;
+  }
+  const rcDirRatio = rcPeriod > 1 ? (rcDirChanges / (rcPeriod - 1)) * 100 : 0;
+  const r7Triggered = kerRecent < 0.25 && rcDirRatio > 55;
+  if (r7Triggered) sidewaysScore += 2;
+  breakdown.push({ name: `Sustained Chop (${rcPeriod}-bar)`, value: `KER ${kerRecent.toFixed(2)} | Dir changes ${rcDirRatio.toFixed(0)}%`, triggered: r7Triggered });
+
   let marketRegime: string;
   let blockEntry: boolean;
   let suggestExit: boolean;
@@ -1037,6 +1061,8 @@ export function analyzeMarketRegimeLocalV2(
       reason = `Whipsaw chop: price crossed EMA 10 ${emaCrosses} times in 20 bars — moving averages tangled`;
     } else if (r5Triggered) {
       reason = `Heikin-Ashi indecision: ${bilateralRatio.toFixed(0)}% of recent bars have bilateral shadows (spinning tops)`;
+    } else if (r7Triggered) {
+      reason = `Sustained chop: ${rcPeriod}-bar window shows KER ${kerRecent.toFixed(2)} with ${rcDirRatio.toFixed(0)}% direction changes — broader chop pattern`;
     } else {
       reason = `Sideways structure: sideways score ${sidewaysScore} vs trend score ${trendScore} — market compressed in chop`;
     }
@@ -1074,6 +1100,482 @@ export function analyzeMarketRegimeLocalV2(
   };
 }
 
+// ── Local Rule Engine V3 (Swift Trend Sniper) ──
+// Fast, robust regime classifier (EMA 5/13, 10-bar KER, 10-bar Whipsaw Counter, HA Indecision).
+// Filters chop and traps cleanly without rapid whipsawing.
+
+export function analyzeMarketRegimeLocalV3(
+  symbol: string,
+  candles: { time?: string; open: number; high: number; low: number; close: number; volume?: number }[],
+  _tradeContext?: { entryPrice?: string; ltp?: number; pnl?: number; signal?: string }
+): AiAnalysisResult {
+  const settings = getAiGuardSettings();
+  const candleCount = settings.candlesCount || 60;
+  const useHA = settings.useHeikinAshi !== false;
+  const recentCandlesCount = settings.recentCandlesCount || 30;
+
+  if (!Array.isArray(candles) || candles.length === 0) {
+    return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "No candle data" };
+  }
+
+  const rawSlice = candles.slice(-candleCount);
+  const n = rawSlice.length;
+  if (n < 10) {
+    return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "Insufficient candle history for V3 engine (min 10 required)" };
+  }
+
+  const closes = rawSlice.map((c) => Number(c.close));
+  const highs = rawSlice.map((c) => Number(c.high));
+  const lows = rawSlice.map((c) => Number(c.low));
+  const opens = rawSlice.map((c) => Number(c.open));
+  const lastClose = closes[n - 1];
+
+  // 1. EMA 5 (fast) & EMA 13 (medium) — no EMA 30, faster response
+  const ema5 = calculateEMA(closes, 5);
+  const ema13 = calculateEMA(closes, 13);
+  const currEma5 = ema5[n - 1];
+  const currEma13 = ema13[n - 1];
+  const emaSpreadPct = lastClose > 0 ? ((currEma5 - currEma13) / lastClose) * 100 : 0;
+
+  // 3-bar EMA slopes
+  const slopeLookback = Math.min(3, n - 1);
+  const ema5Slope = slopeLookback > 0 && ema5[n - 1 - slopeLookback] !== 0
+    ? ((currEma5 - ema5[n - 1 - slopeLookback]) / ema5[n - 1 - slopeLookback]) * 100 : 0;
+  const ema13Slope = slopeLookback > 0 && ema13[n - 1 - slopeLookback] !== 0
+    ? ((currEma13 - ema13[n - 1 - slopeLookback]) / ema13[n - 1 - slopeLookback]) * 100 : 0;
+
+  // 2. Fast Kaufman Efficiency Ratio (KER over last 10 bars)
+  const kerPeriod = Math.min(10, n);
+  const kerStart = n - kerPeriod;
+  const netDisplacement = Math.abs(closes[n - 1] - closes[kerStart]);
+  let totalPath = 0;
+  for (let i = kerStart + 1; i < n; i++) {
+    totalPath += Math.abs(closes[i] - closes[i - 1]);
+  }
+  const ker10 = totalPath > 0 ? netDisplacement / totalPath : 0;
+
+  // 3. Fast EMA Whipsaw / Cross Count (last 10 bars)
+  const whipsawPeriod = Math.min(10, n);
+  let emaCrosses10 = 0;
+  let prevDiff = closes[n - whipsawPeriod] - ema5[n - whipsawPeriod];
+  for (let i = n - whipsawPeriod + 1; i < n; i++) {
+    const diff = closes[i] - ema5[i];
+    if ((diff >= 0 && prevDiff < 0) || (diff < 0 && prevDiff >= 0)) {
+      emaCrosses10++;
+    }
+    prevDiff = diff;
+  }
+
+  // 4. ATR(10) & Spike Exhaustion / Rejection Trap
+  let atrSum = 0;
+  const atrPeriod = Math.min(10, n - 1);
+  for (let i = n - atrPeriod; i < n; i++) {
+    const tr = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+    atrSum += tr;
+  }
+  const atr10 = atrPeriod > 0 ? atrSum / atrPeriod : (highs[n - 1] - lows[n - 1]);
+
+  const lastRange = highs[n - 1] - lows[n - 1];
+  const lastUpperWick = highs[n - 1] - Math.max(opens[n - 1], closes[n - 1]);
+  const lastUpperWickRatio = lastRange > 0 ? (lastUpperWick / lastRange) * 100 : 0;
+  const lastRangeVsAtr = atr10 > 0 ? lastRange / atr10 : 1;
+
+  const isRecentSpike = lastRangeVsAtr > 1.8;
+  const isSevereUpperRejection = lastUpperWickRatio > 45 && closes[n - 1] < opens[n - 1];
+  const isSpikeTrap = isRecentSpike && (isSevereUpperRejection || (lastUpperWickRatio > 50 && closes[n - 1] <= currEma5));
+
+  // 5. Heikin-Ashi Indecision & Color Flips (last 8 bars)
+  const haCandles = convertToHeikinAshi(rawSlice);
+  const haPeriod = Math.min(8, n);
+  let haBilateralCount = 0;
+  let haColorFlips = 0;
+  let prevHaGreen = haCandles[n - haPeriod].close >= haCandles[n - haPeriod].open;
+
+  for (let i = n - haPeriod; i < n; i++) {
+    const c = haCandles[i];
+    const body = Math.abs(c.close - c.open);
+    const uw = c.high - Math.max(c.open, c.close);
+    const lw = Math.min(c.open, c.close) - c.low;
+    if (uw > 0.20 * (body || 1) && lw > 0.20 * (body || 1)) {
+      haBilateralCount++;
+    }
+    const isGreen = c.close >= c.open;
+    if (isGreen !== prevHaGreen) {
+      haColorFlips++;
+    }
+    prevHaGreen = isGreen;
+  }
+  const haBilateralRatio = (haBilateralCount / haPeriod) * 100;
+
+  // 6. Recent Window Analysis (broader chop pattern + cure detection)
+  const rcPeriod = Math.min(recentCandlesCount, n);
+  const rcStart = n - rcPeriod;
+
+  // Recent-window KER
+  const rcNetDisplacement = Math.abs(closes[n - 1] - closes[rcStart]);
+  let rcTotalPath = 0;
+  for (let i = rcStart + 1; i < n; i++) {
+    rcTotalPath += Math.abs(closes[i] - closes[i - 1]);
+  }
+  const kerRecent = rcTotalPath > 0 ? rcNetDisplacement / rcTotalPath : 0;
+
+  // Recent-window direction change ratio
+  let rcDirChanges = 0;
+  let rcPrevDir: "up" | "down" | null = null;
+  for (let i = rcStart; i < n; i++) {
+    const d: "up" | "down" = closes[i] >= opens[i] ? "up" : "down";
+    if (rcPrevDir && d !== rcPrevDir) rcDirChanges++;
+    rcPrevDir = d;
+  }
+  const rcDirRatio = rcPeriod > 1 ? (rcDirChanges / (rcPeriod - 1)) * 100 : 0;
+
+  // ── Multi-Factor Scoring ──
+  const breakdown: RuleBreakdownEntry[] = [];
+  let sidewaysScore = 0;
+  let trendScore = 0;
+
+  // S1: Fast Kaufman Efficiency (< 0.28 = choppy noise)
+  const s1Triggered = ker10 < 0.28;
+  if (s1Triggered) sidewaysScore += 3;
+  breakdown.push({ name: "Kaufman Efficiency (10-bar)", value: `${ker10.toFixed(2)} ${s1Triggered ? "(Choppy Noise)" : "(Directional)"}`, triggered: s1Triggered });
+
+  // S2: Tangled EMA 5/13 Spread (< 0.08% flat or >= 3 crosses)
+  const s2Triggered = Math.abs(emaSpreadPct) < 0.08 || emaCrosses10 >= 3;
+  if (s2Triggered) sidewaysScore += 2;
+  breakdown.push({ name: "EMA Tangled / Crosses", value: `Spread: ${emaSpreadPct.toFixed(2)}% | Crosses: ${emaCrosses10}/10 bars`, triggered: s2Triggered });
+
+  // S3: Heikin-Ashi Indecision / Color Flips (bilateral > 35% or >= 3 flips)
+  const s3Triggered = useHA && (haBilateralRatio > 35 || haColorFlips >= 3);
+  if (s3Triggered) sidewaysScore += 2;
+  breakdown.push({ name: "HA Indecision / Flips", value: `${haBilateralRatio.toFixed(0)}% bilateral | ${haColorFlips} flips/8 bars`, triggered: s3Triggered });
+
+  // S4: Spike Exhaustion Trap
+  const s4Triggered = isSpikeTrap;
+  if (s4Triggered) sidewaysScore += 4;
+  breakdown.push({ name: "Spike Exhaustion Trap", value: s4Triggered ? `Triggered (${lastRangeVsAtr.toFixed(1)}x ATR, ${lastUpperWickRatio.toFixed(0)}% wick)` : "Clear", triggered: s4Triggered });
+
+  // S5: Sustained Chop (Recent Window) — broad-window chop the 10-bar view may miss
+  const s5Triggered = kerRecent < 0.25 && rcDirRatio > 55;
+  if (s5Triggered) sidewaysScore += 2;
+  breakdown.push({ name: `Sustained Chop (${rcPeriod}-bar)`, value: `KER ${kerRecent.toFixed(2)} | Dir changes ${rcDirRatio.toFixed(0)}%`, triggered: s5Triggered });
+
+  // T1: EMA Trend Alignment (EMA 5 > EMA 13 with positive slopes)
+  const t1Triggered = currEma5 > currEma13 && ema5Slope > 0.02 && ema13Slope >= 0;
+  if (t1Triggered) trendScore += 3;
+  breakdown.push({ name: "EMA 5/13 Trend Alignment", value: `Spread: +${emaSpreadPct.toFixed(2)}% | EMA5 Slope: +${ema5Slope.toFixed(2)}%`, triggered: t1Triggered });
+
+  // T2: Directional Efficiency (KER10 >= 0.38)
+  const t2Triggered = ker10 >= 0.38;
+  if (t2Triggered) trendScore += 2;
+  breakdown.push({ name: "Directional Efficiency", value: `KER10: ${ker10.toFixed(2)}`, triggered: t2Triggered });
+
+  // T3: Clean Trend Stability (crosses <= 1 in 10 bars)
+  const t3Triggered = emaCrosses10 <= 1;
+  if (t3Triggered) trendScore += 2;
+  breakdown.push({ name: "Trend Stability (Low Crosses)", value: `${emaCrosses10} crosses / 10 bars`, triggered: t3Triggered });
+
+  // T4: Clean HA Expansion (low indecision & low flips)
+  const t4Triggered = useHA && haBilateralRatio <= 20 && haColorFlips <= 1 && !s4Triggered;
+  if (t4Triggered) trendScore += 2;
+  breakdown.push({ name: "Clean HA Expansion", value: t4Triggered ? "Confirmed" : "Not Active", triggered: t4Triggered });
+
+  // T5: Chop Curing — broad window was choppy but immediate bars have cleaned up
+  const t5Triggered = kerRecent < 0.30 && ker10 >= 0.38 && emaCrosses10 <= 1;
+  if (t5Triggered) trendScore += 3;
+  breakdown.push({ name: "Chop Curing", value: t5Triggered ? `Curing (Broad KER ${kerRecent.toFixed(2)} → Recent KER10 ${ker10.toFixed(2)})` : `Not Active (Broad KER ${kerRecent.toFixed(2)})`, triggered: t5Triggered });
+
+  // ── Final Regime Determination ──
+  let marketRegime: string;
+  let blockEntry: boolean;
+  let suggestExit: boolean;
+  let confidence: number;
+  let reason: string;
+
+  if (s4Triggered) {
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = Math.min(95, 80 + Math.round(lastRangeVsAtr * 5));
+    reason = `Spike Exhaustion Trap: ${lastRangeVsAtr.toFixed(1)}x ATR bar with ${lastUpperWickRatio.toFixed(0)}% upper rejection wick — avoiding bull trap`;
+  } else if (sidewaysScore >= 5 || (s1Triggered && s2Triggered)) {
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = Math.min(95, 65 + sidewaysScore * 4);
+    if (s5Triggered && s1Triggered) {
+      reason = `Sustained chop: ${rcPeriod}-bar KER ${kerRecent.toFixed(2)} with ${rcDirRatio.toFixed(0)}% dir changes, immediate KER10 ${ker10.toFixed(2)} — broad & immediate chop`;
+    } else if (s1Triggered && s2Triggered) {
+      reason = `Choppy sideways: 10-bar Kaufman efficiency ${ker10.toFixed(2)} with tangled EMAs (${emaCrosses10} crosses) — market compressed`;
+    } else if (s5Triggered) {
+      reason = `Sustained chop: ${rcPeriod}-bar window shows KER ${kerRecent.toFixed(2)} with ${rcDirRatio.toFixed(0)}% direction changes — broader chop pattern`;
+    } else if (s2Triggered) {
+      reason = `Whipsaw chop: EMA 5/13 tangled with ${emaCrosses10} crosses in last 10 bars — lack of clean directional follow-through`;
+    } else if (s3Triggered) {
+      reason = `Indecision chop: Heikin-Ashi showing ${haBilateralRatio.toFixed(0)}% spinning-top shadows & ${haColorFlips} flips in 8 bars`;
+    } else {
+      reason = `Sideways consolidation: sideways score ${sidewaysScore} vs trend score ${trendScore} — market lacks momentum`;
+    }
+  } else if (t1Triggered && trendScore >= 4 && sidewaysScore <= 2) {
+    marketRegime = "UPWARDS";
+    blockEntry = false;
+    suggestExit = false;
+    confidence = Math.min(95, 70 + trendScore * 4);
+    reason = `Confirmed Uptrend: EMA 5 > EMA 13 (+${emaSpreadPct.toFixed(2)}%), KER10 ${ker10.toFixed(2)}, clean slope (+${ema5Slope.toFixed(2)}%)`;
+    if (t5Triggered) reason += ` — chop curing (broad KER ${kerRecent.toFixed(2)} → clean)`;
+  } else if (currEma5 < currEma13 && ema5Slope < -0.02 && ema13Slope <= 0 && ker10 >= 0.35 && sidewaysScore <= 2) {
+    marketRegime = "DOWNWARDS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = Math.min(95, 70 + trendScore * 4);
+    reason = `Confirmed Downtrend: EMA 5 < EMA 13 (${emaSpreadPct.toFixed(2)}%), KER10 ${ker10.toFixed(2)}, negative slope (${ema5Slope.toFixed(2)}%)`;
+    if (t5Triggered) reason += ` — chop curing (broad KER ${kerRecent.toFixed(2)} → clean)`;
+  } else {
+    marketRegime = "SIDEWAYS";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = 65;
+    reason = `Inconclusive momentum: sideways score ${sidewaysScore}, trend score ${trendScore} — filtering uncertain market state`;
+  }
+
+  addAiLog(`[ai-guard:local-v3] ${symbol}: ${marketRegime} (${confidence}%) — ${reason}`);
+
+  return {
+    marketRegime,
+    blockEntry,
+    suggestExit,
+    confidence,
+    reason,
+    ruleBreakdown: breakdown,
+  };
+}
+
+// ── Local Rule Engine V4 (Choppy Filter) ──
+// Direction-agnostic: only answers "tradeable or chop?", never UP/DOWN.
+// Short 8-10 bar lookbacks — faster than V3. No UT bot logic.
+
+export function analyzeMarketRegimeLocalV4(
+  symbol: string,
+  candles: { time?: string; open: number; high: number; low: number; close: number; volume?: number }[],
+  _tradeContext?: { entryPrice?: string; ltp?: number; pnl?: number; signal?: string }
+): AiAnalysisResult {
+  const settings = getAiGuardSettings();
+  const candleCount = settings.candlesCount || 50;
+  const useHA = settings.useHeikinAshi !== false;
+  const recentCandlesCount = settings.recentCandlesCount || 30;
+
+  if (!Array.isArray(candles) || candles.length === 0) {
+    return { marketRegime: "TRADEABLE", blockEntry: false, suggestExit: false, confidence: 50, reason: "No candle data — defaulting to tradeable" };
+  }
+
+  const rawSlice = candles.slice(-candleCount);
+  const n = rawSlice.length;
+  if (n < 12) {
+    return { marketRegime: "TRADEABLE", blockEntry: false, suggestExit: false, confidence: 50, reason: "Insufficient history for V4 (min 12) — defaulting to tradeable" };
+  }
+
+  const closes = rawSlice.map((c) => Number(c.close));
+  const highs = rawSlice.map((c) => Number(c.high));
+  const lows = rawSlice.map((c) => Number(c.low));
+  const opens = rawSlice.map((c) => Number(c.open));
+  const lastClose = closes[n - 1];
+
+  // EMA 5/13 (only used for tangling check, not direction)
+  const ema5 = calculateEMA(closes, 5);
+  const ema13 = calculateEMA(closes, 13);
+  const currEma5 = ema5[n - 1];
+  const currEma13 = ema13[n - 1];
+  const emaSpreadPct = lastClose > 0 ? ((currEma5 - currEma13) / lastClose) * 100 : 0;
+
+  // 1. KER(10) — chop when inefficient zigzag
+  const kerPeriod = Math.min(10, n);
+  const kerStart = n - kerPeriod;
+  const netDisplacement = Math.abs(closes[n - 1] - closes[kerStart]);
+  let totalPath = 0;
+  for (let i = kerStart + 1; i < n; i++) {
+    totalPath += Math.abs(closes[i] - closes[i - 1]);
+  }
+  const ker10 = totalPath > 0 ? netDisplacement / totalPath : 0;
+
+  // 2. EMA 5/13 cross count (10 bars) — tangled EMAs = chop
+  const crossPeriod = Math.min(10, n);
+  let emaCrosses10 = 0;
+  let prevDiff = closes[n - crossPeriod] - ema5[n - crossPeriod];
+  for (let i = n - crossPeriod + 1; i < n; i++) {
+    const diff = closes[i] - ema5[i];
+    if ((diff >= 0 && prevDiff < 0) || (diff < 0 && prevDiff >= 0)) {
+      emaCrosses10++;
+    }
+    prevDiff = diff;
+  }
+
+  // 3. Range compression: recent 8-bar vs prior 10-bar
+  const recentPeriod = Math.min(8, n);
+  const olderPeriod = Math.min(10, n - recentPeriod);
+  let recentHigh = -Infinity, recentLow = Infinity;
+  let olderHigh = -Infinity, olderLow = Infinity;
+  for (let i = n - recentPeriod; i < n; i++) {
+    if (highs[i] > recentHigh) recentHigh = highs[i];
+    if (lows[i] < recentLow) recentLow = lows[i];
+  }
+  const olderStart = n - recentPeriod - olderPeriod;
+  for (let i = olderStart; i < n - recentPeriod; i++) {
+    if (highs[i] > olderHigh) olderHigh = highs[i];
+    if (lows[i] < olderLow) olderLow = lows[i];
+  }
+  const recentWidth = recentHigh - recentLow;
+  const olderWidth = olderHigh > -Infinity && olderLow < Infinity ? olderHigh - olderLow : recentWidth;
+  const rangeCompressionPct = olderWidth > 0 ? ((olderWidth - recentWidth) / olderWidth) * 100 : 0;
+
+  // 4. ATR(10) & Spike Rejection Trap
+  let atrSum = 0;
+  const atrPeriod = Math.min(10, n - 1);
+  for (let i = n - atrPeriod; i < n; i++) {
+    const tr = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+    atrSum += tr;
+  }
+  const atr10 = atrPeriod > 0 ? atrSum / atrPeriod : (highs[n - 1] - lows[n - 1]);
+  const lastRange = highs[n - 1] - lows[n - 1];
+  const lastUpperWick = highs[n - 1] - Math.max(opens[n - 1], closes[n - 1]);
+  const lastUpperWickRatio = lastRange > 0 ? (lastUpperWick / lastRange) * 100 : 0;
+  const lastRangeVsAtr = atr10 > 0 ? lastRange / atr10 : 1;
+  const isSpikeTrap = lastRangeVsAtr > 1.8 && ((lastUpperWickRatio > 45 && closes[n - 1] < opens[n - 1]) || (lastUpperWickRatio > 50 && closes[n - 1] <= currEma5));
+
+  // 5. HA color flips & bilateral shadows (8 bars)
+  const haCandles = convertToHeikinAshi(rawSlice);
+  const haPeriod = Math.min(8, n);
+  let haBilateralCount = 0;
+  let haColorFlips = 0;
+  let prevHaGreen = haCandles[n - haPeriod].close >= haCandles[n - haPeriod].open;
+  for (let i = n - haPeriod; i < n; i++) {
+    const c = haCandles[i];
+    const body = Math.abs(c.close - c.open);
+    const uw = c.high - Math.max(c.open, c.close);
+    const lw = Math.min(c.open, c.close) - c.low;
+    if (uw > 0.20 * (body || 1) && lw > 0.20 * (body || 1)) {
+      haBilateralCount++;
+    }
+    const isGreen = c.close >= c.open;
+    if (isGreen !== prevHaGreen) {
+      haColorFlips++;
+    }
+    prevHaGreen = isGreen;
+  }
+  const haBilateralRatio = (haBilateralCount / haPeriod) * 100;
+
+  // 6. Recent Window Analysis (broader chop pattern + cure detection)
+  const rcPeriod = Math.min(recentCandlesCount, n);
+  const rcStart = n - rcPeriod;
+
+  // Recent-window KER
+  const rcNetDisplacement = Math.abs(closes[n - 1] - closes[rcStart]);
+  let rcTotalPath = 0;
+  for (let i = rcStart + 1; i < n; i++) {
+    rcTotalPath += Math.abs(closes[i] - closes[i - 1]);
+  }
+  const kerRecent = rcTotalPath > 0 ? rcNetDisplacement / rcTotalPath : 0;
+
+  // Recent-window direction change ratio
+  let rcDirChanges = 0;
+  let rcPrevDir: "up" | "down" | null = null;
+  for (let i = rcStart; i < n; i++) {
+    const d: "up" | "down" = closes[i] >= opens[i] ? "up" : "down";
+    if (rcPrevDir && d !== rcPrevDir) rcDirChanges++;
+    rcPrevDir = d;
+  }
+  const rcDirRatio = rcPeriod > 1 ? (rcDirChanges / (rcPeriod - 1)) * 100 : 0;
+
+  // ── Chop Scoring ──
+  const breakdown: RuleBreakdownEntry[] = [];
+  let chopScore = 0;
+
+  // C1: KER(10) < 0.30 → choppy zigzag
+  const c1Triggered = ker10 < 0.30;
+  if (c1Triggered) chopScore += 3;
+  breakdown.push({ name: "Efficiency (10-bar)", value: `KER ${ker10.toFixed(2)} ${c1Triggered ? "(Chop)" : "(Clean)"}`, triggered: c1Triggered });
+
+  // C2: Range compression > 25%
+  const c2Triggered = rangeCompressionPct > 25;
+  if (c2Triggered) chopScore += 2;
+  breakdown.push({ name: "Range Compression", value: `${rangeCompressionPct > 0 ? "-" : "+"}${Math.abs(rangeCompressionPct).toFixed(0)}% vs older`, triggered: c2Triggered });
+
+  // C3: HA color flips >= 3 in 8 bars
+  const c3Triggered = useHA && haColorFlips >= 3;
+  if (c3Triggered) chopScore += 2;
+  breakdown.push({ name: "HA Color Flips", value: `${haColorFlips} flips / ${haPeriod} bars`, triggered: c3Triggered });
+
+  // C4: HA bilateral shadows > 35%
+  const c4Triggered = useHA && haBilateralRatio > 35;
+  if (c4Triggered) chopScore += 2;
+  breakdown.push({ name: "HA Indecision Wicks", value: `${haBilateralRatio.toFixed(0)}% bilateral`, triggered: c4Triggered });
+
+  // C5: Tangled EMA 5/13 (flat spread or >= 3 crosses)
+  const c5Triggered = Math.abs(emaSpreadPct) < 0.10 || emaCrosses10 >= 3;
+  if (c5Triggered) chopScore += 2;
+  breakdown.push({ name: "EMA 5/13 Tangled", value: `Spread ${emaSpreadPct.toFixed(2)}% | ${emaCrosses10} crosses/10`, triggered: c5Triggered });
+
+  // C6: Spike rejection trap
+  const c6Triggered = isSpikeTrap;
+  if (c6Triggered) chopScore += 3;
+  breakdown.push({ name: "Spike Rejection Trap", value: c6Triggered ? `Triggered (${lastRangeVsAtr.toFixed(1)}x ATR, ${lastUpperWickRatio.toFixed(0)}% wick)` : "Clear", triggered: c6Triggered });
+
+  // C7: Sustained Chop (Recent Window) — broad-window chop the 10-bar view may miss
+  const c7Triggered = kerRecent < 0.25 && rcDirRatio > 55;
+  if (c7Triggered) chopScore += 2;
+  breakdown.push({ name: `Sustained Chop (${rcPeriod}-bar)`, value: `KER ${kerRecent.toFixed(2)} | Dir changes ${rcDirRatio.toFixed(0)}%`, triggered: c7Triggered });
+
+  // Chop Cure: broad window was choppy but immediate bars have cleaned up → reduce chop score
+  const chopCureTriggered = kerRecent < 0.30 && ker10 >= 0.38 && emaCrosses10 <= 1;
+  if (chopCureTriggered) chopScore = Math.max(0, chopScore - 2);
+  breakdown.push({ name: "Chop Curing", value: chopCureTriggered ? `Curing (Broad KER ${kerRecent.toFixed(2)} → Recent KER10 ${ker10.toFixed(2)})` : `Not Active (Broad KER ${kerRecent.toFixed(2)})`, triggered: chopCureTriggered });
+
+  // ── Decision ──
+  let marketRegime: string;
+  let blockEntry: boolean;
+  let suggestExit: boolean;
+  let confidence: number;
+  let reason: string;
+
+  if (chopScore >= 4) {
+    marketRegime = "CHOPPY";
+    blockEntry = true;
+    suggestExit = true;
+    confidence = Math.min(95, 60 + chopScore * 5);
+    if (c7Triggered && c1Triggered) {
+      reason = `Choppy: sustained ${rcPeriod}-bar KER ${kerRecent.toFixed(2)} with ${rcDirRatio.toFixed(0)}% dir changes, immediate KER10 ${ker10.toFixed(2)} — broad & immediate choppiness`;
+    } else if (c1Triggered && c5Triggered) {
+      reason = `Choppy: low efficiency KER ${ker10.toFixed(2)} with tangled EMAs (${emaCrosses10} crosses) — no clean direction`;
+    } else if (c6Triggered) {
+      reason = `Choppy: spike rejection trap — ${lastRangeVsAtr.toFixed(1)}x ATR bar with ${lastUpperWickRatio.toFixed(0)}% upper wick, momentum failing`;
+    } else if (c7Triggered) {
+      reason = `Choppy: sustained ${rcPeriod}-bar window shows KER ${kerRecent.toFixed(2)} with ${rcDirRatio.toFixed(0)}% direction changes — broader choppiness pattern`;
+    } else if (c2Triggered) {
+      reason = `Choppy: range compressing ${Math.abs(rangeCompressionPct).toFixed(0)}% — tightening coil, no follow-through`;
+    } else if (c3Triggered || c4Triggered) {
+      reason = `Choppy: Heikin-Ashi indecision — ${haColorFlips} flips & ${haBilateralRatio.toFixed(0)}% spinning tops in ${haPeriod} bars`;
+    } else {
+      reason = `Choppy: chop score ${chopScore} — market lacks clean directional efficiency`;
+    }
+  } else {
+    marketRegime = "TRADEABLE";
+    blockEntry = false;
+    suggestExit = false;
+    confidence = Math.min(90, 55 + (6 - chopScore) * 6);
+    reason = `Tradeable: KER ${ker10.toFixed(2)}, ${emaCrosses10} EMA crosses/10 bars, ${haColorFlips} HA flips — price moving cleanly (chop score ${chopScore})`;
+    if (chopCureTriggered) reason += ` — chop curing (broad KER ${kerRecent.toFixed(2)} → clean)`;
+  }
+
+  addAiLog(`[ai-guard:local-v4] ${symbol}: ${marketRegime} (${confidence}%) — ${reason}`);
+
+  return {
+    marketRegime,
+    blockEntry,
+    suggestExit,
+    confidence,
+    reason,
+    ruleBreakdown: breakdown,
+  };
+}
+
 export async function analyzeMarketRegime(
   symbol: string,
   candles: any[],
@@ -1089,6 +1591,16 @@ export async function analyzeMarketRegime(
   // Local rule engine V2 (Choppy & Spike Guard) — no API call needed
   if (settings.provider === "local_v2") {
     return Promise.resolve(analyzeMarketRegimeLocalV2(symbol, candles, tradeContext));
+  }
+
+  // Local rule engine V3 (Swift Trend Sniper) — no API call needed
+  if (settings.provider === "local_v3") {
+    return Promise.resolve(analyzeMarketRegimeLocalV3(symbol, candles, tradeContext));
+  }
+
+  // Local rule engine V4 (Choppy Filter) — no API call needed
+  if (settings.provider === "local_v4") {
+    return Promise.resolve(analyzeMarketRegimeLocalV4(symbol, candles, tradeContext));
   }
 
   const candleCount = settings.candlesCount || 120;

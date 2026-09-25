@@ -1,145 +1,160 @@
 /* ============================================ */
-/* CENTRALIZED COLOR THEME - DEEP VSCODE PURPLE */
-/* Dark purple theme inspired by VSCode themes  */
+/* CENTRALIZED COLOR THEME - REFINED PURPLE PRO  */
+/* Unified Trading Terminal Palette:             */
+/* - READY / Added Symbol: Clean Blue            */
+/* - WAITING / Cancel Button: Goldenrod Amber    */
+/* - RUNNING / Force Buy Button: Ruby Crimson    */
+/* - Force Init: Deep Regal Violet               */
+/* - ...WAITING: Amber-to-Champagne Pulse        */
+/* - Initializing Label: Luminous Lite Purple    */
+/* - Typography: Gentle Lavender & Champagne     */
+/* ONLY APPLIES TO [data-theme="purple"]        */
 /* ============================================ */
 
 [data-theme="purple"] {
   /* ============================================ */
-  /* BASE COLORS (Tailwind / Shadcn Dark Tokens)  */
+  /* BASE SHADCN / TAILWIND TOKENS               */
   /* ============================================ */
   
-  --background: oklch(0.16 0.05 295);
-  --foreground: oklch(0.96 0.02 295);
-  --card: oklch(0.20 0.06 295);
-  --card-foreground: oklch(0.96 0.02 295);
-  --popover: oklch(0.20 0.06 295);
-  --popover-foreground: oklch(0.96 0.02 295);
-  --primary: oklch(0.65 0.24 295);
-  --primary-foreground: oklch(0.99 0.01 295);
-  --secondary: oklch(0.25 0.07 295);
-  --secondary-foreground: oklch(0.96 0.02 295);
-  --muted: oklch(0.25 0.07 295);
-  --muted-foreground: oklch(0.72 0.06 295);
-  --accent: oklch(0.30 0.10 295);
-  --accent-foreground: oklch(0.98 0.02 295);
-  --destructive: oklch(0.65 0.22 25);
-  --border: rgba(168, 85, 247, 0.22);
-  --input: rgba(168, 85, 247, 0.25);
-  --ring: oklch(0.65 0.24 295);
+  --background: oklch(0.12 0.035 290);
+  --foreground: #ede9fe;
+  --card: oklch(0.16 0.045 290);
+  --card-foreground: #ede9fe;
+  --popover: oklch(0.15 0.04 290);
+  --popover-foreground: #ede9fe;
+  --primary: #9333ea;
+  --primary-foreground: #ffffff;
+  --secondary: #271444;
+  --secondary-foreground: #ede9fe;
+  --muted: #201038;
+  --muted-foreground: #c4b5fd;
+  --accent: #33175c;
+  --accent-foreground: #ffffff;
+  --destructive: #be123c;
+  --border: rgba(147, 51, 234, 0.28);
+  --input: rgba(147, 51, 234, 0.2);
+  --ring: #9333ea;
   
   /* Chart Colors */
   --chart-1: #a855f7;
-  --chart-2: #c084fc;
-  --chart-3: #e879f9;
+  --chart-2: #fbbf24;
+  --chart-3: #fb923c;
   --chart-4: #38bdf8;
   --chart-5: #34d399;
   
   /* Sidebar Colors */
-  --sidebar: #1a102f;
-  --sidebar-foreground: #f5f3ff;
+  --sidebar: #0f071c;
+  --sidebar-foreground: #ede9fe;
   --sidebar-primary: #9333ea;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #2e1b54;
-  --sidebar-accent-foreground: #f5f3ff;
-  --sidebar-border: #3b1d6e;
+  --sidebar-accent: #251242;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #3b1a69;
   --sidebar-ring: #a855f7;
   
   /* ============================================ */
-  /* CUSTOM COLORS (App Surfaces & Components)   */
+  /* CUSTOM APPLICATION SURFACES & CONTAINERS     */
   /* ============================================ */
   
   /* Page Backgrounds */
-  --theme-bg: #1a102f;
-  --theme-page-bg: #1a102f;
-  --theme-trade-page-bg: #1a102f;
-  --theme-login-page-bg: #1a102f;
+  --theme-bg: #0e071a;
+  --theme-page-bg: #0e071a;
+  --theme-trade-page-bg: #0e071a;
+  --theme-login-page-bg: #0e071a;
   
   /* Card Backgrounds */
-  --theme-card-white: #23153c;
-  --theme-card-dark: #1a0f30;
-  --theme-card-suggestion: #2d1b50;
-  --theme-card-log-line: #1c1033;
-  --theme-card-shadow: rgba(0, 0, 0, 0.45);
+  --theme-card-white: #170d2b;
+  --theme-card-dark: #120922;
+  --theme-card-suggestion: #241142;
+  --theme-card-log-line: #10071e;
+  --theme-card-shadow: rgba(0, 0, 0, 0.55);
   
   /* Borders */
-  --theme-border: #4c2889;
-  --theme-border-dark: #3b1d6e;
-  --theme-border-light: rgba(168, 85, 247, 0.2);
-  --theme-border-subtle: rgba(168, 85, 247, 0.1);
-  --theme-border-subtle-hover: rgba(168, 85, 247, 0.3);
-  --theme-border-subtle-very: rgba(168, 85, 247, 0.15);
-  --theme-border-log: rgba(168, 85, 247, 0.25);
-  --theme-border-suggestion: #4c2889;
-  --theme-border-separator: #3d2366;
-  --theme-border-input: #5b329e;
+  --theme-border: #4a2182;
+  --theme-border-dark: #301457;
+  --theme-border-light: rgba(147, 51, 234, 0.25);
+  --theme-border-subtle: rgba(147, 51, 234, 0.16);
+  --theme-border-subtle-hover: rgba(147, 51, 234, 0.4);
+  --theme-border-subtle-very: rgba(147, 51, 234, 0.18);
+  --theme-border-log: rgba(147, 51, 234, 0.25);
+  --theme-border-suggestion: #4a2182;
+  --theme-border-separator: #32155a;
+  --theme-border-input: #5c28a2;
   
   /* Search & Input */
-  --theme-search-bg: #2a174a;
-  --theme-input-bg: #1c1033;
-  --theme-input-border: #5b329e;
-  --theme-input-text: #f5f3ff;
+  --theme-search-bg: #1d0f36;
+  --theme-input-bg: #140a26;
+  --theme-input-border: #5c28a2;
+  --theme-input-text: #ede9fe;
   --theme-input-focus-border: #a855f7;
   
-  /* Buttons */
-  --theme-btn-primary: #9333ea;
-  --theme-btn-primary-hover: #7e22ce;
+  /* Action Buttons */
+  --theme-btn-primary: #8b31dc;
+  --theme-btn-primary-hover: #9d45ee;
   --theme-btn-primary-text: #ffffff;
-  --theme-btn-buy: #10b981;
-  --theme-btn-buy-hover: #059669;
+  --theme-btn-buy: #9f1239; /* Ruby Crimson Red for Buy */
+  --theme-btn-buy-hover: #be123c;
   --theme-btn-buy-text: #ffffff;
-  --theme-btn-danger: #f43f5e;
-  --theme-btn-danger-hover: #e11d48;
+  --theme-btn-danger: #b45309; /* Goldenrod Amber for Cancel */
+  --theme-btn-danger-hover: #d97706;
   --theme-btn-danger-text: #ffffff;
-  --theme-btn-disconnect: #f43f5e;
-  --theme-btn-disconnect-hover: #e11d48;
+  --theme-btn-disconnect: #b45309;
+  --theme-btn-disconnect-hover: #d97706;
   --theme-btn-disconnect-text: #ffffff;
-  --theme-btn-dark: #2e1b54;
-  --theme-btn-dark-text: #e9d5ff;
-  --theme-btn-waiting-text: #f5f3ff;
-  --theme-btn-status-text: #f5f3ff;
-  --theme-btn-add: #9333ea;
-  --theme-btn-add-hover: #a855f7;
+  --theme-btn-dark: #271444;
+  --theme-btn-dark-text: #ede9fe;
+  --theme-btn-waiting-text: #ffffff;
+  --theme-btn-status-text: #ffffff;
+  --theme-btn-add: #8b31dc;
+  --theme-btn-add-hover: #9d45ee;
   --theme-btn-add-text: #ffffff;
-  --theme-btn-yellow: #fbbf24;
+  --theme-btn-yellow: #d97706;
   --theme-btn-green: #10b981;
   
-  /* Tailwind Button Colors (for TSX) */
-  --theme-tailwind-yellow-500: #eab308;
-  --theme-tailwind-yellow-600: #ca8a04;
-  --theme-tailwind-red-500: #f43f5e;
-  --theme-tailwind-red-600: #e11d48;
-  --theme-tailwind-red-400: #fb7185;
-  --theme-tailwind-red-700: #be123c;
-  --theme-tailwind-blue-500: #9333ea;
-  --theme-tailwind-blue-600: #7e22ce;
-  --theme-tailwind-blue-text: #ffffff;
-  --theme-tailwind-yellow-text: #1a102f;
-  --theme-tailwind-red-text: #ffffff;
+  /* ============================================ */
+  /* WATCHLIST DOTS & FALLBACK STATUS COLORS      */
+  /* Dot 1 (READY): Blue #2563eb                  */
+  /* Dot 2 (WAITING): Goldenrod Amber #d97706     */
+  /* Dot 3 (RUNNING): Ruby Crimson Red #be123c    */
+  /* ============================================ */
+  --theme-tailwind-blue-500: #2563eb;   /* Blue for READY dot */
+  --theme-tailwind-blue-600: #1d4ed8;
+  --theme-tailwind-blue-text: #93c5fd;
+  
+  --theme-tailwind-yellow-500: #d97706; /* Goldenrod Amber for WAITING dot (matches Cancel) */
+  --theme-tailwind-yellow-600: #b45309;
+  --theme-tailwind-yellow-text: #fbbf24;
+  
+  --theme-tailwind-red-500: #be123c;    /* Ruby Crimson Red for RUNNING dot (matches Force Buy) */
+  --theme-tailwind-red-600: #9f1239;
+  --theme-tailwind-red-400: #e11d48;
+  --theme-tailwind-red-700: #881337;
+  --theme-tailwind-red-text: #fda4af;
   
   /* Status Colors */
   --theme-status-waiting: #fbbf24;
   --theme-status-profit: #34d399;
   --theme-status-loss: #f87171;
   --theme-status-success: #34d399;
-  --theme-status-empty: #a78bfa;
+  --theme-status-empty: #c4b5fd;
   
   /* Text Colors */
-  --theme-text-primary: #f5f3ff;
+  --theme-text-primary: #ede9fe;
   --theme-text-secondary: #c4b5fd;
   --theme-text-muted: #a78bfa;
-  --theme-text-label: #d8b4fe;
-  --theme-text-label-alt: #c4b5fd;
-  --theme-text-white: #ffffff;
-  --theme-text-black: #f5f3ff;
-  --theme-text-gray-400: #a78bfa;
-  --theme-text-gray-500: #7c5eb8;
-  --theme-text-gray-600: #5b3e8a;
-  --theme-text-config: #c4b5fd;
+  --theme-text-label: #fef08a;
+  --theme-text-label-alt: #fed7aa;
+  --theme-text-white: #ede9fe;
+  --theme-text-black: #fef08a;     /* Fixes ...WAITING pulse */
+  --theme-text-gray-400: #c4b5fd;
+  --theme-text-gray-500: #fef3c7; /* Champagne for params */
+  --theme-text-gray-600: #8c68b7;
+  --theme-text-config: #fef3c7;   /* Champagne for history params */
   
   /* Log/Console Colors */
-  --theme-log-bg: #120a22;
+  --theme-log-bg: #0b0515;
   --theme-log-text: #f5f3ff;
-  --theme-log-rs-gold: #fbbf24;
+  --theme-log-rs-gold: #fcd34d;
   --theme-log-cyan-time: #38bdf8;
   --theme-log-pl-profit: #34d399;
   --theme-log-pl-loss: #f87171;
@@ -147,262 +162,638 @@
   --theme-log-pl-loss-alt: #f87171;
   
   /* Shadows */
-  --theme-shadow-log: rgba(0, 0, 0, 0.4);
-  --theme-shadow-log-inset: rgba(168, 85, 247, 0.08);
+  --theme-shadow-log: rgba(0, 0, 0, 0.55);
+  --theme-shadow-log-inset: rgba(147, 51, 234, 0.1);
   
   /* Time Badge */
-  --theme-time-badge-bg: #1c1033;
-  --theme-time-badge-text: #f5f3ff;
+  --theme-time-badge-bg: #1c0e35;
+  --theme-time-badge-text: #fcd34d;
   
   /* Note/Warning */
-  --theme-note: #fbbf24;
+  --theme-note: #fcd34d;
   --theme-error: #f43f5e;
   
-  /* Zinc Colors (for log-monitor page) */
-  --theme-zinc-50: #fafafa;
-  --theme-zinc-100: #f4f4f5;
-  --theme-zinc-200: #e4e4e7;
-  --theme-zinc-300: #d4d4d8;
-  --theme-zinc-400: #a1a1aa;
-  --theme-zinc-500: #71717a;
-  --theme-zinc-600: #52525b;
-  --theme-zinc-700: #3f3f46;
-  --theme-zinc-800: #27272a;
-  --theme-zinc-900: #18181b;
-  --theme-zinc-950: #09090b;
-  
-  /* Amber Colors (for log-monitor page) */
-  --theme-amber-400: #fbbf24;
-  --theme-amber-500: #f59e0b;
-
   /* Settings Popup */
-  --theme-popup-bg: #1e1236;
-  --theme-popup-border: #9333ea;
-  --theme-popup-text: #ffffff;
+  --theme-popup-bg: #160c29;
+  --theme-popup-border: #7c3aed;
+  --theme-popup-text: #ede9fe;
   --theme-popup-label: #c4b5fd;
-  --theme-popup-field-bg: #140b24;
-  --theme-popup-field-border: #4c2889;
-  --theme-popup-backdrop: rgba(12, 6, 24, 0.82);
-  --theme-popup-subcard-bg: #160c2c;
-  --theme-popup-subcard-border: #522992;
+  --theme-popup-field-bg: #0f071c;
+  --theme-popup-field-border: #4a2182;
+  --theme-popup-backdrop: rgba(6, 3, 12, 0.85);
+  --theme-popup-subcard-bg: #120822;
+  --theme-popup-subcard-border: #4a2182;
   
-  /* Eye-pleasing Accents & Toggles */
-  --theme-toggle-on: #fbbf24;
-  --theme-toggle-off: #381f5e;
-  --theme-accent-gold: #fbbf24;
+  /* Accents & Toggles */
+  --theme-toggle-on: #fcd34d;
+  --theme-toggle-off: #3f2177;
+  --theme-toggle-dot: #ffffff;
+  --theme-accent-gold: #fcd34d;
   --theme-accent-pink: #f472b6;
   
   /* Active Strategy Badge */
-  --theme-active-badge-bg: #fbbf24;
-  --theme-active-badge-text: #120826;
+  --theme-active-badge-bg: #fcd34d;
+  --theme-active-badge-text: #0e071a;
 
-  /* Trade Page Primary Enter Button & Summary Card */
-  --theme-btn-enter-bg: #fbbf24;
-  --theme-btn-enter-text: #120826;
-  --theme-btn-enter-hover: #f59e0b;
-  --theme-trade-summary-bg: #160c2c;
-  --theme-trade-summary-border: #4c2889;
+  /* Trade Page Primary Enter Button */
+  --theme-btn-enter-bg: #fcd34d;
+  --theme-btn-enter-text: #0e071a;
+  --theme-btn-enter-hover: #fbbf24;
+  --theme-trade-summary-bg: #120822;
+  --theme-trade-summary-border: #4a2182;
 
-  /* ============================================ */
-  /* GLOBAL TYPOGRAPHY & ELEMENT OVERRIDES       */
-  /* ============================================ */
-  
-  color: #f5f3ff;
+  color: #ede9fe;
   color-scheme: dark;
 }
 
-/* Base Body and Root when Purple Theme is Active */
+/* ============================================ */
+/* SCOPED PURPLE THEME ELEMENT OVERRIDES        */
+/* ============================================ */
+
 [data-theme="purple"],
 [data-theme="purple"] body {
-  color: #f5f3ff;
-  background-color: #1a102f;
+  color: #ede9fe;
+  background-color: #0e071a;
 }
 
-/* Card and Card Header elements */
+/* Base Cards */
 [data-theme="purple"] [data-slot="card"] {
   background: var(--theme-card-white) !important;
-  color: #f5f3ff !important;
+  color: #ede9fe !important;
   border: 1px solid var(--theme-border) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+  box-shadow: 0 4px 20px var(--theme-card-shadow) !important;
+  border-radius: 12px !important;
 }
 
 [data-theme="purple"] [data-slot="card-header"] {
   background: var(--theme-card-white) !important;
-  color: #f5f3ff !important;
+  color: #ede9fe !important;
+  border-bottom: 1px solid var(--theme-border-subtle) !important;
 }
 
 [data-theme="purple"] [data-slot="card-title"] {
-  color: #f5f3ff !important;
+  color: #ede9fe !important;
+  font-weight: 700 !important;
 
   svg {
-    color: #c084fc;
+    color: #fcd34d !important;
   }
 }
 
 [data-theme="purple"] [data-slot="card-content"] {
-  color: #f5f3ff !important;
+  color: #ede9fe !important;
 }
 
 [data-theme="purple"] [data-slot="card-description"] {
   color: #c4b5fd !important;
 }
 
-/* Connection Status Play button */
-[data-theme="purple"] button[title="Open Log Monitor"] svg {
-  color: #c4b5fd !important;
-}
-
-/* Headings & Labels */
-[data-theme="purple"] h1,
-[data-theme="purple"] h2,
-[data-theme="purple"] h3,
-[data-theme="purple"] h4,
-[data-theme="purple"] h5,
-[data-theme="purple"] h6 {
-  color: #f5f3ff !important;
-}
-
-[data-theme="purple"] label {
-  color: #d8b4fe !important;
-}
-
-/* Muted text & Subtitles */
+/* Subtitles / Header counts ("Active: 0 | Waiting: 2") */
 [data-theme="purple"] .text-muted-foreground,
 [data-theme="purple"] [class*="muted"] {
   color: #c4b5fd !important;
 }
 
-/* Tailwind Grayscale Overrides */
+/* Grayscale overrides -> Soft champagne & soft cream */
+[data-theme="purple"] .text-zinc-500,
+[data-theme="purple"] .text-zinc-600,
+[data-theme="purple"] .text-gray-500,
+[data-theme="purple"] .text-gray-600 {
+  color: #fef3c7 !important;
+}
+
 [data-theme="purple"] .text-zinc-700,
 [data-theme="purple"] .text-zinc-800,
 [data-theme="purple"] .text-zinc-900,
 [data-theme="purple"] .text-gray-700,
 [data-theme="purple"] .text-gray-800,
 [data-theme="purple"] .text-gray-900 {
-  color: #f5f3ff !important;
+  color: #ede9fe !important;
 }
 
-[data-theme="purple"] .text-zinc-500,
-[data-theme="purple"] .text-zinc-600,
-[data-theme="purple"] .text-gray-500,
-[data-theme="purple"] .text-gray-600 {
-  color: #c4b5fd !important;
-}
-
-/* Bottom Navigation Menu */
+/* Bottom Navigation */
 [data-theme="purple"] [class*="bottomMenu"] {
-  background: #1e1338 !important;
-  border-top: 1px solid #3b1d6e !important;
+  background: #140a24 !important;
+  border-top: 1px solid #3b1a69 !important;
 }
 
 [data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"] {
   color: #c4b5fd !important;
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
 [data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"] svg {
-  color: #c084fc !important;
-}
-
-[data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"] span {
-  color: #c4b5fd !important;
+  color: #a855f7 !important;
 }
 
 [data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"]:hover {
+  color: #ffffff !important;
   opacity: 1;
-  color: #ffffff !important;
 }
 
-[data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"]:hover svg,
-[data-theme="purple"] [class*="bottomMenu"] [class*="menuItem"]:hover span {
-  color: #ffffff !important;
-}
-
-/* Inputs, Selects, and Textareas */
+/* Inputs & Selects */
 [data-theme="purple"] input,
 [data-theme="purple"] select,
 [data-theme="purple"] textarea {
-  background: #1c1033 !important;
-  color: #f5f3ff !important;
-  border-color: #5b329e !important;
+  background: #120822 !important;
+  color: #ede9fe !important;
+  border-color: #4a2182 !important;
 }
 
 [data-theme="purple"] input::placeholder,
 [data-theme="purple"] textarea::placeholder {
-  color: #a78bfa !important;
+  color: #8c68b7 !important;
 }
 
-/* Dividers & Borders */
+/* Dividers */
 [data-theme="purple"] hr,
 [data-theme="purple"] .border-b,
 [data-theme="purple"] .border-t,
 [data-theme="purple"] .border,
 [data-theme="purple"] [data-slot="separator"],
 [data-theme="purple"] [class*="divider"] {
-  border-color: #3d2366 !important;
+  border-color: #2b134d !important;
 }
 
-/* Table and Row elements */
-[data-theme="purple"] [class*="tableHeader"],
-[data-theme="purple"] [class*="thLeft"],
-[data-theme="purple"] [class*="thRight"],
-[data-theme="purple"] [class*="symbol"],
-[data-theme="purple"] [class*="tradeSymbol"],
-[data-theme="purple"] [class*="connectionName"],
-[data-theme="purple"] [class*="sectionTitle"] {
-  color: #f5f3ff !important;
-}
+/* ============================================ */
+/* TRASH BIN ICONS: NO BORDER OR BACKGROUND     */
+/* ============================================ */
 
-[data-theme="purple"] [class*="ltp"] {
-  color: #f5f3ff !important;
-}
-
-[data-theme="purple"] [class*="row"],
-[data-theme="purple"] [class*="trade"] {
-  border-color: #3d2366 !important;
-}
-
-/* Suggestions dropdown */
-[data-theme="purple"] [class*="suggestions"],
-[data-theme="purple"] [class*="suggestionItem"] {
-  background: #23153c !important;
-  color: #f5f3ff !important;
-  border-color: #4c2889 !important;
-}
-
-[data-theme="purple"] [class*="suggestionItem"]:hover {
-  background: #2e1b54 !important;
-}
-
-/* Trade Page Summary Container, LOT Input, and Enter Button */
-[data-theme="purple"] [data-slot="trade-summary-box"],
-[data-theme="purple"] .trade-summary-card {
-  background: var(--theme-trade-summary-bg, #160c2c) !important;
-  border: 1px solid var(--theme-trade-summary-border, #4c2889) !important;
-  color: #f5f3ff !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
-}
-
-[data-theme="purple"] [data-slot="trade-lot-input"],
-[data-theme="purple"] input[data-lot-input="true"],
-[data-theme="purple"] .trade-lot-input {
-  background-color: #ffffff !important;
-  color: #000000 !important;
-  font-weight: 800 !important;
-  border: 1px solid #d4d4d8 !important;
-}
-
-[data-theme="purple"] [data-slot="trade-enter-btn"],
-[data-theme="purple"] button[data-enter-btn="true"] {
-  background: var(--theme-btn-enter-bg, #fbbf24) !important;
-  color: var(--theme-btn-enter-text, #120826) !important;
-  font-weight: 800 !important;
+[data-theme="purple"] button:has(svg.lucide-trash-2),
+[data-theme="purple"] button:has(svg.lucide-x-circle),
+[data-theme="purple"] button[aria-label*="Clear trade history"],
+[data-theme="purple"] button[aria-label*="Delete this trade history entry"],
+[data-theme="purple"] [class*="trashBtn"] {
   border: none !important;
-  box-shadow: 0 0 14px rgba(251, 191, 36, 0.35) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 2px !important;
+}
+
+/* ============================================ */
+/* FIX: ...WAITING PULSE ANIMATION (ALWAYS CLEAR) */
+/* ============================================ */
+
+@keyframes purpleWaitingGlow {
+  0%, 100% { color: #f59e0b; opacity: 1; }
+  50% { color: #fef08a; opacity: 0.75; }
+}
+
+[data-theme="purple"] [class*="waiting"] {
+  color: #fbbf24 !important;
+}
+
+[data-theme="purple"] [class*="waiting"] [class*="dot1"],
+[data-theme="purple"] [class*="waiting"] [class*="dot2"],
+[data-theme="purple"] [class*="waiting"] [class*="dot3"],
+[data-theme="purple"] [class*="waiting"] [class*="w1"],
+[data-theme="purple"] [class*="waiting"] [class*="w2"],
+[data-theme="purple"] [class*="waiting"] [class*="w3"],
+[data-theme="purple"] [class*="waiting"] [class*="w4"],
+[data-theme="purple"] [class*="waiting"] [class*="w5"],
+[data-theme="purple"] [class*="waiting"] [class*="w6"],
+[data-theme="purple"] [class*="waiting"] [class*="w7"] {
+  animation: purpleWaitingGlow 1.8s infinite !important;
+}
+
+/* ============================================ */
+/* FORCE BUY: RUBY CRIMSON RED (MATCHES PURPLE) */
+/* ============================================ */
+
+[data-theme="purple"] [class*="waitingActions"] button[class*="dark"],
+[data-theme="purple"] [class*="tradeRight"] button[class*="dark"],
+[data-theme="purple"] [class*="bannerActions"] button[class*="dark"] {
+  background: #9f1239 !important; /* Ruby Crimson Red */
+  color: #ffffff !important;
+  border: 1px solid #be123c !important;
+  border-radius: 6px !important;
+  padding: 4px 12px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  box-shadow: 0 2px 6px rgba(159, 18, 57, 0.45) !important;
+  transition: all 0.15s ease !important;
+
+  svg {
+    color: #fef08a !important; /* Gold lightning bolt */
+  }
 
   &:hover {
-    background: var(--theme-btn-enter-hover, #f59e0b) !important;
-    box-shadow: 0 0 18px rgba(251, 191, 36, 0.5) !important;
+    background: #be123c !important;
+    transform: translateY(-1px) !important;
   }
 }
 
+/* ============================================ */
+/* CANCEL BUTTONS: PROFESSIONAL GOLDENROD AMBER */
+/* ============================================ */
+
+/* Cancel in ...WAITING row */
+[data-theme="purple"] [class*="waitingActions"] button[class*="danger"],
+[data-theme="purple"] [class*="waitingBtn"][class*="danger"] {
+  background: #b45309 !important; /* Goldenrod Amber */
+  color: #ffffff !important;
+  border: 1px solid #d97706 !important;
+  border-radius: 6px !important;
+  padding: 4px 12px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.35) !important;
+  transition: all 0.15s ease !important;
+
+  svg {
+    color: #ffffff !important;
+  }
+
+  &:hover {
+    background: #d97706 !important;
+  }
+}
+
+/* Cancel Button in Initializing Pending Banner */
+[data-theme="purple"] div[style*="rgba(99,102,241,0.06)"] button[class*="danger"],
+[data-theme="purple"] div[style*="rgba(99, 102, 241, 0.06)"] button[class*="danger"] {
+  background: #b45309 !important; /* Goldenrod Amber */
+  color: #ffffff !important;
+  border: 1px solid #d97706 !important;
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  height: 26px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.35) !important;
+  transition: all 0.15s ease !important;
+
+  svg {
+    color: #ffffff !important;
+  }
+
+  &:hover {
+    background: #d97706 !important;
+  }
+}
+
+/* ============================================ */
+/* FORCE INIT: REGAL DEEP VIOLET BUTTON         */
+/* ============================================ */
+
+[data-theme="purple"] div[style*="rgba(99,102,241,0.06)"] button[title*="Force Init"],
+[data-theme="purple"] div[style*="rgba(99, 102, 241, 0.06)"] button[title*="Force Init"] {
+  background: #3b1a69 !important; /* Regal Deep Violet */
+  color: #ede9fe !important;
+  border: 1px solid #6d28d9 !important;
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  height: 26px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  box-shadow: 0 2px 6px rgba(59, 26, 105, 0.4) !important;
+  transition: all 0.15s ease !important;
+
+  svg {
+    color: #c4b5fd !important;
+  }
+
+  &:hover {
+    background: #4c1d95 !important;
+    color: #ffffff !important;
+  }
+}
+
+/* ============================================ */
+/* INITIALIZING BANNER (LEGIBLE LITE PURPLE)    */
+/* ============================================ */
+
+/* Pending Banner Container */
+[data-theme="purple"] [class*="pendingBanner"] {
+  background: #170d2b !important;
+  border: 1px solid #4a2182 !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Symbol font: Soft Lavender Cream */
+[data-theme="purple"] [class*="bannerSymbol"] {
+  color: #ede9fe !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+}
+
+/* Progress bar inside pending banner */
+[data-theme="purple"] [class*="loadingBarContainer"] {
+  background: #000000 !important; /* Dead Black Track for max contrast */
+  border: 1px solid #4a2182 !important;
+  height: 24px !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 1) !important;
+  overflow: hidden !important;
+}
+
+/* Specific selector to target ONLY the bar, not the container */
+[data-theme="purple"] div[class*="loadingBar"]:not([class*="Container"]) {
+  background: linear-gradient(90deg, #7c3aed, #a78bfa) !important; /* Restored Professional Purple Gradient */
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.4) !important;
+}
+
+[data-theme="purple"] [class*="loadingText"] {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 1) !important;
+  letter-spacing: 1px !important;
+}
+
+/* =================================================================== */
+/* WATCHLIST PILLS: MATCHED TO THE 3 HEADER DOTS                      */
+/* Dot 1: READY   -> Clean Blue (#2563eb border + #93c5fd text)       */
+/* Dot 2: WAITING -> Goldenrod Amber (#d97706 border + #fbbf24 text)  */
+/* Dot 3: RUNNING -> Ruby Crimson Red (#be123c border + #fda4af text) */
+/* =================================================================== */
+
+/* READY (Default Added Symbol) — Clean Blue matching Dot 1 */
+[data-theme="purple"] button[style*="var(--theme-tailwind-blue-500)"] {
+  background: #0d162b !important;
+  color: #93c5fd !important;
+  border: 1.5px solid #2563eb !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+  font-weight: 700 !important;
+
+  svg polygon {
+    fill: #93c5fd !important;
+  }
+}
+
+/* WAITING Symbol Pill — Goldenrod Amber matching Cancel Button & Dot 2 */
+[data-theme="purple"] button[style*="var(--theme-tailwind-yellow-500)"] {
+  background: #201206 !important;
+  color: #fbbf24 !important;
+  border: 1.5px solid #d97706 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+  font-weight: 700 !important;
+
+  svg polygon {
+    fill: #fbbf24 !important;
+  }
+}
+
+/* RUNNING Symbol Pill — Ruby Crimson Red matching Force Buy Button & Dot 3 */
+[data-theme="purple"] button[style*="var(--theme-tailwind-red-500)"] {
+  background: #220914 !important;
+  color: #fda4af !important;
+  border: 1.5px solid #be123c !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+  font-weight: 700 !important;
+
+  svg polygon {
+    fill: #fda4af !important;
+  }
+}
+
+/* Watchlist LTP Column -> Clean Monospace Gold */
+[data-theme="purple"] [class*="ltp"] {
+  color: #fcd34d !important;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+  font-weight: 700 !important;
+}
+
+/* Trade Logs & Console Border (Lite Purple) */
+[data-theme="purple"] [class*="tradeLogs"],
+[data-theme="purple"] [class*="historyLogs"] {
+  border: 1.5px solid rgba(192, 132, 252, 0.45) !important; /* Luminous Lite Purple Border */
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 3px rgba(168, 85, 247, 0.1) !important;
+}
+
+/* Parameter and Config Lines */
+[data-theme="purple"] [class*="tradeConfig"] {
+  color: #fef3c7 !important;
+  font-weight: 500 !important;
+  opacity: 0.92 !important;
+}
+
+[data-theme="purple"] [class*="tradeConfig"] div,
+[data-theme="purple"] [class*="tradeConfig"] span {
+  color: #fef3c7 !important;
+}
+
+[data-theme="purple"] div[style*="color: var(--theme-text-config)"] {
+  color: #fef3c7 !important;
+  font-weight: 500 !important;
+  opacity: 0.92 !important;
+}
+
+/* AI Toggle Overrides for Purple Theme */
+[data-theme="purple"] [class*="aiToggle"] {
+  color: #c4b5fd !important;
+  &[class*="enabled"] {
+    color: #fcd34d !important;
+  }
+}
+
+[data-theme="purple"] [class*="aiToggleTrack"] {
+  width: 28px !important;
+  height: 16px !important;
+  border-radius: 8px !important;
+  background: #3f2177 !important;
+  [class*="enabled"] & {
+    background: #fcd34d !important;
+    box-shadow: 0 0 8px rgba(252, 211, 77, 0.4) !important;
+  }
+}
+
+[data-theme="purple"] [class*="aiToggleThumb"] {
+  width: 12px !important;
+  height: 12px !important;
+  background: #ffffff !important;
+  [class*="enabled"] & {
+    left: 14px !important;
+  }
+}
+
+[data-theme="purple"] [class*="historyDetails"] {
+  color: #fbbf24 !important;
+  font-weight: 600 !important;
+}
+
+/* Trade Page Summary Card */
+[data-theme="purple"] .trade-summary-card {
+  background: var(--theme-trade-summary-bg) !important;
+  border: 1.5px solid var(--theme-trade-summary-border) !important;
+  color: #ede9fe !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="purple"] .trade-summary-card span,
+[data-theme="purple"] .trade-summary-card label {
+  color: #ede9fe !important;
+}
+
+[data-theme="purple"] .trade-summary-card .text-gray-600,
+[data-theme="purple"] .trade-summary-card div[style*="color"] {
+  color: #c4b5fd !important;
+}
+
+[data-theme="purple"] .trade-summary-card .font-bold {
+  color: #fcd34d !important;
+}
+
+[data-theme="purple"] .trade-summary-card.bg-red-50 {
+  background: rgba(159, 18, 57, 0.15) !important;
+  border-color: #be123c !important;
+}
+
+[data-theme="purple"] .trade-summary-card .text-red-600 {
+  color: #fda4af !important;
+  font-weight: 700 !important;
+}
+
+/* Global status text colors for Purple Theme */
+[data-theme="purple"] .text-green-600 {
+  color: #34d399 !important;
+}
+
+[data-theme="purple"] .text-red-600:not(.trade-summary-card *) {
+  color: #fb7185 !important;
+}
+
+/* Trade Page Buttons */
+[data-theme="purple"] .trade-enter-btn,
+[data-theme="purple"] [data-slot="trade-enter-btn"] {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  border: 1px solid #a855f7 !important;
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.4) !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="purple"] .trade-enter-btn:hover {
+  background: #9333ea !important;
+}
+
+[data-theme="purple"] button[data-variant="outline"]:not(.trade-enter-btn *) {
+  background: rgba(24, 13, 44, 0.5) !important;
+  color: #ede9fe !important;
+  border: 1px solid #4a2182 !important;
+}
+
+/* ============================================ */
+/* PAGINATION BUTTONS                           */
+/* ============================================ */
+
+[data-theme="purple"] button[data-slot="button"] {
+  background: #180d2c !important;
+  color: #d8b4fe !important;
+  border: 1px solid #4a2182 !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  min-width: 32px !important;
+  height: 30px !important;
+  padding: 0 6px !important;
+  transition: all 0.15s ease !important;
+
+  &:hover:not(:disabled) {
+    background: #271444 !important;
+    color: #ffffff !important;
+    border-color: #7c3aed !important;
+  }
+
+  &:disabled {
+    opacity: 0.25 !important;
+    background: #10071e !important;
+    color: #63478c !important;
+    border-color: #261042 !important;
+  }
+}
+
+[data-theme="purple"] button[data-slot="button"][data-variant="default"] {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  border: 1px solid #a855f7 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.4) !important;
+}
+
+/* Suggestions Dropdown */
+[data-theme="purple"] [class*="suggestions"],
+[data-theme="purple"] [class*="suggestionItem"] {
+  background: #160c29 !important;
+  color: #ede9fe !important;
+  border-color: #4a2182 !important;
+}
+
+[data-theme="purple"] [class*="suggestionItem"]:hover {
+  background: #251242 !important;
+  color: #fcd34d !important;
+}
+
+/* ============================================ */
+/* PENDING BANNER ACTION BUTTONS                */
+/* ============================================ */
+
+/* Keep button labels on one line */
+[data-theme="purple"] [class*="bannerActions"] button {
+  white-space: nowrap !important;
+  flex-shrink: 0;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+/* Force Init in pending banners: regal deep violet (non-red) */
+[data-theme="purple"] [class*="bannerActions"] button[class*="dark"] {
+  background: #3b1a69 !important;
+  border: 1px solid #6d28d9 !important;
+  color: #ede9fe !important;
+  box-shadow: 0 2px 6px rgba(59, 26, 105, 0.4) !important;
+
+  &:hover {
+    background: #4c1d95 !important;
+    color: #ffffff !important;
+  }
+}
+
+/* Keep anyway: vibrant theme purple */
+[data-theme="purple"] [class*="bannerActions"] button[class*="keep-anyway-btn"] {
+  background: #7c3aed !important;
+  border: 1px solid #a78bfa !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.45) !important;
+
+  &:hover {
+    background: #8b5cf6 !important;
+  }
+}
+
+/* ============================================ */
+/* AI SUGGESTION DISMISS BUTTON: CYANISH BLUE   */
+/* ============================================ */
+
+[data-theme="purple"] [class*="waitingBtn"][class*="danger"][class*="ai-dismiss-btn"] {
+  background: #0e7490 !important;
+  border: 1px solid #22d3ee !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(6, 182, 212, 0.35) !important;
+
+  &:hover {
+    background: #0891b2 !important;
+    border-color: #67e8f9 !important;
+  }
+}

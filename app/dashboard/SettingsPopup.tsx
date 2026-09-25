@@ -1,14 +1,28 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import type { FocusEvent, InputHTMLAttributes } from "react";
 import { X, Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock } from "lucide-react";
 import { playSound, setVolume } from "@/lib/sounds";
 import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
 
-function ClampedNumericField({ value, onChange, min, max, ...props }: any) {
+interface ClampedNumericFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> {
+  value: number;
+  onChange: (val: number) => void;
+  min: number;
+  max: number;
+}
+
+function ClampedNumericField({ value, onChange, min, max, ...props }: ClampedNumericFieldProps) {
   const [local, setLocal] = useState<string>(value != null ? String(value) : "");
-  useEffect(() => { setLocal(value != null ? String(value) : ""); }, [value]);
+  const [prevValue, setPrevValue] = useState<number>(value);
+
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setLocal(value != null ? String(value) : "");
+  }
+
   return (
     <input
       {...props}
@@ -24,9 +38,11 @@ function ClampedNumericField({ value, onChange, min, max, ...props }: any) {
           if (!isNaN(val) && val >= min && val <= max) onChange(val);
         }
       }}
-      onBlur={(e: any) => {
-        if (!e.target.value) { setLocal(String(min)); onChange(min); }
-        else {
+      onBlur={(e: FocusEvent<HTMLInputElement>) => {
+        if (!e.target.value) {
+          setLocal(String(min));
+          onChange(min);
+        } else {
           const val = parseInt(e.target.value, 10);
           const clamped = Math.min(max, Math.max(min, val));
           setLocal(String(clamped));
@@ -91,6 +107,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [aiAutoExitEnabled, setAiAutoExitEnabled] = useState(false);
   const [aiCandlesCount, setAiCandlesCount] = useState(120);
   const [aiRecentCandlesCount, setAiRecentCandlesCount] = useState(30);
+  const [aiEntryBufferMaxCandles, setAiEntryBufferMaxCandles] = useState(1);
   const [aiConsiderVolume, setAiConsiderVolume] = useState(false);
   const [aiUseHeikinAshi, setAiUseHeikinAshi] = useState(true);
   const [aiProvider, setAiProvider] = useState("local");
@@ -165,6 +182,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
           setAiAutoExitEnabled(Boolean(data.autoExitEnabled));
           if (typeof data.candlesCount === "number") setAiCandlesCount(data.candlesCount);
           if (typeof data.recentCandlesCount === "number") setAiRecentCandlesCount(data.recentCandlesCount);
+          if (typeof data.entryBufferMaxCandles === "number") setAiEntryBufferMaxCandles(data.entryBufferMaxCandles);
           if (typeof data.considerVolume === "boolean") setAiConsiderVolume(data.considerVolume);
           if (typeof data.useHeikinAshi === "boolean") setAiUseHeikinAshi(data.useHeikinAshi);
           if (typeof data.provider === "string") setAiProvider(data.provider);
@@ -177,6 +195,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
           localStorage.setItem("aiAutoExitEnabled", String(data.autoExitEnabled));
           localStorage.setItem("aiCandlesCount", String(data.candlesCount));
           localStorage.setItem("aiRecentCandlesCount", String(data.recentCandlesCount));
+          localStorage.setItem("aiEntryBufferMaxCandles", String(data.entryBufferMaxCandles || 1));
           localStorage.setItem("aiConsiderVolume", String(data.considerVolume || false));
           localStorage.setItem("aiUseHeikinAshi", String(data.useHeikinAshi !== false));
           localStorage.setItem("aiProvider", data.provider);
@@ -196,6 +215,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
         if (aiCandles) setAiCandlesCount(parseInt(aiCandles, 10));
         const aiRecentCandles = localStorage.getItem("aiRecentCandlesCount");
         if (aiRecentCandles) setAiRecentCandlesCount(parseInt(aiRecentCandles, 10));
+        const aiEntryBuffer = localStorage.getItem("aiEntryBufferMaxCandles");
+        if (aiEntryBuffer) setAiEntryBufferMaxCandles(parseInt(aiEntryBuffer, 10));
         const aiVol = localStorage.getItem("aiConsiderVolume");
         if (aiVol) setAiConsiderVolume(aiVol === "true");
         const aiHA = localStorage.getItem("aiUseHeikinAshi");
@@ -219,12 +240,13 @@ export default function SettingsPopup({ open, onClose }: Props) {
     localStorage.setItem("aiAutoExitEnabled", String(aiAutoExitEnabled));
     localStorage.setItem("aiCandlesCount", String(aiCandlesCount));
     localStorage.setItem("aiRecentCandlesCount", String(aiRecentCandlesCount));
+    localStorage.setItem("aiEntryBufferMaxCandles", String(aiEntryBufferMaxCandles));
     localStorage.setItem("aiConsiderVolume", String(aiConsiderVolume));
     localStorage.setItem("aiUseHeikinAshi", String(aiUseHeikinAshi));
     localStorage.setItem("aiProvider", aiProvider);
     localStorage.setItem("aiModel", aiModel);
     localStorage.setItem("aiApiKey", aiApiKey);
-  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
+  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
 
   // POST AI Guard settings to backend (debounced, only after initial server load)
   const postAiSettings = useCallback(() => {
@@ -240,6 +262,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
           autoExitEnabled: aiAutoExitEnabled,
           candlesCount: aiCandlesCount,
           recentCandlesCount: aiRecentCandlesCount,
+          entryBufferMaxCandles: aiEntryBufferMaxCandles,
           considerVolume: aiConsiderVolume,
           useHeikinAshi: aiUseHeikinAshi,
           provider: aiProvider,
@@ -248,7 +271,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
         }),
       }).catch(() => {});
     }, 500);
-  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
+  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
 
   useEffect(() => { postAiSettings(); }, [postAiSettings]);
 
@@ -301,7 +324,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   }, [aiApiKey, aiProvider, aiModel]);
 
   useEffect(() => {
-    if (aiProvider === "local" || aiProvider === "local_v2") {
+    if (aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") {
       setAiTestStatus("idle");
       return;
     }
@@ -765,7 +788,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
               </div>
 
               <div className="text-xs mb-3 font-semibold" style={{ color: aiGuardEnabled ? "var(--theme-status-success)" : "var(--theme-popup-label)" }}>
-                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2") ? `Active — ${aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
+                {aiGuardEnabled ? ((aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") ? `Active — ${aiProvider === "local_v4" ? "Choppy Filter" : aiProvider === "local_v3" ? "Swift Trend Sniper" : aiProvider === "local_v2" ? "Choppy & Spike Guard" : "Rule Engine"}` : (aiApiKey ? (aiTestStatus === "connected" ? "Active" : aiTestStatus === "failed" ? "Enabled but API key invalid" : "Enabled — testing connection...") : "Enabled but no API keys — add keys to activate")) : "Disabled"}
               </div>
 
               {aiGuardEnabled && (
@@ -944,6 +967,31 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     </div>
                   </div>
 
+                  {/* Buffer Buy upto */}
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="relative flex items-center gap-1.5">
+                        <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Buffer Buy upto</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <ClampedNumericField
+                          value={aiEntryBufferMaxCandles}
+                          onChange={setAiEntryBufferMaxCandles}
+                          min={1}
+                          max={10}
+                          className="w-16 h-7 px-2 rounded-lg text-xs text-center"
+                          style={{
+                            background: "var(--theme-popup-field-bg)",
+                            color: "var(--theme-accent-gold, var(--theme-popup-text))",
+                            border: "1px solid var(--theme-popup-field-border)",
+                            fontWeight: 700,
+                          }}
+                        />
+                        <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>candles</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Consider Volume toggle */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between">
@@ -1046,7 +1094,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                           </div>
                         )}
                       </div>
-                      {aiProvider !== "local" && aiProvider !== "local_v2" && (
+                      {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                         <a
                           href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
                           target="_blank"
@@ -1070,8 +1118,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         outline: "none",
                       }}
                     >
-                      <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Luttappi V1 (Rule Engine)</option>
+                      <option value="local" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V1 (Rule Engine)</option>
                       <option value="local_v2" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V2 (Choppy & Spike Guard)</option>
+                      <option value="local_v3" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V3 (Swift Trend Sniper)</option>
+                      <option value="local_v4" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V4 (Choppy Filter)</option>
                       <option value="groq" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Groq (free)</option>
                       <option value="claude" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 3.5 (paid)</option>
                     </select>
@@ -1102,7 +1152,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   )}
 
                   {/* API Key input */}
-                  {aiProvider !== "local" && aiProvider !== "local_v2" && (
+                  {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                   <div>
                     <div className="relative flex items-center gap-1.5 mb-1.5">
                       <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>AI API Keys</label>
@@ -1272,7 +1322,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 {tempStatus === "testing" ? (
                   <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
                 ) : (
-                  <><FlaskConical className="w-3.5 h-3.5" /> {(aiProvider === "local" || aiProvider === "local_v2") ? "Analyze" : "Send to AI"}</>
+                  <><FlaskConical className="w-3.5 h-3.5" /> {(aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") ? "Analyze" : "Send to AI"}</>
                 )}
               </button>
 
@@ -1290,7 +1340,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     <div className="p-3 rounded-lg" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.2)" }}>
                       <div className="text-xs font-bold mb-2" style={{ color: "#a855f7" }}>AI Response</div>
                       <div className="space-y-1 text-xs" style={{ color: "var(--theme-popup-text)" }}>
-                        <div><span style={{ color: "var(--theme-popup-label)" }}>Regime:</span> <span style={{ fontWeight: 600, color: tempResult.parsed.marketRegime === "UPWARDS" ? "#22c55e" : tempResult.parsed.marketRegime === "SIDEWAYS" ? "#f59e0b" : "#ef4444" }}>{tempResult.parsed.marketRegime}</span></div>
+                        <div><span style={{ color: "var(--theme-popup-label)" }}>Regime:</span> <span style={{ fontWeight: 600, color: tempResult.parsed.marketRegime === "UPWARDS" ? "#22c55e" : tempResult.parsed.marketRegime === "SIDEWAYS" ? "#f59e0b" : (tempResult.parsed.marketRegime === "CHOPPY" || tempResult.parsed.marketRegime === "CHOP") ? "#ec4899" : tempResult.parsed.marketRegime === "TRADEABLE" ? "#06b6d4" : "#ef4444" }}>{tempResult.parsed.marketRegime}</span></div>
                         <div><span style={{ color: "var(--theme-popup-label)" }}>Block Entry:</span> {String(tempResult.parsed.blockEntry)}</div>
                         <div><span style={{ color: "var(--theme-popup-label)" }}>Suggest Exit:</span> {String(tempResult.parsed.suggestExit)}</div>
                         <div><span style={{ color: "var(--theme-popup-label)" }}>Confidence:</span> <span style={{ fontWeight: 600 }}>{tempResult.parsed.confidence}%</span></div>

@@ -225,6 +225,7 @@ type WaitingTrade = {
   minToHoldTrailing: boolean;
 
   minToHoldMode?: "live" | "candleClose";
+  minToHoldArmMode?: "live" | "candleClose";
 
   trailingAfterTargetEnabled: boolean;
 
@@ -328,6 +329,7 @@ type ActiveTrade = {
   minToHoldTrailing: boolean;
 
   minToHoldMode?: "live" | "candleClose";
+  minToHoldArmMode?: "live" | "candleClose";
 
   trailingAfterTargetEnabled: boolean;
 
@@ -464,6 +466,7 @@ type TradeHistoryItem = {
     minToHoldTrigger?: number;
 
     minToHoldMode?: "live" | "candleClose";
+    minToHoldArmMode?: "live" | "candleClose";
 
     sellWhenLossCandlesEnabled?: boolean;
 
@@ -737,9 +740,11 @@ const BUY_GRACE_PERIOD_MS = 5000;
 // (SELL/STOPLOSS/TARGET/REEXIT) from firing on the same candle as entry
 const lastBuyCandleTime: Record<string, string> = {};
 
+// Per-symbol last candle time — tracks the latest candle time from strategy signals
+const lastCandleTimeMap: Record<string, string> = {};
+
 // Grace period after minimum-target arming: ignore stale candle data for trigger check
-const trailingArmTimestamp: Record<string, number> = {};
-const TRAILING_ARM_GRACE_MS = 5000;
+
 
 
 
@@ -888,7 +893,8 @@ function cleanupStaleState() {
 const aiSuggestions: AiSuggestion[] = [];
 const lastAiCandleTime: Record<string, string> = {};
 const lastAiResult: Record<string, AiAnalysisResult> = {};
-const pendingSidewaysExits: Record<string, { retryCount: number; lastRetryTime: number }> = {};
+// Tracks the candle time when SIDEWAYS was first detected — exit only after 2nd consecutive sideways candle
+const pendingSidewaysExits: Record<string, string> = {};
 export function clearAiResults() {
   for (const k of Object.keys(lastAiResult)) delete lastAiResult[k];
   for (const k of Object.keys(pendingSidewaysExits)) delete pendingSidewaysExits[k];
@@ -922,7 +928,6 @@ interface PendingBuyBuffer {
   originalSignal: unknown;
 }
 const pendingBuyBuffer: Record<string, PendingBuyBuffer> = {};
-const AI_BUFFER_MAX_CANDLES = 1;
 
 // â”€â”€â”€ Helpers â”€â”€â”€
 
@@ -1008,6 +1013,8 @@ function buildConfigSnapshot(trade: ActiveTrade): TradeHistoryItem["config"] {
     minToHoldTrigger: trade.minToHoldEnabled ? trade.minToHoldTrigger : undefined,
 
     minToHoldMode: trade.minToHoldEnabled ? trade.minToHoldMode : undefined,
+
+    minToHoldArmMode: trade.minToHoldEnabled ? trade.minToHoldArmMode : undefined,
 
     sellWhenLossCandlesEnabled: Boolean(trade.sellWhenLossCandlesEnabled),
 
@@ -1123,6 +1130,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     minToHoldTrailing: trade.minToHoldTrailing,
 
     minToHoldMode: trade.minToHoldMode,
+
+    minToHoldArmMode: trade.minToHoldArmMode,
 
     trailingAfterTargetEnabled: trade.trailingAfterTargetEnabled,
 
@@ -1766,7 +1775,7 @@ function handleStrategySignal(signal: any) {
   if (signal.lastCandleTime) {
     const hasDate = String(signal.lastCandleTime).includes("-");
     if (hasDate) {
-      const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+      const todayStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10); // "YYYY-MM-DD" in IST
       if (!String(signal.lastCandleTime).startsWith(todayStr)) {
         console.log(`[trade-engine] Ignoring stale signal from previous day: ${signal.lastCandleTime} (${signal.signal})`);
         return;
@@ -1828,6 +1837,7 @@ function handleStrategySignal(signal: any) {
   if (candleTime) {
 
     lastStrategyCandleTime = candleTime;
+    if (signalSymbol) lastCandleTimeMap[signalSymbol] = candleTime;
 
   }
 
@@ -1915,18 +1925,18 @@ function handleStrategySignal(signal: any) {
           const buffered = pendingBuyBuffer[signalSymbol];
           if (buffered) {
             buffered.candlesElapsed++;
-            if (buffered.candlesElapsed >= AI_BUFFER_MAX_CANDLES) {
+            if (buffered.candlesElapsed >= settings.entryBufferMaxCandles) {
               // Buffer expired â€” AI never confirmed upwards within 5 candles
               delete pendingBuyBuffer[signalSymbol];
-              const expireLog = `BUY buffer expired after ${AI_BUFFER_MAX_CANDLES} candles â€” AI never confirmed upwards at ${now}`;
+              const expireLog = `BUY buffer expired after ${settings.entryBufferMaxCandles} candles â€” AI never confirmed upwards at ${now}`;
               if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, expireLog); }
               else if (activeTrades.find((t) => t.symbol === signalSymbol)) { addLogToActive(signalSymbol, expireLog); }
-              addAiLog(`[ai-guard] BUY buffer expired for ${signalSymbol} after ${AI_BUFFER_MAX_CANDLES} candles`);
+              addAiLog(`[ai-guard] BUY buffer expired for ${signalSymbol} after ${settings.entryBufferMaxCandles} candles`);
             } else {
-              const waitLog = `BUY buffer waiting â€” AI still sideways (${result.reason}, ${result.confidence}%) â€” candle ${buffered.candlesElapsed}/${AI_BUFFER_MAX_CANDLES} at ${now}`;
+              const waitLog = `BUY buffer waiting â€” AI still sideways (${result.reason}, ${result.confidence}%) â€” candle ${buffered.candlesElapsed}/${settings.entryBufferMaxCandles} at ${now}`;
               if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, waitLog); }
               else if (activeTrades.find((t) => t.symbol === signalSymbol)) { addLogToActive(signalSymbol, waitLog); }
-              addAiLog(`[ai-guard] BUY buffer waiting for ${signalSymbol}: candle ${buffered.candlesElapsed}/${AI_BUFFER_MAX_CANDLES}`);
+              addAiLog(`[ai-guard] BUY buffer waiting for ${signalSymbol}: candle ${buffered.candlesElapsed}/${settings.entryBufferMaxCandles}`);
             }
           }
 
@@ -1951,44 +1961,48 @@ function handleStrategySignal(signal: any) {
           }
         }
 
-        // Clear sideways retry if AI now says upwards
-        if (!result.suggestExit || result.marketRegime === "UPWARDS") {
-          if (pendingSidewaysExits[signalSymbol]) {
-            addLogToActive(signalSymbol, `AI now confirms UPWARDS â€” sideways exit cancelled at ${now}`);
-            addAiLog(`[ai-guard] ${signalSymbol} returned to UPWARDS, clearing sideways retry`);
-            delete pendingSidewaysExits[signalSymbol];
-          }
-        }
-
-        // Exit Guard â€” suggest or auto-execute exit
+        // Exit Guard — suggest or auto-execute exit
         if (result.suggestExit && activeTrade && activeTrade.inPosition) {
           if (settings.autoExitEnabled) {
-            // If sideways, start or continue the 30s retry window
-            if (result.marketRegime === "SIDEWAYS") {
+            // SIDEWAYS/CHOPPY require 2-candle confirmation before exiting; DOWNWARDS/REVERSING exit immediately
+            if (result.marketRegime === "SIDEWAYS" || result.marketRegime === "CHOPPY") {
               if (!pendingSidewaysExits[signalSymbol]) {
-                pendingSidewaysExits[signalSymbol] = { retryCount: 0, lastRetryTime: Date.now() };
-                const sideLog = `AI detected SIDEWAYS â€” waiting 30s with 10s retries before auto-exit at ${now}`;
-                addLogToActive(signalSymbol, sideLog);
-                addAiLog(`[ai-guard] Sideways detected for ${signalSymbol}, starting 30s retry window`);
-                return; // Don't exit yet
+                // First sideways candle — wait for confirmation
+                pendingSidewaysExits[signalSymbol] = candleTime;
+                addLogToActive(signalSymbol, `AI detected SIDEWAYS — waiting for 2nd candle confirmation at ${now}`);
+                addAiLog(`[ai-guard] Sideways detected for ${signalSymbol}, waiting for 2nd candle confirmation`);
               } else {
-                // Already in retry window, wait for tick to handle it
-                return;
+                // 2nd consecutive sideways candle — exit now
+                completeCycleWithoutExit(
+                  activeTrade.symbol,
+                  String(latestClose ?? ""),
+                  `AI Guard auto-exit: Sideways confirmed over 2 candles (${result.reason}, ${result.confidence}%) at ${now}`
+                );
+                updateLastSellCandleTime(activeTrade.symbol, signal.lastCandleTime ?? "");
+                addAiLog(`[ai-guard] Auto-exit executed for ${signalSymbol}: sideways confirmed (${result.reason}, ${result.confidence}%)`);
+                delete pendingSidewaysExits[signalSymbol];
               }
+            } else {
+              // DOWNWARDS / REVERSING — exit immediately
+              completeCycleWithoutExit(
+                activeTrade.symbol,
+                String(latestClose ?? ""),
+                `AI Guard auto-exit: ${result.reason} (${result.confidence}%) at ${now}`
+              );
+              updateLastSellCandleTime(activeTrade.symbol, signal.lastCandleTime ?? "");
+              addAiLog(`[ai-guard] Auto-exit executed for ${signalSymbol}: ${result.reason} (${result.confidence}%)`);
+              delete pendingSidewaysExits[signalSymbol];
             }
-
-            // Auto-execute exit (for REVERSING or immediate exit if not sideways)
-            completeCycleWithoutExit(
-              activeTrade.symbol,
-              String(latestClose ?? ""),
-              `AI Guard auto-exit: ${result.reason} (${result.confidence}%) at ${now}`
-            );
-            updateLastSellCandleTime(activeTrade.symbol, signal.lastCandleTime ?? "");
-            addAiLog(`[ai-guard] Auto-exit executed for ${signalSymbol}: ${result.reason} (${result.confidence}%)`);
-            delete pendingSidewaysExits[signalSymbol];
           } else {
             addAiLog(`[ai-guard] Exit suggested for ${signalSymbol}: ${result.reason} (${result.confidence}%)`);
           }
+        }
+
+        // Clear sideways pending if AI no longer suggests exit (e.g. UPWARDS)
+        if (!result.suggestExit && pendingSidewaysExits[signalSymbol]) {
+          addLogToActive(signalSymbol, `AI no longer sideways — sideways pending cancelled at ${now}`);
+          addAiLog(`[ai-guard] ${signalSymbol} no longer sideways, clearing pending sideways exit`);
+          delete pendingSidewaysExits[signalSymbol];
         }
       }).catch((e) => {
         addAiErrorLog("[ai-guard] Analysis error: " + String(e));
@@ -2277,7 +2291,7 @@ function handleStrategySignal(signal: any) {
         candlesElapsed: 0,
         originalSignal: signal,
       };
-      const blockedLog = `BUY buffered by AI Guard â€” ${aiResult.reason} (${aiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${AI_BUFFER_MAX_CANDLES} candles)`;
+      const blockedLog = `BUY buffered by AI Guard â€” ${aiResult.reason} (${aiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${aiSettings.entryBufferMaxCandles} candles)`;
       if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, blockedLog); }
       else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, blockedLog); }
       addAiLog(`[ai-guard] BUY buffered for ${signalSymbol}: ${aiResult.reason} (${aiResult.confidence}%)`);
@@ -2383,7 +2397,7 @@ function handleStrategySignal(signal: any) {
         candlesElapsed: 0,
         originalSignal: signal,
       };
-      const blockedLog = `REENTER buffered by AI Guard â€” ${reAiResult.reason} (${reAiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${AI_BUFFER_MAX_CANDLES} candles)`;
+      const blockedLog = `REENTER buffered by AI Guard â€” ${reAiResult.reason} (${reAiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${reAiSettings.entryBufferMaxCandles} candles)`;
       if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, blockedLog); }
       else { addLogToActive(signalSymbol, blockedLog); }
       addAiLog(`[ai-guard] REENTER buffered for ${signalSymbol}: ${reAiResult.reason} (${reAiResult.confidence}%)`);
@@ -2432,10 +2446,17 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     const ltp = ltpMap[trade.symbol];
     if (!Number.isFinite(ltp)) continue;
 
-    const targetPrice = trade.targetMode === "candleClose" && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
-    const trailingPrice = trade.trailingMode === "candleClose" && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
+    const isBacktestMode = !String(lastStrategyCandleTime).includes("-");
+    const useCloseForTarget = isBacktestMode || trade.targetMode === "candleClose";
+    const useCloseForTrailing = isBacktestMode || trade.trailingMode === "candleClose";
+    const useCloseForMinArm = isBacktestMode || trade.minToHoldArmMode === "candleClose";
+    const useCloseForMinTrigger = isBacktestMode || trade.minToHoldMode === "candleClose";
 
-    const minTargetPrice = trade.minToHoldMode === "candleClose" && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
+    const targetPrice = useCloseForTarget && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
+    const trailingPrice = useCloseForTrailing && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
+
+    const minTargetArmPrice = useCloseForMinArm && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
+    const minTargetTriggerPrice = useCloseForMinTrigger && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
 
     // Use real-time LTP for SL/Minimum Target. Target/Trailing may use LTP or last candle close based on mode.
 
@@ -2581,9 +2602,6 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
 
 
-    const priceDiff = ltp - entry;
-
-
 
     const trailingEnabled = trade.targetPointsEnabled && trade.targetPoints > 0 && trade.trailingAfterTargetEnabled && trade.trailingAfterTarget > 0;
 
@@ -2617,25 +2635,28 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
       const activationLevel = trailLevel + effectiveMinTrigger;
 
       if (!trailingArmedPositions.has(positionKey)) {
-        if (minTargetPrice >= activationLevel) {
+        if (minTargetArmPrice >= activationLevel) {
           trailingArmedPositions.add(positionKey);
-          addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Minimum target armed at ₹${minTargetPrice.toFixed(2)} (activation: ₹${activationLevel.toFixed(2)}) at ${currentTime}`);
+          addLogToActive(trade.symbol, `${useReEntryMinTarget ? "ReEntry " : ""}Minimum target armed at ₹${minTargetArmPrice.toFixed(2)} (activation: ₹${activationLevel.toFixed(2)}) at ${currentTime}`);
           persistState();
         }
       } else {
         if (effectiveMinTrailing && trade.minTargetLockedPrice === undefined) {
-          updateMinTargetHighWatermark(trade.symbol, minTargetPrice);
+          updateMinTargetHighWatermark(trade.symbol, minTargetTriggerPrice);
         }
-        const minTargetHigh = trade.minTargetHighWatermark ?? minTargetPrice;
+        const minTargetHigh = trade.minTargetHighWatermark ?? minTargetTriggerPrice;
         const minTargetFloor = (trade.minTargetLockedPrice !== undefined)
           ? trade.minTargetLockedPrice
           : (effectiveMinTrailing ? minTargetHigh - effectiveMinTrigger : trailLevel);
 
-        if (minTargetPrice <= minTargetFloor) {
+        // Skip trigger check when using candle close and no real candle has arrived since BUY
+        const hasRealCloseAfterBuy = !useCloseForMinTrigger || !lastCandleTimeMap[trade.symbol] || !lastBuyCandleTime[trade.symbol] || lastCandleTimeMap[trade.symbol] !== lastBuyCandleTime[trade.symbol];
+
+        if (hasRealCloseAfterBuy && minTargetTriggerPrice <= minTargetFloor) {
           if (effectiveSLEnabled && effectiveSL > 0 && trailedSLLevel > minTargetFloor) {
             // Defer to Trailing SL check below
           } else {
-            const exitPrice = Math.min(minTargetPrice, minTargetFloor);
+            const exitPrice = Math.min(minTargetTriggerPrice, minTargetFloor);
             triggeredPositions.add(positionKey);
             trailingArmedPositions.delete(positionKey);
             completeCycleWithoutExit(trade.symbol, String(exitPrice), `${useReEntryMinTarget ? "ReEntry " : ""}${effectiveMinTrailing ? "TRAILING MIN TARGET" : "MINIMUM TARGET"} hit for ₹${exitPrice.toFixed(2)} at ${currentTime}`);
@@ -2820,85 +2841,6 @@ async function tick() {
       } catch { /* market data not running */ }
     }
 
-    // 3. Handle pending sideways exits (10s retries)
-    if (isAiGuardActive()) {
-      const now = Date.now();
-      for (const symbol of Object.keys(pendingSidewaysExits)) {
-        const retry = pendingSidewaysExits[symbol];
-        if (now - retry.lastRetryTime >= 10000) {
-          retry.lastRetryTime = now;
-          retry.retryCount++;
-
-          const activeTrade = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
-          if (!activeTrade || !activeTrade.inPosition) {
-            delete pendingSidewaysExits[symbol];
-            continue;
-          }
-
-          const settings = getAiGuardSettings();
-          const tradeContext = {
-            entryPrice: activeTrade.entryPrice,
-            pnl: activeTrade.pnl,
-            signal: activeTrade.lotSize > 0 ? "BUY" : "SELL"
-          };
-
-          addAiLog(`[ai-guard] ${symbol}: Sideways retry #${retry.retryCount}/3...`);
-          
-          fetch(`${STRATEGY_URL}/chart-history`)
-            .then(r => r.json())
-            .then(historyData => {
-              const candles = Array.isArray(historyData?.[symbol]) ? historyData[symbol] : [];
-              if (candles.length === 0) return null;
-              return analyzeMarketRegime(symbol, candles, tradeContext);
-            })
-            .then(result => {
-              if (!result) return;
-              lastAiResult[symbol] = result;
-              const timeStr = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
-
-              // Update AI suggestions list during retry
-              for (let i = aiSuggestions.length - 1; i >= 0; i--) {
-                if (aiSuggestions[i].symbol === symbol && aiSuggestions[i].type === "EXIT_SUGGESTED") {
-                  aiSuggestions.splice(i, 1);
-                }
-              }
-              aiSuggestions.push({
-                symbol,
-                type: "EXIT_SUGGESTED",
-                marketRegime: result.marketRegime,
-                confidence: result.confidence,
-                reason: result.reason,
-                timestamp: timeStr,
-                dismissed: false,
-              });
-
-              if (!result.suggestExit || result.marketRegime === "UPWARDS") {
-                addLogToActive(symbol, `AI now confirms UPWARDS â€” sideways exit cancelled at ${timeStr}`);
-                addAiLog(`[ai-guard] ${symbol} returned to UPWARDS during retry, clearing sideways retry`);
-                delete pendingSidewaysExits[symbol];
-              } else if (retry.retryCount >= 3) {
-                if (settings.autoExitEnabled) {
-                  completeCycleWithoutExit(
-                    symbol,
-                    String(lastCandleCloseMap[symbol] ?? ""),
-                    `AI Guard auto-exit: Sideways persisted for 30s (${result.reason}, ${result.confidence}%) at ${timeStr}`
-                  );
-                  updateLastSellCandleTime(symbol, lastAiCandleTime[symbol] || "");
-                  addAiLog(`[ai-guard] Auto-exit executed for ${symbol} after 30s sideways persistence`);
-                }
-                delete pendingSidewaysExits[symbol];
-              } else {
-                addLogToActive(symbol, `AI still sideways (${result.reason}, ${result.confidence}%) â€” retry ${retry.retryCount}/3 at ${timeStr}`);
-                addAiLog(`[ai-guard] ${symbol} still sideways at retry #${retry.retryCount}`);
-              }
-            })
-            .catch(e => {
-              addAiErrorLog(`[ai-guard] Sideways retry error for ${symbol}: ${String(e)}`);
-            });
-        }
-      }
-    }
-
     // 4. Auto Trigger check — auto-activate waiting trades based on time and/or price
     // Uses server system time (IST) and live LTP from API
     // Batch-fetches all LTPs upfront to avoid per-trade sequential fetches causing tick overlap
@@ -3052,7 +2994,7 @@ export function getEngineState() {
       Object.entries(pendingBuyBuffer).map(([k, v]) => [k, {
         signalType: v.signalType,
         candlesElapsed: v.candlesElapsed,
-        maxCandles: AI_BUFFER_MAX_CANDLES,
+        maxCandles: getAiGuardSettings().entryBufferMaxCandles,
       }])
     ),
 
@@ -3142,7 +3084,7 @@ export function updateActiveTradeConfig(symbol: string, config: Record<string, u
     "trailingStopLossEnabled", "trailingStopLossSteps",
     "targetPointsEnabled", "targetPoints", "targetMode",
     "trailingAfterTarget", "trailingMode",
-    "minToHoldEnabled", "minToHold", "minToHoldTrigger", "minToHoldTrailing", "minToHoldMode",
+    "minToHoldEnabled", "minToHold", "minToHoldTrigger", "minToHoldTrailing", "minToHoldMode", "minToHoldArmMode",
     "maxProfitLossEnabled", "maxProfit", "maxLoss",
     "sellWhenLossCandlesEnabled", "sellWhenLossCandles",
     "reEntryAfterTargetEnabled", "reEntryStartCandle", "reEntryCandles", "reEntryPoints",

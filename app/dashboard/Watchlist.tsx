@@ -7,7 +7,6 @@ import { useTradeStore } from "../store/TradeStore";
 import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
 import { getPrices } from "@/lib/getPrices";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListPlus, Trash2, Lock } from "lucide-react";
 import styles from "./Watchlist.module.scss";
@@ -25,7 +24,6 @@ export default function Watchlist() {
     setSelection,
     waitingTrades,
     activeTrades,
-    getLastStrategyCandleTime,
   } = useTradeStore();
 
   const {
@@ -36,6 +34,7 @@ export default function Watchlist() {
   } = useWatchlist();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsHydrated(true);
   }, []);
 
@@ -66,16 +65,16 @@ export default function Watchlist() {
       try {
         const symbols = watchlist.map((item) => item.symbol);
         await setWatchlistSymbols(symbols);
-      } catch (error) {
+      } catch {
         console.error("Failed to sync watchlist symbols");
       }
     };
 
     syncWatchlistSymbols();
-  }, [watchlistSymbolsKey]);
+  }, [watchlistSymbolsKey, watchlist]);
 
   const activeSlots = waitingTrades.length + activeTrades.filter((t) => t.status === "ACTIVE").length;
-  const atMaxCapacity = activeSlots >= 6;
+  const atMaxCapacity = activeSlots >= 8;
 
   const watchlistItems = watchlist.map((row) => {
     const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);
@@ -157,12 +156,13 @@ export default function Watchlist() {
     const interval = setInterval(fetchPrices, 1000);
 
     return () => clearInterval(interval);
-  }, [watchlist.length, updateWatchlistPrices]);
+  }, [watchlist.length, updateWatchlistPrices, watchlist]);
 
   useEffect(() => {
     const text = searchText.trim();
 
     if (!text) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuggestions([]);
       return;
     }
@@ -179,7 +179,7 @@ export default function Watchlist() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchText]);
+  }, [searchText, watchlist]);
 
   return (
     <Card className="w-full">
