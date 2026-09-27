@@ -2166,7 +2166,7 @@ function handleStrategySignal(signal: any) {
 
   // BUY signal
 
-  if (signal.signal === "BUY") {
+  if (signal.signal === "BUY" || signal.signal === "BOOMBUY") {
 
     const signalKey = signal.signal + "-" + signal.lastCandleTime;
 
@@ -2208,7 +2208,7 @@ function handleStrategySignal(signal: any) {
 
       if (cMin >= 0 && (cMin < rangeStart || cMin > rangeEnd)) {
 
-        const skippedLog = `BUY skipped â€“ outside time range (${tradeForRange.timeFrom} ${tradeForRange.timeFromAmpm} â€“ ${tradeForRange.timeTo} ${tradeForRange.timeToAmpm}) for â‚¹${latestClose ?? ""} at ${fmtTime(signal.lastCandleTime)}`;
+        const skippedLog = `${signal.signal} skipped â€“ outside time range (${tradeForRange.timeFrom} ${tradeForRange.timeFromAmpm} â€“ ${tradeForRange.timeTo} ${tradeForRange.timeToAmpm}) for â‚¹${latestClose ?? ""} at ${fmtTime(signal.lastCandleTime)}`;
 
         if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, skippedLog); }
 
@@ -2240,7 +2240,7 @@ function handleStrategySignal(signal: any) {
 
         if (candlesPassed < tradeForWaitCheck.waitAfterSellCandles) {
 
-          const waitLog = `BUY skipped â€“ waiting ${tradeForWaitCheck.waitAfterSellCandles} candles after SELL (${candlesPassed} passed) at ${fmtTime(signal.lastCandleTime)}`;
+          const waitLog = `${signal.signal} skipped â€“ waiting ${tradeForWaitCheck.waitAfterSellCandles} candles after SELL (${candlesPassed} passed) at ${fmtTime(signal.lastCandleTime)}`;
 
           if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, waitLog); }
 
@@ -2264,7 +2264,7 @@ function handleStrategySignal(signal: any) {
 
     if (overrideValue != null && overrideValue > 0 && candleSize >= overrideValue) {
 
-      const ignoredLog = `BUY ignored â€“ candle size ${candleSize.toFixed(2)} >= buyOverride ${overrideValue} at ${fmtTime(signal.lastCandleTime)} (waiting for REENTER signal)`;
+      const ignoredLog = `${signal.signal} ignored â€“ candle size ${candleSize.toFixed(2)} >= buyOverride ${overrideValue} at ${fmtTime(signal.lastCandleTime)} (waiting for REENTER signal)`;
 
       if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, ignoredLog); }
 
@@ -2283,7 +2283,7 @@ function handleStrategySignal(signal: any) {
     // AI Guard EntryGuard â€” check if AI blocked entry for this symbol
     const aiResult = lastAiResult[signalSymbol];
     const aiSettings = getAiGuardSettings();
-    if (aiSettings.entryGuardEnabled && aiResult && aiResult.blockEntry) {
+    if (aiSettings.entryGuardEnabled && aiResult && aiResult.blockEntry && signal.signal !== "BOOMBUY") {
       // Buffer the BUY instead of permanently blocking â€” wait up to 5 candles for upwards
       pendingBuyBuffer[signalSymbol] = {
         signalType: "BUY",
@@ -2301,11 +2301,11 @@ function handleStrategySignal(signal: any) {
 
     if (matchingTrade) {
 
-      activateWaitingTrade(matchingTrade.symbol, String(latestClose ?? ""), "BUY triggered for â‚¹ " + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+      activateWaitingTrade(matchingTrade.symbol, String(latestClose ?? ""), `${signal.signal} triggered for â‚¹ ` + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     } else if (activeForSymbol && !activeForSymbol.inPosition) {
 
-      updateActiveTradeBuy(activeForSymbol.symbol, String(latestClose ?? ""), "BUY triggered for â‚¹ " + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
+      updateActiveTradeBuy(activeForSymbol.symbol, String(latestClose ?? ""), `${signal.signal} triggered for â‚¹ ` + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     }
 

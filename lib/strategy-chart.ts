@@ -17,7 +17,7 @@ export type CandleData = {
   high: number;
   low: number;
   close: number;
-  signal?: "BUY" | "SELL";
+  signal?: "BUY" | "SELL" | "BOOMBUY";
 };
 
 export type SymbolCandles = Record<string, CandleData[]>;
@@ -65,11 +65,11 @@ export function parseCandlesFromLogs(logs: string[]): SymbolCandles {
       }
     }
 
-    // Match: [LOG] ... Current eval: BUY or SELL
+    // Match: [LOG] ... Current eval: BUY or SELL or BOOMBUY
     if (lastAddedCandle && line.includes("Current eval:")) {
-      const signalMatch = line.match(/Current eval:\s*(BUY|SELL)/);
+      const signalMatch = line.match(/Current eval:\s*(BUY|SELL|BOOMBUY)/);
       if (signalMatch) {
-        const signal = signalMatch[1] as "BUY" | "SELL";
+        const signal = signalMatch[1] as "BUY" | "SELL" | "BOOMBUY";
         const symbolCandles = result[lastAddedCandle.symbol];
         if (symbolCandles) {
           const candle = symbolCandles.find(c => c.time === lastAddedCandle!.time);

@@ -226,12 +226,12 @@ function StrategyChartPage() {
 
     // Backend BUY/SELL arrows
     const markers: SeriesMarker<Time>[] = candles
-      .filter((c) => c.signal === "BUY" || c.signal === "SELL")
+      .filter((c) => c.signal === "BUY" || c.signal === "SELL" || c.signal === "BOOMBUY")
       .map((c) => ({
         time: toChartTime(c.time) as Time,
-        position: c.signal === "BUY" ? ("belowBar" as const) : ("aboveBar" as const),
-        color: c.signal === "BUY" ? "#0a8a43" : "#d12b2b",
-        shape: c.signal === "BUY" ? ("arrowUp" as const) : ("arrowDown" as const),
+        position: (c.signal === "BUY" || c.signal === "BOOMBUY") ? ("belowBar" as const) : ("aboveBar" as const),
+        color: c.signal === "BOOMBUY" ? "goldenrod" : (c.signal === "BUY" ? "#90ee90" : "#d12b2b"),
+        shape: (c.signal === "BUY" || c.signal === "BOOMBUY") ? ("arrowUp" as const) : ("arrowDown" as const),
         text: "",
       }));
     s.markerPlugin.setMarkers(markers);
