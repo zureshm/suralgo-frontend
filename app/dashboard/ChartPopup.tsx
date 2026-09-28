@@ -789,7 +789,14 @@ export default function ChartPopup({ open, onClose }: Props) {
         {/* Nifty50 Live Chart */}
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold" style={{ color: "var(--theme-popup-border)" }}>NIFTY 50</span>
+            <span
+              className="text-xs font-semibold cursor-pointer hover:underline"
+              style={{ color: "var(--theme-popup-border)" }}
+              title="Open full Nifty chart in new tab"
+              onClick={() => window.open(`/chart?symbol=NIFTY50`, "_blank")}
+            >
+              NIFTY 50
+            </span>
             <span
               className="inline-block w-2 h-2 rounded-full"
               style={{ background: nifty50Connected ? "#0a8a43" : "#d12b2b" }}

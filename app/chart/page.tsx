@@ -37,14 +37,20 @@ const lsBool = (key: string, fallback: boolean) => {
   return v !== null ? v === "true" : fallback;
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:2000";
+const NIFTY50_WS_URL = process.env.NEXT_PUBLIC_NIFTY50_WS_URL || API_BASE_URL.replace(/^http/, "ws") + "/ws/nifty50";
+
 function StrategyChartPage() {
   const searchParams = useSearchParams();
   const symbol = searchParams.get("symbol") || "";
+  const isNifty = symbol === "NIFTY50";
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const [candles, setCandles] = useState<CandleData[]>([]);
   const [loading, setLoading] = useState(true);
   const [spinning, setSpinning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [niftyConnected, setNiftyConnected] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -57,26 +63,119 @@ function StrategyChartPage() {
     labelPlugin: UTBotLabelsPrimitive;
   } | null>(null);
 
-  // Strategy indicator settings — same localStorage keys as the dashboard popup
-  const [ema1Enabled, setEma1Enabled] = useState(() => lsBool("strategy_ema1_enabled", true));
-  const [ema1Period, setEma1Period] = useState(() => lsNum("strategy_ema1_period", 10));
-  const [ema2Enabled, setEma2Enabled] = useState(() => lsBool("strategy_ema2_enabled", true));
-  const [ema2Period, setEma2Period] = useState(() => lsNum("strategy_ema2_period", 20));
-  const [utbot1Enabled, setUtbot1Enabled] = useState(() => lsBool("strategy_utbot1_enabled", false));
-  const [utbot1Key, setUtbot1Key] = useState(() => lsNum("strategy_utbot1_key", 2));
-  const [utbot1Atr, setUtbot1Atr] = useState(() => lsNum("strategy_utbot1_atr", 10));
-  const [utbot2Enabled, setUtbot2Enabled] = useState(() => lsBool("strategy_utbot2_enabled", false));
-  const [utbot2Key, setUtbot2Key] = useState(() => lsNum("strategy_utbot2_key", 3));
-  const [utbot2Atr, setUtbot2Atr] = useState(() => lsNum("strategy_utbot2_atr", 10));
-  const [utbot3Enabled, setUtbot3Enabled] = useState(() => lsBool("strategy_utbot3_enabled", false));
-  const [utbot3Key, setUtbot3Key] = useState(() => lsNum("strategy_utbot3_key", 4));
-  const [utbot3Atr, setUtbot3Atr] = useState(() => lsNum("strategy_utbot3_atr", 10));
-  const [heikenAshi, setHeikenAshi] = useState(() => lsBool("strategy_heiken_ashi", false));
+  // Strategy indicator settings — initialized with defaults, loaded in useEffect to avoid hydration mismatch
+  const prefix = isNifty ? "nifty" : "strategy";
+  const [ema1Enabled, setEma1Enabled] = useState(true);
+  const [ema1Period, setEma1Period] = useState(10);
+  const [ema2Enabled, setEma2Enabled] = useState(true);
+  const [ema2Period, setEma2Period] = useState(isNifty ? 30 : 20);
+  const [utbot1Enabled, setUtbot1Enabled] = useState(isNifty ? true : false);
+  const [utbot1Key, setUtbot1Key] = useState(2);
+  const [utbot1Atr, setUtbot1Atr] = useState(10);
+  const [utbot2Enabled, setUtbot2Enabled] = useState(false);
+  const [utbot2Key, setUtbot2Key] = useState(3);
+  const [utbot2Atr, setUtbot2Atr] = useState(10);
+  const [utbot3Enabled, setUtbot3Enabled] = useState(false);
+  const [utbot3Key, setUtbot3Key] = useState(4);
+  const [utbot3Atr, setUtbot3Atr] = useState(10);
+  const [heikenAshi, setHeikenAshi] = useState(false);
+  const [chartTheme, setChartTheme] = useState<"dark" | "light">("dark");
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
 
-  // Fetch candles for this symbol — on mount and every 15s for live updates
+  // Load settings once after hydration
   useEffect(() => {
-    if (!symbol) return;
+    setEma1Enabled(lsBool(`${prefix}_ema1_enabled`, true));
+    setEma1Period(lsNum(`${prefix}_ema1_period`, 10));
+    setEma2Enabled(lsBool(`${prefix}_ema2_enabled`, true));
+    setEma2Period(lsNum(`${prefix}_ema2_period`, isNifty ? 30 : 20));
+    setUtbot1Enabled(lsBool(`${prefix}_utbot1_enabled`, isNifty ? true : false));
+    setUtbot1Key(lsNum(`${prefix}_utbot1_key`, 2));
+    setUtbot1Atr(lsNum(`${prefix}_utbot1_atr`, 10));
+    setUtbot2Enabled(lsBool(`${prefix}_utbot2_enabled`, false));
+    setUtbot2Key(lsNum(`${prefix}_utbot2_key`, 3));
+    setUtbot2Atr(lsNum(`${prefix}_utbot2_atr`, 10));
+    setUtbot3Enabled(lsBool(`${prefix}_utbot3_enabled`, false));
+    setUtbot3Key(lsNum(`${prefix}_utbot3_key`, 4));
+    setUtbot3Atr(lsNum(`${prefix}_utbot3_atr`, 10));
+    setHeikenAshi(lsBool(`${prefix}_heiken_ashi`, false));
+    
+    const savedTheme = localStorage.getItem("chart_page_theme");
+    if (savedTheme === "light" || savedTheme === "dark") {
+      setChartTheme(savedTheme as "dark" | "light");
+    }
+    
+    setIsHydrated(true);
+  }, [prefix, isNifty]);
+
+  // Save settings when changed
+  useEffect(() => {
+    if (!isHydrated) return;
+    localStorage.setItem(`${prefix}_ema1_enabled`, String(ema1Enabled));
+    localStorage.setItem(`${prefix}_ema1_period`, String(ema1Period));
+    localStorage.setItem(`${prefix}_ema2_enabled`, String(ema2Enabled));
+    localStorage.setItem(`${prefix}_ema2_period`, String(ema2Period));
+    localStorage.setItem(`${prefix}_utbot1_enabled`, String(utbot1Enabled));
+    localStorage.setItem(`${prefix}_utbot1_key`, String(utbot1Key));
+    localStorage.setItem(`${prefix}_utbot1_atr`, String(utbot1Atr));
+    localStorage.setItem(`${prefix}_utbot2_enabled`, String(utbot2Enabled));
+    localStorage.setItem(`${prefix}_utbot2_key`, String(utbot2Key));
+    localStorage.setItem(`${prefix}_utbot2_atr`, String(utbot2Atr));
+    localStorage.setItem(`${prefix}_utbot3_enabled`, String(utbot3Enabled));
+    localStorage.setItem(`${prefix}_utbot3_key`, String(utbot3Key));
+    localStorage.setItem(`${prefix}_utbot3_atr`, String(utbot3Atr));
+    localStorage.setItem(`${prefix}_heiken_ashi`, String(heikenAshi));
+    localStorage.setItem("chart_page_theme", chartTheme);
+  }, [prefix, ema1Enabled, ema1Period, ema2Enabled, ema2Period, utbot1Enabled, utbot1Key, utbot1Atr, utbot2Enabled, utbot2Key, utbot2Atr, utbot3Enabled, utbot3Key, utbot3Atr, heikenAshi, chartTheme, isHydrated]);
+
+  // Nifty WebSocket
+  useEffect(() => {
+    if (!isNifty) return;
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let disposed = false;
+
+    function connect() {
+      if (disposed) return;
+      ws = new WebSocket(NIFTY50_WS_URL);
+      ws.onopen = () => { if (!disposed) setNiftyConnected(true); };
+      ws.onmessage = (event) => {
+        if (disposed) return;
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "snapshot" || msg.type === "update") {
+            const incoming = msg.completedCandles || [];
+            setCandles((prev) => {
+              // Sticky guard: don't wipe on empty
+              if (incoming.length === 0 && prev.length > 0) return prev;
+              
+              const all = [...incoming];
+              if (msg.currentCandle) all.push(msg.currentCandle);
+              return all;
+            });
+            setLoading(false);
+            setSpinning(false);
+          }
+        } catch {}
+      };
+      ws.onclose = () => {
+        if (!disposed) {
+          setNiftyConnected(false);
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      };
+      ws.onerror = () => ws?.close();
+    }
+    connect();
+    return () => {
+      disposed = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      ws?.close();
+    };
+  }, [isNifty]);
+
+  // Fetch candles for strategy symbol — on mount and every 15s for live updates
+  useEffect(() => {
+    if (!symbol || isNifty) return;
     let cancelled = false;
 
     const load = () => {
@@ -103,7 +202,7 @@ function StrategyChartPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [symbol]);
+  }, [symbol, isNifty]);
 
   const hasCandles = candles.length > 0;
 
@@ -116,21 +215,21 @@ function StrategyChartPage() {
       width: container.clientWidth,
       height: container.clientHeight,
       layout: {
-        background: { color: "rgba(0,0,0,0.9)" },
-        textColor: "#eee",
+        background: { color: chartTheme === "dark" ? "rgba(0,0,0,0.9)" : "#ffffff" },
+        textColor: chartTheme === "dark" ? "#eee" : "#333",
         fontSize: 12,
       },
       grid: {
-        vertLines: { color: "rgba(255,255,255,0.14)" },
-        horzLines: { color: "rgba(255,255,255,0.14)" },
+        vertLines: { color: chartTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
+        horzLines: { color: chartTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
       },
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
-        borderColor: "rgba(255,255,255,0.1)",
+        borderColor: chartTheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       },
       rightPriceScale: {
-        borderColor: "rgba(255,255,255,0.1)",
+        borderColor: chartTheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       },
       crosshair: {
         mode: 0,
@@ -166,7 +265,29 @@ function StrategyChartPage() {
       chartRef.current = null;
       seriesRef.current = null;
     };
-  }, [loading, hasCandles]);
+  }, [loading, hasCandles]); // Reverted dependencies to avoid reset on theme change
+
+  // Apply theme changes instantly without chart recreation
+  useEffect(() => {
+    if (!chartRef.current) return;
+    chartRef.current.applyOptions({
+      layout: {
+        background: { color: chartTheme === "dark" ? "rgba(0,0,0,0.9)" : "#ffffff" },
+        textColor: chartTheme === "dark" ? "#eee" : "#333",
+      },
+      grid: {
+        vertLines: { color: chartTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
+        horzLines: { color: chartTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
+      },
+      timeScale: {
+        borderColor: chartTheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+      },
+      rightPriceScale: {
+        borderColor: chartTheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+      },
+    });
+  }, [chartTheme]);
+
 
   // Update chart data when candles or settings change
   useEffect(() => {
@@ -308,37 +429,55 @@ function StrategyChartPage() {
     );
   }
 
+  if (!isHydrated) return null;
+
   return (
-    <div className="flex flex-col w-full overflow-hidden" style={{ height: "100vh", background: "#111", color: "#eee" }}>
+    <div className="flex flex-col w-full overflow-hidden" style={{ height: "100vh", background: chartTheme === "dark" ? "#111" : "#f4f4f4", color: "#eee" }}>
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-2 shrink-0"
         style={{ borderBottom: "1px solid #222", background: "#161616" }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-sm font-bold truncate" style={{ color: "#5488fa" }}>{symbol}</span>
+          <span className="text-sm font-bold truncate" style={{ color: isNifty ? "#0a8a43" : "#5488fa" }}>{isNifty ? "NIFTY 50" : symbol}</span>
+          {isNifty && (
+            <span
+              className="inline-block w-2 h-2 rounded-full shrink-0"
+              style={{ background: niftyConnected ? "#0a8a43" : "#dc2626" }}
+              title={niftyConnected ? "Connected" : "Disconnected"}
+            />
+          )}
           {candles.length > 0 && (
             <span className="text-xs" style={{ color: "#888" }}>
-              {candles.length} candles
+              {isNifty && `LTP: ${candles[candles.length - 1].close} | `}{candles.length} candles
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setChartTheme(chartTheme === "dark" ? "light" : "dark")}
+            className="text-xs px-2 py-1 rounded transition hover:opacity-80 flex items-center gap-1.5"
+            style={{ background: "#222", border: "1px solid #333", color: "#ccc" }}
+          >
+            {chartTheme === "dark" ? "Light Mode" : "Dark Mode"}
+          </button>
+          {!isNifty && (
+            <button
+              onClick={handleRefresh}
+              className="p-1.5 rounded transition hover:opacity-80"
+              style={{ background: "#5488fa", color: "#fff" }}
+              title="Refresh chart"
+              disabled={spinning}
+            >
+              <RefreshCw size={14} className={spinning ? "animate-spin" : ""} />
+            </button>
+          )}
           <button
             onClick={() => setIndicatorsOpen(!indicatorsOpen)}
             className="text-xs px-2 py-1 rounded"
             style={{ background: "#222", border: "1px solid #333", color: "#ccc" }}
           >
             Indicators
-          </button>
-          <button
-            onClick={handleRefresh}
-            className="p-1.5 rounded transition hover:opacity-80"
-            style={{ background: "#5488fa", color: "#fff" }}
-            title="Refresh chart"
-            disabled={spinning}
-          >
-            <RefreshCw size={14} className={spinning ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
@@ -351,39 +490,39 @@ function StrategyChartPage() {
         >
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={ema1Enabled} onChange={(e) => setEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500" />
-            <span>EMA 1</span>
+            <span style={{ color: "#eee" }}>EMA 1</span>
             <input
               type="text" inputMode="numeric" value={ema1Period}
               onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setEma1Period(v === "" ? 0 : Number(v)); }}
-              className="w-10 h-6 rounded text-center" style={inputStyle}
+              className="w-10 h-6 rounded text-center" style={{ ...inputStyle, background: "#1a1a1a", border: "1px solid #333", color: "#eee" }}
             />
           </label>
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={ema2Enabled} onChange={(e) => setEma2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-yellow-500" />
-            <span>EMA 2</span>
+            <span style={{ color: "#eee" }}>EMA 2</span>
             <input
               type="text" inputMode="numeric" value={ema2Period}
               onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setEma2Period(v === "" ? 0 : Number(v)); }}
-              className="w-10 h-6 rounded text-center" style={inputStyle}
+              className="w-10 h-6 rounded text-center" style={{ ...inputStyle, background: "#1a1a1a", border: "1px solid #333", color: "#eee" }}
             />
           </label>
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={utbot1Enabled} onChange={(e) => setUtbot1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
-            <span>UTBOT 1</span>
-            <input type="text" inputMode="numeric" value={utbot1Key} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot1Key(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={inputStyle} />
-            <input type="text" inputMode="numeric" value={utbot1Atr} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot1Atr(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={inputStyle} />
+            <span style={{ color: "#eee" }}>UTBOT 1</span>
+            <input type="text" inputMode="numeric" value={utbot1Key} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot1Key(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={{ ...inputStyle, background: "#1a1a1a", border: "1px solid #333", color: "#eee" }} />
+            <input type="text" inputMode="numeric" value={utbot1Atr} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot1Atr(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={{ ...inputStyle, background: "#1a1a1a", border: "1px solid #333", color: "#eee" }} />
           </label>
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={utbot2Enabled} onChange={(e) => setUtbot2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-cyan-500" />
-            <span>UTBOT 2</span>
-            <input type="text" inputMode="numeric" value={utbot2Key} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot2Key(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={inputStyle} />
-            <input type="text" inputMode="numeric" value={utbot2Atr} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot2Atr(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={inputStyle} />
+            <span style={{ color: "#eee" }}>UTBOT 2</span>
+            <input type="text" inputMode="numeric" value={utbot2Key} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot2Key(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={{ ...inputStyle, background: "#1a1a1a", border: "1px solid #333", color: "#eee" }} />
+            <input type="text" inputMode="numeric" value={utbot2Atr} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot2Atr(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={{ ...inputStyle, background: "#1a1a1a", border: "1px solid #333", color: "#eee" }} />
           </label>
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={utbot3Enabled} onChange={(e) => setUtbot3Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-500" />
-            <span>UTBOT 3</span>
-            <input type="text" inputMode="numeric" value={utbot3Key} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot3Key(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={inputStyle} />
-            <input type="text" inputMode="numeric" value={utbot3Atr} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot3Atr(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={inputStyle} />
+            <span style={{ color: "#eee" }}>UTBOT 3</span>
+            <input type="text" inputMode="numeric" value={utbot3Key} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot3Key(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={{ ...inputStyle, background: "#1a1a1a", border: "1px solid #333", color: "#eee" }} />
+            <input type="text" inputMode="numeric" value={utbot3Atr} onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setUtbot3Atr(v === "" ? 0 : Number(v)); }} className="w-8 h-6 rounded text-center" style={{ ...inputStyle, background: "#1a1a1a", border: "1px solid #333", color: "#eee" }} />
           </label>
           <div className="flex items-center gap-1.5 ml-auto">
             <span className="text-[10px] font-bold" style={{ color: "#888" }}>HEIKEN ASHI</span>
