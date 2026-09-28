@@ -589,7 +589,12 @@ export default function ChartPopup({ open, onClose }: Props) {
     };
 
     const kickoff = setTimeout(fetchCandles, 0);
-    return () => clearTimeout(kickoff);
+    const interval = setInterval(fetchCandles, 60000); // 1 minute auto-refresh
+
+    return () => {
+      clearTimeout(kickoff);
+      clearInterval(interval);
+    };
   }, [open, refreshKey]);
 
   // Create/update charts when data changes

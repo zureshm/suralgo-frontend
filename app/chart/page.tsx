@@ -211,25 +211,29 @@ function StrategyChartPage() {
     if (!containerRef.current || chartRef.current) return;
 
     const container = containerRef.current;
+    const isDark = chartTheme === "dark";
+    const upColor = isDark ? "#0ad125" : "#089981";
+    const downColor = isDark ? "#ea3434" : "#f23645";
+
     const chart = createChart(container, {
       width: container.clientWidth,
       height: container.clientHeight,
       layout: {
-        background: { color: chartTheme === "dark" ? "rgba(0,0,0,0.9)" : "#ffffff" },
-        textColor: chartTheme === "dark" ? "#eee" : "#333",
+        background: { color: isDark ? "rgba(0,0,0,0.9)" : "#ffffff" },
+        textColor: isDark ? "#eee" : "#333",
         fontSize: 12,
       },
       grid: {
-        vertLines: { color: chartTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
-        horzLines: { color: chartTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
+        vertLines: { color: isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
+        horzLines: { color: isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
       },
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
-        borderColor: chartTheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+        borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       },
       rightPriceScale: {
-        borderColor: chartTheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+        borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       },
       crosshair: {
         mode: 0,
@@ -237,12 +241,12 @@ function StrategyChartPage() {
     });
 
     const main = chart.addSeries(CandlestickSeries, {
-      upColor: "#0ad125",
-      downColor: "#ea3434",
-      borderUpColor: "#0ad125",
-      borderDownColor: "#ea3434",
-      wickUpColor: "#0ad125",
-      wickDownColor: "#ea3434",
+      upColor,
+      downColor,
+      borderUpColor: upColor,
+      borderDownColor: downColor,
+      wickUpColor: upColor,
+      wickDownColor: downColor,
     });
 
     const ema1 = chart.addSeries(LineSeries, { color: "#5488fa", lineWidth: 2 });
@@ -269,24 +273,39 @@ function StrategyChartPage() {
 
   // Apply theme changes instantly without chart recreation
   useEffect(() => {
-    if (!chartRef.current) return;
+    if (!chartRef.current || !seriesRef.current) return;
+    const isDark = chartTheme === "dark";
+    
     chartRef.current.applyOptions({
       layout: {
-        background: { color: chartTheme === "dark" ? "rgba(0,0,0,0.9)" : "#ffffff" },
-        textColor: chartTheme === "dark" ? "#eee" : "#333",
+        background: { color: isDark ? "rgba(0,0,0,0.9)" : "#ffffff" },
+        textColor: isDark ? "#eee" : "#333",
       },
       grid: {
-        vertLines: { color: chartTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
-        horzLines: { color: chartTheme === "dark" ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
+        vertLines: { color: isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
+        horzLines: { color: isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.06)" },
       },
       timeScale: {
-        borderColor: chartTheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+        borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       },
       rightPriceScale: {
-        borderColor: chartTheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+        borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       },
     });
-  }, [chartTheme]);
+
+    // Professional candle colors
+    const upColor = isDark ? "#0ad125" : "#089981";
+    const downColor = isDark ? "#ea3434" : "#f23645";
+    
+    seriesRef.current.main.applyOptions({
+      upColor,
+      downColor,
+      borderUpColor: upColor,
+      borderDownColor: downColor,
+      wickUpColor: upColor,
+      wickDownColor: downColor,
+    });
+  }, [chartTheme, loading, hasCandles]);
 
 
   // Update chart data when candles or settings change
@@ -432,7 +451,7 @@ function StrategyChartPage() {
   if (!isHydrated) return null;
 
   return (
-    <div className="flex flex-col w-full overflow-hidden" style={{ height: "100vh", background: chartTheme === "dark" ? "#111" : "#f4f4f4", color: "#eee" }}>
+    <div className="flex flex-col w-full overflow-hidden" style={{ height: "100vh", background: chartTheme === "dark" ? "#111" : "#f4f4f4" }}>
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-2 shrink-0"
