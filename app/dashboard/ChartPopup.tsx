@@ -14,6 +14,7 @@ import {
   UTBotLabel,
   UTBotLabelsPrimitive,
   toChartTime,
+  isWithinMarketHours,
 } from "@/lib/strategy-chart";
 
 interface NumericFieldProps extends Omit<React.ComponentProps<"input">, "value" | "onChange"> {
@@ -388,9 +389,18 @@ export default function ChartPopup({ open, onClose }: Props) {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "snapshot" || msg.type === "update") {
-            setNifty50Data({
-              completedCandles: msg.completedCandles || [],
-              currentCandle: msg.currentCandle || null,
+            const incomingCompleted = (msg.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
+            const incomingCurrent = msg.currentCandle && isWithinMarketHours(msg.currentCandle.time) ? msg.currentCandle : null;
+
+            setNifty50Data((prev) => {
+              // Sticky guard: if incoming data is filtered out entirely but we have data, keep the old data
+              if (incomingCompleted.length === 0 && !incomingCurrent && prev.completedCandles.length > 0) {
+                return prev;
+              }
+              return {
+                completedCandles: incomingCompleted,
+                currentCandle: incomingCurrent,
+              };
             });
           }
         } catch {}
@@ -577,7 +587,12 @@ export default function ChartPopup({ open, onClose }: Props) {
       setSpinning(true);
       fetchSymbolCandles()
         .then((result) => {
-          setSymbolCandles(result);
+          // Filter out candles outside market hours for each symbol
+          const filteredResult: SymbolCandles = {};
+          for (const sym of Object.keys(result)) {
+            filteredResult[sym] = (result[sym] || []).filter(c => isWithinMarketHours(c.time));
+          }
+          setSymbolCandles(filteredResult);
           setError(null);
         })
         .catch(() => {

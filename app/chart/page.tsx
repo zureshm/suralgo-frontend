@@ -23,6 +23,7 @@ import {
   UTBotLabelsPrimitive,
   UTBotLabel,
   CandleData,
+  isWithinMarketHours,
 } from "@/lib/strategy-chart";
 
 const lsNum = (key: string, fallback: number) => {
@@ -143,13 +144,15 @@ function StrategyChartPage() {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "snapshot" || msg.type === "update") {
-            const incoming = msg.completedCandles || [];
+            const incoming = (msg.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
+            const currentC = msg.currentCandle && isWithinMarketHours(msg.currentCandle.time) ? msg.currentCandle : null;
+
             setCandles((prev) => {
-              // Sticky guard: don't wipe on empty
-              if (incoming.length === 0 && prev.length > 0) return prev;
+              // Sticky guard: don't wipe on empty (after hours)
+              if (incoming.length === 0 && !currentC && prev.length > 0) return prev;
               
               const all = [...incoming];
-              if (msg.currentCandle) all.push(msg.currentCandle);
+              if (currentC) all.push(currentC);
               return all;
             });
             setLoading(false);
@@ -182,7 +185,8 @@ function StrategyChartPage() {
       fetchSymbolCandles()
         .then((data) => {
           if (cancelled) return;
-          setCandles(data[symbol] || []);
+          const filtered = (data[symbol] || []).filter(c => isWithinMarketHours(c.time));
+          setCandles(filtered);
           setError(null);
         })
         .catch(() => {
