@@ -109,6 +109,35 @@ export default function SettingsDesktop() {
   const aiSettingsLoadedRef = useRef(false);
   const aiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // AI Guard info tooltips
+  const [isProviderInfoOpen, setIsProviderInfoOpen] = useState(false);
+  const [isApiKeyInfoOpen, setIsApiKeyInfoOpen] = useState(false);
+
+  // AI Guard test connection
+  const [aiTestStatus, setAiTestStatus] = useState<"idle" | "testing" | "connected" | "failed">("idle");
+  const [aiTestError, setAiTestError] = useState("");
+  const aiPrevKeyRef = useRef<string>("");
+  const aiPrevProviderRef = useRef<string>("local");
+  const aiPrevModelRef = useRef<string>("openai/gpt-oss-120b");
+
+  // TEMP AI Testing
+  const [tempCandleText, setTempCandleText] = useState("");
+  const [tempStatus, setTempStatus] = useState<"idle" | "testing" | "done" | "error">("idle");
+  const [tempTestingEnabled, setTempTestingEnabled] = useState(false);
+  const [tempResult, setTempResult] = useState<null | { parsed: { marketRegime?: string; blockEntry?: boolean; suggestExit?: boolean; confidence?: number; reason?: string; rangeHigh?: number; rangeLow?: number } | null; rawResponse: string; candleCount: number; usedCount: number; model?: string; promptSent?: string; error?: string; ruleBreakdown?: { name: string; value: string; triggered: boolean }[] }>(null);
+
+  // Close tooltips when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button[aria-label*="info"]') || target.closest('[data-tooltip]')) return;
+      setIsProviderInfoOpen(false);
+      setIsApiKeyInfoOpen(false);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     const stored = localStorage.getItem("soundVolume");
     if (stored) {
@@ -243,6 +272,47 @@ export default function SettingsDesktop() {
   }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
 
   useEffect(() => { postAiSettings(); }, [postAiSettings]);
+
+  // Test API key when it changes (or provider changes)
+  const testAiConnection = useCallback(async () => {
+    if (!aiApiKey) {
+      setAiTestStatus("idle");
+      return;
+    }
+    setAiTestStatus("testing");
+    setAiTestError("");
+    try {
+      const res = await fetch("/next-api/ai/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: aiProvider, apiKeys: aiApiKey, model: aiModel }),
+      });
+      const data = await res.json();
+      if (data.connected) {
+        setAiTestStatus("connected");
+      } else {
+        setAiTestStatus("failed");
+        setAiTestError(data.error || "Unknown error");
+      }
+    } catch {
+      setAiTestStatus("failed");
+      setAiTestError("Cannot reach server");
+    }
+  }, [aiApiKey, aiProvider, aiModel]);
+
+  useEffect(() => {
+    if (aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") {
+      setAiTestStatus("idle");
+      return;
+    }
+    if (aiApiKey && (aiApiKey !== aiPrevKeyRef.current || aiProvider !== aiPrevProviderRef.current || aiModel !== aiPrevModelRef.current)) {
+      aiPrevKeyRef.current = aiApiKey;
+      aiPrevProviderRef.current = aiProvider;
+      aiPrevModelRef.current = aiModel;
+      const timer = setTimeout(() => { testAiConnection(); }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [aiApiKey, aiProvider, aiModel, testAiConnection]);
 
   const handleSave = async () => {
     if (!selectedStrategy || selectedStrategy === activeStrategy) return;
@@ -652,7 +722,40 @@ export default function SettingsDesktop() {
 
                     {/* AI Provider */}
                     <div>
-                      <label className="block mb-1" style={labelStyle}>Provider</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="relative flex items-center gap-1.5">
+                          <label style={labelStyle}>Provider</label>
+                          <button
+                            type="button"
+                            onClick={() => setIsProviderInfoOpen((prev) => !prev)}
+                            className="flex h-5 w-5 items-center justify-center rounded-full border text-gray-500 hover:text-gray-700"
+                            style={{ borderColor: "var(--theme-popup-field-border)" }}
+                            aria-label="AI Provider info"
+                          >
+                            <HelpCircle className="h-3 w-3" />
+                          </button>
+                          {isProviderInfoOpen && (
+                            <div
+                              data-tooltip
+                              className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
+                              style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
+                            >
+                              Local V1/V2: free rule-based engines, no API key needed. Groq is free and fast. Claude Haiku is paid but offers strong reasoning quality.
+                            </div>
+                          )}
+                        </div>
+                        {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
+                          <a
+                            href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs underline font-semibold"
+                            style={{ color: "var(--theme-accent-gold, var(--theme-popup-border))" }}
+                          >
+                            Get API key ↗
+                          </a>
+                        )}
+                      </div>
                       <select
                         value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}
                         className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
@@ -716,6 +819,250 @@ export default function SettingsDesktop() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Groq Model dropdown */}
+                  {aiProvider === "groq" && (
+                  <div className="pt-4">
+                    <label className="block mb-1" style={labelStyle}>Groq Model</label>
+                    <select
+                      value={aiModel} onChange={(e) => setAiModel(e.target.value)}
+                      className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
+                      style={{ color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
+                    >
+                      <option value="openai/gpt-oss-20b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT OSS 20B — fast, low cost</option>
+                      <option value="openai/gpt-oss-120b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT OSS 120B — highest quality (recommended)</option>
+                      <option value="qwen/qwen3.6-27b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Qwen 3.6 27B — preview</option>
+                    </select>
+                  </div>
+                  )}
+
+                  {/* API Key input */}
+                  {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
+                  <div className="pt-4">
+                    <div className="relative flex items-center gap-1.5 mb-1.5">
+                      <label style={labelStyle}>AI API Keys</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsApiKeyInfoOpen((prev) => !prev)}
+                        className="flex h-5 w-5 items-center justify-center rounded-full border text-gray-500 hover:text-gray-700"
+                        style={{ borderColor: "var(--theme-popup-field-border)" }}
+                        aria-label="API Key info"
+                      >
+                        <HelpCircle className="h-3 w-3" />
+                      </button>
+                      {isApiKeyInfoOpen && (
+                        <div
+                          data-tooltip
+                          className="absolute left-0 top-7 w-60 rounded-md p-2 shadow-lg"
+                          style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", color: "#fff", fontSize: "11px", lineHeight: "18px" }}
+                        >
+                          Your API keys are stored locally. One key per line. Get them from the provider console. Multiple keys are rotated automatically to increase rate limits.
+                        </div>
+                      )}
+                    </div>
+                    <textarea
+                      value={aiApiKey}
+                      onChange={(e) => setAiApiKey(e.target.value)}
+                      placeholder={`Paste your ${aiProvider === "claude" ? "Claude" : "Groq"} API key(s) here — one per line`}
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-lg text-xs resize-vertical"
+                      style={{
+                        background: "var(--theme-popup-field-bg)",
+                        color: "var(--theme-popup-text)",
+                        border: "1px solid var(--theme-popup-field-border)",
+                        outline: "none",
+                        fontFamily: "monospace",
+                      }}
+                    />
+                    {aiTestStatus === "testing" && (
+                      <div className="text-xs mt-1.5" style={{ color: "var(--theme-popup-label)" }}>
+                        <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
+                        Testing connection...
+                      </div>
+                    )}
+                    {aiTestStatus === "connected" && (
+                      <div className="text-xs mt-1.5" style={{ color: "var(--theme-status-success)" }}>
+                        ✓ Connected
+                      </div>
+                    )}
+                    {aiTestStatus === "failed" && (
+                      <div className="text-xs mt-1.5" style={{ color: "#ef4444" }}>
+                        ✗ {aiTestError}
+                      </div>
+                    )}
+                  </div>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* TEMP AI Testing Section */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <FlaskConical size={18} style={{ color: "#a855f7" }} />
+                  <div className="flex items-center gap-2" style={labelStyle}>
+                    TEMP AI Testing
+                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(168,85,247,0.15)", color: "#a855f7", fontSize: "10px" }}>TEMP</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTempTestingEnabled(!tempTestingEnabled)}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    background: tempTestingEnabled ? "#a855f7" : "var(--theme-popup-field-border)",
+                    position: "relative",
+                    transition: "background 0.2s",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 3,
+                      left: tempTestingEnabled ? 23 : 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    }}
+                  />
+                </button>
+              </div>
+
+              {tempTestingEnabled && (
+                <div className="p-5 rounded-xl border" style={{ background: "var(--theme-popup-field-bg)", borderColor: "var(--theme-popup-field-border)" }}>
+                  <div className="text-xs mb-3" style={{ color: "var(--theme-popup-label)" }}>
+                    Paste candle data (CSV format: time,open,high,low,close[,volume]) to test AI analysis without live market.
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="text-xs font-semibold mb-1 block" style={{ color: "var(--theme-popup-label)" }}>
+                      Candle Data (paste from your OHLC file — last {aiCandlesCount} will be used)
+                    </label>
+                    <textarea
+                      value={tempCandleText}
+                      onChange={(e) => setTempCandleText(e.target.value)}
+                      placeholder={"time,open,high,low,close,volume\n09:15,307.55,320.35,290,291.05,245\n09:16,286.6,287.75,275,275.4,256\n..."}
+                      rows={8}
+                      className="w-full p-3 rounded-lg text-xs font-mono"
+                      style={{
+                        background: "var(--theme-popup-bg)",
+                        border: "1px solid var(--theme-popup-field-border)",
+                        color: "var(--theme-popup-text)",
+                        resize: "vertical",
+                        minHeight: "120px",
+                      }}
+                    />
+                    <div className="text-xs mt-1" style={{ color: "var(--theme-popup-label)" }}>
+                      {tempCandleText.trim() ? `${tempCandleText.trim().split("\n").filter((l) => l.trim() && !l.toLowerCase().startsWith("time,") && !l.toLowerCase().startsWith("date,")).length} lines detected` : "No data pasted yet"}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={tempStatus === "testing" || !tempCandleText.trim()}
+                    onClick={async () => {
+                      setTempStatus("testing");
+                      setTempResult(null);
+                      try {
+                        const res = await fetch("/next-api/ai/TEMP_analyze-test", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ candleText: tempCandleText, apiKey: aiApiKey.split("\n").map((k) => k.trim()).filter(Boolean)[0] || aiApiKey }),
+                        });
+                        const data = await res.json();
+                        if (data.error) {
+                          setTempStatus("error");
+                          setTempResult({ parsed: null, rawResponse: "", candleCount: 0, usedCount: 0, error: data.error });
+                        } else {
+                          setTempStatus("done");
+                          setTempResult(data);
+                        }
+                      } catch {
+                        setTempStatus("error");
+                        setTempResult({ parsed: null, rawResponse: "", candleCount: 0, usedCount: 0, error: "Cannot reach server" });
+                      }
+                    }}
+                    className="w-full h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-2"
+                    style={{
+                      background: tempStatus === "testing" ? "var(--theme-popup-field-border)" : "#a855f7",
+                      color: "#fff",
+                      border: "none",
+                      cursor: tempStatus === "testing" || !tempCandleText.trim() ? "not-allowed" : "pointer",
+                      opacity: tempStatus === "testing" || !tempCandleText.trim() ? 0.6 : 1,
+                    }}
+                  >
+                    {tempStatus === "testing" ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
+                    ) : (
+                      <><FlaskConical className="w-3.5 h-3.5" /> {(aiProvider === "local" || aiProvider === "local_v2" || aiProvider === "local_v3" || aiProvider === "local_v4") ? "Analyze" : "Send to AI"}</>
+                    )}
+                  </button>
+
+                  {tempStatus === "error" && tempResult?.error && (
+                    <div className="mt-3 p-3 rounded-lg text-xs" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444" }}>
+                      {tempResult.error}
+                    </div>
+                  )}
+
+                  {tempStatus === "done" && tempResult && (
+                    <div className="mt-3 space-y-3">
+                      {tempResult.parsed && (
+                        <div className="p-3 rounded-lg" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                          <div className="text-xs font-bold mb-2" style={{ color: "#a855f7" }}>AI Response</div>
+                          <div className="space-y-1 text-xs" style={{ color: "var(--theme-popup-text)" }}>
+                            <div><span style={{ color: "var(--theme-popup-label)" }}>Regime:</span> <span style={{ fontWeight: 600, color: tempResult.parsed.marketRegime === "UPWARDS" ? "#22c55e" : tempResult.parsed.marketRegime === "SIDEWAYS" ? "#f59e0b" : (tempResult.parsed.marketRegime === "CHOPPY" || tempResult.parsed.marketRegime === "CHOP") ? "#ec4899" : tempResult.parsed.marketRegime === "TRADEABLE" ? "#06b6d4" : "#ef4444" }}>{tempResult.parsed.marketRegime}</span></div>
+                            <div><span style={{ color: "var(--theme-popup-label)" }}>Block Entry:</span> {String(tempResult.parsed.blockEntry)}</div>
+                            <div><span style={{ color: "var(--theme-popup-label)" }}>Suggest Exit:</span> {String(tempResult.parsed.suggestExit)}</div>
+                            <div><span style={{ color: "var(--theme-popup-label)" }}>Confidence:</span> <span style={{ fontWeight: 600 }}>{tempResult.parsed.confidence}%</span></div>
+                            <div><span style={{ color: "var(--theme-popup-label)" }}>Reason:</span> {tempResult.parsed.reason}</div>
+                            {tempResult.parsed.rangeHigh != null && <div><span style={{ color: "var(--theme-popup-label)" }}>Range High:</span> {tempResult.parsed.rangeHigh}</div>}
+                            {tempResult.parsed.rangeLow != null && <div><span style={{ color: "var(--theme-popup-label)" }}>Range Low:</span> {tempResult.parsed.rangeLow}</div>}
+                          </div>
+                        </div>
+                      )}
+
+                      {tempResult.ruleBreakdown && tempResult.ruleBreakdown.length > 0 && (
+                        <div className="p-3 rounded-lg" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                          <div className="text-xs font-bold mb-2" style={{ color: "#a855f7" }}>Rule Breakdown</div>
+                          <div className="space-y-1 text-xs" style={{ color: "var(--theme-popup-text)" }}>
+                            {tempResult.ruleBreakdown.map((rule, i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: rule.triggered ? "#22c55e" : "var(--theme-popup-field-border)" }} />
+                                <span style={{ color: "var(--theme-popup-label)", minWidth: 140 }}>{rule.name}</span>
+                                <span style={{ fontWeight: 600 }}>{rule.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-xs" style={{ color: "var(--theme-popup-label)" }}>
+                        Candles parsed: {tempResult.candleCount} | Used: {tempResult.usedCount} | Model: {tempResult.model || "openai/gpt-oss-120b"}
+                      </div>
+
+                      <details>
+                        <summary className="text-xs cursor-pointer" style={{ color: "var(--theme-popup-label)" }}>Raw AI response</summary>
+                        <pre className="mt-2 p-2 rounded text-xs overflow-auto" style={{ background: "var(--theme-popup-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)", maxHeight: "200px" }}>
+{tempResult.rawResponse}
+                        </pre>
+                      </details>
+
+                      <details>
+                        <summary className="text-xs cursor-pointer" style={{ color: "var(--theme-popup-label)" }}>Prompt sent to AI</summary>
+                        <pre className="mt-2 p-2 rounded text-xs overflow-auto" style={{ background: "var(--theme-popup-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)", maxHeight: "200px" }}>
+{tempResult.promptSent || "(not available)"}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
                 </div>
               )}
             </section>
