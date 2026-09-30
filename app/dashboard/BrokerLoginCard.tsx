@@ -79,7 +79,7 @@ const FUND_ROWS_MAP: Record<BrokerType, typeof ANGELONE_FUND_ROWS> = {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export default function BrokerLoginCard() {
+export default function BrokerLoginCard({ desktop = false }: { desktop?: boolean }) {
   const [selectedBroker, setSelectedBroker] = useState<BrokerType>("flattrade");
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -356,6 +356,98 @@ export default function BrokerLoginCard() {
   if (connected && accountInfo) {
     const fundRows = FUND_ROWS_MAP[accountInfo.broker];
 
+    const fundsContent = (
+      <div className="space-y-1">
+        {fundRows.map((row, i, arr) => (
+          <div
+            key={row.key}
+            className={`flex justify-between items-center py-1.5 ${i < arr.length - 1 ? "border-b" : ""}`}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-medium">{row.label}</span>
+              <div className="relative">
+                <button
+                  type="button"
+                  className="flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:text-gray-600"
+                  onClick={() =>
+                    setOpenTooltip(
+                      openTooltip === row.key ? null : row.key
+                    )
+                  }
+                >
+                  <HelpCircle className="h-3 w-3" />
+                </button>
+                {openTooltip === row.key && (
+                  <div
+                    className="absolute left-0 bottom-6 w-56 rounded-md p-2 text-white shadow-lg"
+                    style={{
+                      zIndex: 9,
+                      background: "rgba(0, 0, 0, 0.85)",
+                      fontSize: "11px",
+                      lineHeight: "16px",
+                    }}
+                  >
+                    {row.tip}
+                  </div>
+                )}
+              </div>
+            </div>
+            <span className={`text-sm font-bold ${row.color}`}>
+              {formatCurrency(accountInfo.funds[row.key] ?? 0)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+
+    if (desktop) {
+      const labelStyle = { color: "var(--theme-popup-label)", fontSize: "10px", fontWeight: "bold", textTransform: "uppercase" as const, letterSpacing: "0.5px" };
+      const sectionCardStyle = { background: "var(--theme-popup-field-bg)", borderColor: "var(--theme-popup-field-border)" };
+
+      return (
+        <div className="space-y-6">
+          <section>
+            <div className="mb-4" style={labelStyle}>User Profile</div>
+            <div className="p-4 rounded-xl border space-y-4" style={sectionCardStyle}>
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold opacity-60 uppercase" style={{ fontSize: "10px" }}>Connection Status</span>
+                  <Badge variant="success" className="font-black mt-1">CONNECTED</Badge>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="font-black"
+                  onClick={handleDisconnect}
+                >
+                  DISCONNECT
+                </Button>
+              </div>
+
+              <div className="pt-2 border-t border-black/5">
+                <div className="text-xs font-bold opacity-60 uppercase mb-1" style={{ fontSize: "10px" }}>Active Broker</div>
+                <div className="text-lg font-black tracking-wider">{accountInfo.brokerName}</div>
+              </div>
+
+              <div className="pt-2 border-t border-black/5">
+                <div className="text-xs font-bold opacity-60 uppercase mb-1" style={{ fontSize: "10px" }}>
+                  {accountInfo.broker === "angelone" ? "Client Code" : "User ID"}
+                </div>
+                <div className="text-lg font-black tracking-wider">{accountInfo.clientId}</div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-4" style={labelStyle}>Financial Summary</div>
+            <div className="p-4 rounded-xl border" style={sectionCardStyle}>
+              {fundsContent}
+            </div>
+          </section>
+        </div>
+      );
+    }
+
     return (
       <Card className="w-full">
         <CardHeader>
@@ -396,47 +488,7 @@ export default function BrokerLoginCard() {
         <CardContent className="space-y-3">
           <Separator />
 
-          <div className="space-y-1">
-            {fundRows.map((row, i, arr) => (
-              <div
-                key={row.key}
-                className={`flex justify-between items-center py-1.5 ${i < arr.length - 1 ? "border-b" : ""}`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium">{row.label}</span>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:text-gray-600"
-                      onClick={() =>
-                        setOpenTooltip(
-                          openTooltip === row.key ? null : row.key
-                        )
-                      }
-                    >
-                      <HelpCircle className="h-3 w-3" />
-                    </button>
-                    {openTooltip === row.key && (
-                      <div
-                        className="absolute left-0 bottom-6 w-56 rounded-md p-2 text-white shadow-lg"
-                        style={{
-                          zIndex: 9,
-                          background: "rgba(0, 0, 0, 0.85)",
-                          fontSize: "11px",
-                          lineHeight: "16px",
-                        }}
-                      >
-                        {row.tip}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <span className={`text-sm font-bold ${row.color}`}>
-                  {formatCurrency(accountInfo.funds[row.key] ?? 0)}
-                </span>
-              </div>
-            ))}
-          </div>
+          {fundsContent}
         </CardContent>
       </Card>
     );

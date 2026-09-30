@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { FocusEvent, InputHTMLAttributes } from "react";
-import { X, Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock } from "lucide-react";
+import { X, Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock, Monitor } from "lucide-react";
 import { playSound, setVolume } from "@/lib/sounds";
 import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
@@ -91,7 +91,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [volume, setVolumeState] = useState(0.5);
   const { theme, setTheme } = useTheme();
-  const { forceBuyEnabled, setForceBuyEnabled } = useTradeStore();
+  const { forceBuyEnabled, setForceBuyEnabled, desktopViewEnabled, setDesktopViewEnabled } = useTradeStore();
 
   // Auto Cutoff settings
   const [autoCutoffEnabled, setAutoCutoffEnabled] = useState(false);
@@ -742,6 +742,51 @@ export default function SettingsPopup({ open, onClose }: Props) {
               </div>
               <div className="text-xs mt-1 font-medium" style={{ color: forceBuyEnabled ? "var(--theme-status-success)" : "var(--theme-status-loss)" }}>
                 {forceBuyEnabled ? "Enabled" : "Disabled (self-control mode)"}
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
+
+            {/* Desktop View toggle */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Monitor size={18} style={{ color: "var(--theme-popup-border)" }} />
+                  <h3 className="text-sm font-bold" style={{ color: "var(--theme-popup-text)" }}>Switch to Desktop View</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDesktopViewEnabled(!desktopViewEnabled)}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    background: desktopViewEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                    boxShadow: desktopViewEnabled ? "0 0 10px rgba(251, 191, 36, 0.45)" : "none",
+                    position: "relative",
+                    transition: "background 0.2s, box-shadow 0.2s",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 3,
+                      left: desktopViewEnabled ? 23 : 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    }}
+                  />
+                </button>
+              </div>
+              <div className="text-xs mt-1 font-medium" style={{ color: desktopViewEnabled ? "var(--theme-status-success)" : "var(--theme-status-loss)" }}>
+                {desktopViewEnabled ? "Enabled" : "Disabled"}
               </div>
             </div>
 

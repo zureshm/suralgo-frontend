@@ -1,0 +1,779 @@
+"use client";
+
+import { useEffect, useState, useRef, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play } from "lucide-react";
+import styles from "./ActiveTrade.module.scss";
+import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
+import { useTradeStore } from "../store/TradeStore";
+
+function TradeLogsConsole({ logs }: { logs: string[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevLogsLengthRef = useRef(logs.length);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container && logs.length > prevLogsLengthRef.current) {
+      container.scrollTop = container.scrollHeight;
+    }
+    prevLogsLengthRef.current = logs.length;
+  }, [logs]);
+
+  return (
+    <div
+      className={styles.tradeLogs}
+      ref={containerRef}
+      style={{ minHeight: 220, maxHeight: 300 }}
+    >
+      {logs.map((line, i) => (
+        <div
+          key={i}
+          className={styles.logLine}
+          dangerouslySetInnerHTML={{
+            __html: line
+              .replace(
+                /₹ ?(\d+(?:\.\d+)?)/g,
+                `<span class="${styles.rsGold}">₹$1</span>`
+              )
+              .replace(
+                /at (\d{2}:\d{2}(?::\d{2})?)/g,
+                `at <span class="${styles.cyanTime}">$1</span>`
+              )
+              .replace(
+                /(Trade P\/L|Total P\/L): (-?\d+(?:\.\d+)?)/g,
+                (match, label, plValue) => {
+                  const isProfit = !plValue.startsWith("-");
+                  const className = isProfit ? styles.plProfit : styles.plLoss;
+                  return `<span class="${className}">${label}: ${plValue}</span>`;
+                }
+              ),
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+const ceBadge = (
+  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, marginLeft: 2, flexShrink: 0 }}>
+    <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
+  </span>
+);
+const peBadge = (
+  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, marginLeft: 2, flexShrink: 0 }}>
+    <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
+  </span>
+);
+
+const cardStyle: CSSProperties = {
+  border: "1px solid var(--theme-popup-field-border)",
+  borderRadius: 10,
+  background: "var(--theme-popup-subcard-bg)",
+  borderTop: "1px solid var(--theme-popup-field-border)",
+};
+
+type Props = {
+  activeTrades: ActiveTradeType[];
+  waitingTrades: WaitingTrade[];
+  activeLtps: Record<string, number>;
+  isHydrated: boolean;
+  onManualExit: (symbol: string, exitPrice: string, pnl: number, lastCandleTime: string) => void;
+  onCancelWaiting: (symbol: string) => void;
+};
+
+export default function ActiveTradesDesktop({
+  activeTrades,
+  waitingTrades,
+  activeLtps,
+  isHydrated,
+  onManualExit,
+  onCancelWaiting,
+}: Props) {
+  const [mounted, setMounted] = useState(false);
+  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, setSelection } = useTradeStore();
+  const router = useRouter();
+
+  const [pendingAction, setPendingAction] = useState<Record<string, "force-buy" | "end-cycle">>({});
+  const [addedAtMap, setAddedAtMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAddedAtMap((prev) => {
+      const now = Date.now();
+      const next: Record<string, number> = {};
+      for (const t of waitingTrades) {
+        next[t.symbol] = prev[t.symbol] ?? now;
+      }
+      return next;
+    });
+  }, [waitingTrades]);
+
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const hasLoading = waitingTrades.some((t) => !initializedSymbols.has(t.symbol));
+    if (!hasLoading) return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [waitingTrades, initializedSymbols]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
+  const safeActiveTrades = mounted ? activeTrades : [];
+  const safeWaitingTrades = mounted ? waitingTrades : [];
+
+  const renderAiRegimeBadge = (symbol: string, marginLeft = 6) => {
+    if (!aiGuardActive || !aiSymbolEnabled[symbol]) return null;
+    const r = aiRegime[symbol];
+    if (!r) return <span style={{ marginLeft, background: "#6b7280", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>ANALYZING</span>;
+    const ru = r.regime.toUpperCase();
+    if (ru === "UNKNOWN") return <span style={{ marginLeft, background: "#f59e0b", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>ERROR</span>;
+    let label = "SIDEWAYS", color = "#a855f7";
+    if (ru.includes("UP") || ru.includes("BULL")) { label = "UPWARDS"; color = "#22c55e"; }
+    else if (ru.includes("DOWN") || ru.includes("BEAR")) { label = "DOWNWARDS"; color = "#ef4444"; }
+    else if (ru === "CHOPPY" || ru === "CHOP") { label = "CHOPPY"; color = "#ec4899"; }
+    else if (ru === "TRADEABLE") { label = "TRADEABLE"; color = "#06b6d4"; }
+    return <span style={{ marginLeft, background: color, color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>{label}</span>;
+  };
+
+  const renderAiToggle = (symbol: string) => {
+    if (!aiGuardActive) return null;
+    const enabled = !!aiSymbolEnabled[symbol];
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          fetch(`/next-api/ai/symbol-toggle`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ symbol, enabled: !enabled }),
+          }).catch(() => {});
+        }}
+        className={`${styles.aiToggle} ${enabled ? styles.enabled : ""}`}
+        aria-label={enabled ? "AI Guard ON — click to disable" : "AI Guard OFF — click to enable"}
+      >
+        <span className={styles.aiToggleTrack}>
+          <span className={styles.aiToggleThumb} />
+        </span>
+        AI
+      </button>
+    );
+  };
+
+  const isEmpty =
+    safeActiveTrades.length === 0 &&
+    safeWaitingTrades.length === 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, padding: 16, color: "var(--theme-popup-text)" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Activity size={24} style={{ color: "var(--theme-popup-border)" }} />
+          <h2 className="text-xl font-bold">Active Trades</h2>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--theme-popup-label)" }}>
+          <span>Active: {safeActiveTrades.length} | Waiting: {safeWaitingTrades.length}</span>
+          {safeActiveTrades.length > 0 && (
+            <span style={{ background: "var(--theme-status-success)", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4 }}>RUNNING</span>
+          )}
+        </div>
+      </div>
+
+      {/* Scrollable trade grid */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarWidth: "thin" }}>
+        {isEmpty && (
+          <div className={styles.empty}>No active or waiting trades.</div>
+        )}
+        <div
+          className={styles.activeTrades}
+          style={{
+            gridTemplateColumns: "repeat(auto-fill, minmax(460px, 1fr))",
+            gap: 14,
+            alignItems: "start",
+          }}
+        >
+          {/* real active trades */}
+          {safeActiveTrades.map((t) => (
+            <div key={t.symbol} className={styles.trade} style={cardStyle}>
+              <div className={styles.tradeRow}>
+                <div className={styles.tradeSymbol} style={{ fontWeight: 700 }}>
+                  <span
+                    style={{ cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: "2px" }}
+                    onClick={() => {
+                      setSelection({ symbol: t.symbol, price: t.entryPrice });
+                      router.push("/trade");
+                    }}
+                  >
+                    {t.symbol}
+                  </span>
+                  {t.symbol.endsWith("CE") && ceBadge}
+                  {t.symbol.endsWith("PE") && peBadge}
+                  {renderAiRegimeBadge(t.symbol)}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: aiGuardActive ? "space-between" : "flex-end", alignItems: "center", marginTop: "2px", marginBottom: "4px" }}>
+                {renderAiToggle(t.symbol)}
+                <div className={styles.tradeRight} style={!aiGuardActive ? { position: "relative", marginBottom: -32, bottom: 32 } : undefined}>
+                  {(() => {
+                    const ltp = activeLtps[t.symbol];
+                    const entry = Number(t.entryPrice);
+                    const qty = t.lotSize * t.lotValue;
+                    const unrealized =
+                      t.inPosition && Number.isFinite(ltp) && Number.isFinite(entry)
+                        ? (ltp - entry) * qty
+                        : 0;
+                    const livePnl = t.pnl + unrealized;
+
+                    return (
+                      <div
+                        className={`${styles.tradeMeta} ${
+                          livePnl >= 0 ? styles.profit : styles.loss
+                        }`}
+                        style={{ fontSize: 16 }}
+                      >
+                        {livePnl.toFixed(2)}
+                      </div>
+                    );
+                  })()}
+
+                  {t.status === "ACTIVE" && (
+                    <button
+                      className={`${styles.tradeAction} ${styles.dark}`}
+                      type="button"
+                      onClick={() => {
+                        const ltp = activeLtps[t.symbol];
+                        const entry = Number(t.entryPrice);
+                        const qty = t.lotSize * t.lotValue;
+                        const unrealized =
+                          t.inPosition && Number.isFinite(ltp) && Number.isFinite(entry)
+                            ? (ltp - entry) * qty
+                            : 0;
+                        const livePnl = t.pnl + unrealized;
+
+                        const now = new Date();
+                        const hh = String(now.getHours()).padStart(2, "0");
+                        const mm = String(now.getMinutes()).padStart(2, "0");
+                        const ss = String(now.getSeconds()).padStart(2, "0");
+                        const lastCandleTime = `${hh}:${mm}:${ss}`;
+
+                        fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/exit`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ exitPrice: String(ltp ?? ""), lastCandleTime }),
+                        }).catch(() => {});
+
+                        onManualExit(t.symbol, String(ltp ?? ""), livePnl, lastCandleTime);
+                      }}
+                    >
+                      EXIT
+                    </button>
+                  )}
+                  {t.status === "COMPLETED" && (
+                    <button
+                      className={`${styles.tradeAction} ${styles.danger}`}
+                      type="button"
+                      onClick={() => {
+                        fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/remove`, { method: "POST" }).catch(() => {});
+                        removeTradeAndFreeSymbol(t.symbol);
+                      }}
+                    >
+                      CLOSE
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* AI Guard — Exit suggestion panel */}
+              {(() => {
+                const suggestion = aiSuggestions.find(
+                  (s) => s.symbol === t.symbol && s.type === "EXIT_SUGGESTED" && !s.dismissed
+                );
+                if (!suggestion) return null;
+
+                const ru = suggestion.marketRegime.toUpperCase();
+                let themeColor = "#a855f7";
+                let label = "AI suggests CAUTION (Sideways)";
+                if (ru.includes("UP") || ru.includes("BULL")) {
+                  themeColor = "#22c55e";
+                  label = "AI confirms UPWARDS";
+                } else if (ru.includes("DOWN") || ru.includes("BEAR")) {
+                  themeColor = "#ef4444";
+                  label = "AI suggests ending cycle";
+                } else if (ru === "CHOPPY" || ru === "CHOP") {
+                  themeColor = "#ec4899";
+                  label = "AI suggests CHOPPY — exit";
+                } else if (ru === "TRADEABLE") {
+                  themeColor = "#06b6d4";
+                  label = "AI confirms TRADEABLE";
+                }
+
+                return (
+                  <div style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    background: `${themeColor}14`,
+                    border: `1px solid ${themeColor}40`,
+                    marginTop: "5px",
+                    marginBottom: "6px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                      <AlertTriangle className="w-4 h-4" style={{ color: themeColor, flexShrink: 0, marginTop: "1px" }} />
+                      <div style={{ flex: 1, fontSize: "12px", lineHeight: "16px" }}>
+                        <span style={{ fontWeight: 600, color: themeColor }}>{label}</span>
+                        <span style={{ color: "var(--theme-text-gray-500)", marginLeft: "6px" }}>— {suggestion.reason} ({suggestion.confidence}%)</span>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", marginLeft: "26px" }}>
+                      {t.inPosition && (
+                      <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        style={{ padding: "2px 8px", fontSize: "11px" }}
+                        onClick={() => {
+                          setPendingAction((prev) => ({ ...prev, [t.symbol]: "end-cycle" }));
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/end-cycle`, { method: "POST" })
+                            .catch(() => {})
+                            .finally(() => setPendingAction((prev) => { const next = { ...prev }; delete next[t.symbol]; return next; }));
+                        }}
+                      >
+                        End Cycle
+                      </button>
+                      )}
+                      <button
+                        className={`${styles.waitingBtn} ${styles.danger} ai-dismiss-btn`}
+                        type="button"
+                        style={{ padding: "2px 8px", fontSize: "11px" }}
+                        onClick={() => {
+                          fetch(`/next-api/ai/dismiss`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ symbol: t.symbol }),
+                          }).catch(() => {});
+                        }}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {t.logs.length > 0 && (
+                <div style={{ position: "relative" }}>
+                  <TradeLogsConsole logs={t.logs} />
+                  {forceBuyEnabled && t.status === "ACTIVE" && (() => {
+                    const pending = pendingAction[t.symbol];
+                    if (pending) {
+                      return (
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: 6,
+                            right: 26,
+                            width: 32,
+                            height: 32,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 6,
+                            border: "1px solid rgba(99,102,241,0.4)",
+                            background: "rgba(99,102,241,0.15)",
+                            color: "#6366f1",
+                            zIndex: 1,
+                          }}
+                        >
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                      );
+                    }
+                    if (!t.inPosition) {
+                      return (
+                        <button
+                          type="button"
+                          title="Force Buy"
+                          onClick={() => {
+                            setPendingAction((prev) => ({ ...prev, [t.symbol]: "force-buy" }));
+                            fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-buy-active`, { method: "POST" })
+                              .catch(() => {})
+                              .finally(() => setPendingAction((prev) => { const next = { ...prev }; delete next[t.symbol]; return next; }));
+                          }}
+                          style={{
+                            position: "absolute",
+                            bottom: 6,
+                            right: 26,
+                            width: 32,
+                            height: 32,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 6,
+                            border: "1px solid rgba(34,197,94,0.4)",
+                            background: "rgba(34,197,94,0.15)",
+                            color: "#22c55e",
+                            cursor: "pointer",
+                            zIndex: 1,
+                          }}
+                        >
+                          <Zap className="w-4 h-4" />
+                        </button>
+                      );
+                    }
+                    return (
+                      <button
+                        type="button"
+                        title="End Cycle"
+                        onClick={() => {
+                          setPendingAction((prev) => ({ ...prev, [t.symbol]: "end-cycle" }));
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/end-cycle`, { method: "POST" })
+                            .catch(() => {})
+                            .finally(() => setPendingAction((prev) => { const next = { ...prev }; delete next[t.symbol]; return next; }));
+                        }}
+                        style={{
+                          position: "absolute",
+                          bottom: 6,
+                          right: 26,
+                          width: 32,
+                          height: 32,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: 6,
+                          border: "1px solid rgba(245,158,11,0.4)",
+                          background: "rgba(245,158,11,0.15)",
+                          color: "#f59e0b",
+                          cursor: "pointer",
+                          zIndex: 1,
+                        }}
+                      >
+                        <SkipForward className="w-4 h-4" />
+                      </button>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Trade Configuration */}
+              <div className={styles.tradeConfig}>
+                <div className="text-xs" style={{ color: "var(--theme-text-gray-500)" }}>
+                  Trades: {t.numberOfTrades} | SL: {t.stopLossNumberEnabled ? t.stopLossNumber : "OFF"} | Target: {t.targetPointsEnabled ? t.targetPoints : "OFF"} | TSL: {t.trailingAfterTargetEnabled ? t.trailingAfterTarget : "OFF"}
+                  {t.minToHoldEnabled && ` | Min Target: ${t.minToHold}`}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Pending symbols — not yet initialized */}
+          {mounted && isHydrated && (() => {
+            const pending = safeWaitingTrades.filter((t) => !initializedSymbols.has(t.symbol));
+            if (pending.length === 0) return null;
+            return pending.map((t) => {
+              const histStatus = symbolHistoryStatus[t.symbol];
+              const historyFailed = histStatus?.status === "failed";
+              const showError = historyFailed;
+
+              const errorMessage = "History fetch failed (0 candles). Strategy may not work correctly without history. Remove and re-add, or keep with limited accuracy.";
+
+              return showError ? (
+                <div key={`pending-${t.symbol}`} className={styles.pendingBanner} style={{ borderColor: "rgba(245,158,11,0.25)", background: "rgba(245,158,11,0.04)", marginBottom: 0 }}>
+                  <div className={styles.loadingBarContainer} style={{ background: "rgba(245,158,11,0.1)", borderColor: "rgba(245,158,11,0.2)" }}>
+                    <div className={styles.loadingBar} style={{ width: "100%", background: "#f59e0b", opacity: 0.6 }} />
+                    <div className={styles.errorContent} style={{ color: "#fef3c7" }}>
+                      <span className={styles.errorIconBox}>
+                        <AlertTriangle className="w-4 h-4" />
+                      </span>
+                      <span className={styles.errorMarquee}>
+                        <span className={styles.errorMarqueeInner}>
+                          <span>{errorMessage}</span>
+                          <span aria-hidden="true">{errorMessage}</span>
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className={styles.bannerBottom}>
+                    <span className={styles.bannerSymbol} style={{ color: "#f59e0b" }}>
+                      {t.symbol}
+                      {t.symbol.endsWith("CE") && ceBadge}
+                      {t.symbol.endsWith("PE") && peBadge}
+                    </span>
+                    <div className={styles.bannerActions}>
+                      <button
+                        className={`${styles.waitingBtn} ${styles.danger}`}
+                        type="button"
+                        style={{ padding: "2px 8px", fontSize: "11px" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                          onCancelWaiting(t.symbol);
+                        }}
+                      >
+                        <XCircle className="w-3 h-3" />
+                        <span>Remove</span>
+                      </button>
+                      {historyFailed && (
+                        <button
+                          className={`${styles.waitingBtn} ${styles.dark} keep-anyway-btn`}
+                          type="button"
+                          style={{ padding: "2px 8px", fontSize: "11px" }}
+                          onClick={() => {
+                            fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
+                          }}
+                        >
+                          <span>Keep anyway</span>
+                        </button>
+                      )}
+                      <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        title="Force Init — skip history and mark as ready"
+                        style={{ padding: "2px 6px", fontSize: "11px", background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
+                        }}
+                      >
+                        <Play className="w-3 h-3" />
+                        <span>Force&nbsp;Init</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div key={`pending-${t.symbol}`} className={styles.pendingBanner} style={{ marginBottom: 0 }}>
+                  <div className={styles.loadingBarContainer}>
+                    <div className={styles.loadingBar} style={{
+                      width: `${(() => {
+                        const cycleMs = 5000;
+                        const elapsed = nowMs - (addedAtMap[t.symbol] ?? nowMs);
+                        const cycleProgress = (elapsed % cycleMs) / cycleMs;
+                        return Math.min(cycleProgress * 100, 100);
+                      })()}%`,
+                      background: "var(--theme-status-waiting)"
+                    }} />
+                    <span className={styles.loadingText}>
+                      {historyFailed ? "RETRYING HISTORY FETCH..." : "INITIALIZING STRATEGY ENGINE..."}
+                    </span>
+                  </div>
+                  <div className={styles.bannerBottom}>
+                    <span className={styles.bannerSymbol}>
+                      {t.symbol}
+                      {t.symbol.endsWith("CE") && ceBadge}
+                      {t.symbol.endsWith("PE") && peBadge}
+                    </span>
+                    <div className={styles.bannerActions}>
+                      <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        title="Force Init — skip history and mark as ready"
+                        style={{ padding: "2px 6px", fontSize: "11px" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
+                        }}
+                      >
+                        <Play className="w-3 h-3" />
+                        <span>Force&nbsp;Init</span>
+                      </button>
+                      <button
+                        className={`${styles.waitingBtn} ${styles.danger}`}
+                        type="button"
+                        style={{ padding: "2px 8px", fontSize: "11px" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                          onCancelWaiting(t.symbol);
+                        }}
+                      >
+                        <XCircle className="w-3 h-3" />
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+
+          {/* Ready waiting trades */}
+          {mounted &&
+            isHydrated &&
+            safeWaitingTrades
+              .filter((t) => initializedSymbols.has(t.symbol))
+              .map((t: WaitingTrade, index: number) => (
+              <div key={index} className={styles.trade} style={cardStyle}>
+                <div className={styles.tradeRow}>
+                  <div className={styles.tradeSymbol} style={{ fontWeight: 700 }}>
+                    {t.symbol}
+                    {t.symbol.endsWith("CE") && ceBadge}
+                    {t.symbol.endsWith("PE") && peBadge}
+                    {renderAiRegimeBadge(t.symbol)}
+                    {(() => {
+                      const histStatus = symbolHistoryStatus[t.symbol];
+                      if (histStatus?.status === "ready") return null;
+                      const isRetrying = histStatus?.status === "loading";
+                      return (
+                        <button
+                          type="button"
+                          title={isRetrying ? "Fetching history..." : "Retry history fetch"}
+                          onClick={() => {
+                            if (isRetrying) return;
+                            fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/retry-history`, { method: "POST" }).catch(() => {});
+                          }}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginLeft: 4,
+                            border: "1px solid rgba(99,102,241,0.3)",
+                            background: "rgba(99,102,241,0.1)",
+                            color: "#6366f1",
+                            borderRadius: 4,
+                            padding: 2,
+                            cursor: isRetrying ? "default" : "pointer",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <RefreshCw className="w-3 h-3" style={isRetrying ? { animation: "spin 1s linear infinite" } : undefined} />
+                        </button>
+                      );
+                    })()}
+                  </div>
+                  {renderAiToggle(t.symbol)}
+                </div>
+
+                <div className={styles.waitingActions}>
+                  <div className={`${styles.tradeMeta} ${styles.waiting}`}>
+                    <span className={styles.dot1}>.</span>
+                    <span className={styles.dot2}>.</span>
+                    <span className={styles.dot3}>.</span>
+                    <span className={styles.w1}>W</span>
+                    <span className={styles.w2}>A</span>
+                    <span className={styles.w3}>I</span>
+                    <span className={styles.w4}>T</span>
+                    <span className={styles.w5}>I</span>
+                    <span className={styles.w6}>N</span>
+                    <span className={styles.w7}>G</span>
+                  </div>
+
+                  {forceBuyEnabled && (
+                  <button
+                    className={`${styles.waitingBtn} ${styles.dark}`}
+                    type="button"
+                    onClick={() => {
+                      fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-buy`, { method: "POST" }).catch(() => {});
+                    }}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    Force&nbsp;Buy
+                  </button>
+                  )}
+                  <button
+                    className={`${styles.waitingBtn} ${styles.danger}`}
+                    type="button"
+                    onClick={() => {
+                      fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
+                      onCancelWaiting(t.symbol);
+                    }}
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    Cancel
+                  </button>
+                </div>
+
+                {/* AI Guard — Entry blocked panel */}
+                {(() => {
+                  const suggestion = aiSuggestions.find(
+                    (s) => s.symbol === t.symbol && s.type === "ENTRY_BLOCKED" && !s.dismissed
+                  );
+                  if (!suggestion) return null;
+
+                  const ru = suggestion.marketRegime.toUpperCase();
+                  let themeColor = "#a855f7";
+                  let label = "AI blocked entry (Sideways)";
+                  if (ru.includes("UP") || ru.includes("BULL")) {
+                    themeColor = "#22c55e";
+                    label = "AI confirms UPWARDS";
+                  } else if (ru.includes("DOWN") || ru.includes("BEAR")) {
+                    themeColor = "#ef4444";
+                    label = "AI blocked entry (Downwards)";
+                  } else if (ru === "CHOPPY" || ru === "CHOP") {
+                    themeColor = "#ec4899";
+                    label = "AI blocked entry (Choppy)";
+                  } else if (ru === "TRADEABLE") {
+                    themeColor = "#06b6d4";
+                    label = "AI confirms TRADEABLE";
+                  }
+
+                  return (
+                    <div style={{
+                      position: "relative",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      background: `${themeColor}14`,
+                      border: `1px solid ${themeColor}40`,
+                      marginTop: "5px",
+                      marginBottom: "6px",
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          fetch(`/next-api/ai/dismiss`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ symbol: t.symbol }),
+                          }).catch(() => {});
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: "-10px",
+                          right: "-10px",
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          border: `1px solid ${themeColor}4D`,
+                          background: themeColor,
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          padding: 0,
+                          lineHeight: 1,
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        }}
+                        aria-label="Dismiss"
+                      >
+                        ×
+                      </button>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                        <AlertTriangle className="w-4 h-4" style={{ color: themeColor, flexShrink: 0, marginTop: "1px" }} />
+                        <div style={{ flex: 1, fontSize: "12px", lineHeight: "16px" }}>
+                          <span style={{ fontWeight: 600, color: themeColor }}>{label}</span>
+                          <span style={{ color: "var(--theme-text-gray-500)", marginLeft: "6px" }}>— {suggestion.reason} ({suggestion.confidence}%)</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Trade Configuration for Waiting Trades */}
+                <div className={styles.tradeConfig}>
+                  <div className="text-xs" style={{ color: "var(--theme-text-gray-500)" }}>
+                    Trades: {t.numberOfTrades} | SL: {t.stopLossNumberEnabled ? t.stopLossNumber : "OFF"} | Target: {t.targetPointsEnabled ? t.targetPoints : "OFF"} | TSL: {t.trailingAfterTargetEnabled ? t.trailingAfterTarget : "OFF"}
+                    {t.minToHoldEnabled && ` | Min Target: ${t.minToHold}`}
+                  </div>
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+}

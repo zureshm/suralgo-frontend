@@ -24,6 +24,7 @@ export default function Watchlist() {
     setSelection,
     waitingTrades,
     activeTrades,
+    desktopViewEnabled,
   } = useTradeStore();
 
   const {
@@ -268,7 +269,7 @@ export default function Watchlist() {
             <div className="w-8 flex-shrink-0" />
           </div>
 
-          <div className="max-h-64 overflow-y-auto">
+          <div className={desktopViewEnabled ? "overflow-y-auto" : "max-h-64 overflow-y-auto"}>
             {!isHydrated ? (
               <div className="text-center py-4 text-muted-foreground">Loading watchlist...</div>
             ) : !watchlist.length ? (

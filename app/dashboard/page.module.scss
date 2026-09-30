@@ -290,6 +290,7 @@
 .active {
   background: var(--theme-card-white);
   color: var(--theme-btn-primary-text);
+  font-weight: 700;
 }
 
 .running {
@@ -327,4 +328,68 @@
 
 .menuItem:hover {
   opacity: 1;
+}
+
+/* Desktop view: content column on the left, empty right panel fills the rest */
+:global(.desktop-view) .page {
+  max-width: none;
+  margin: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 14px;
+}
+
+:global(.desktop-view) .container {
+  width: 460px;
+  flex: 0 0 auto;
+}
+
+.rightPanel {
+  flex: 1;
+  height: calc(100vh - 24px);
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rightPanelTop {
+  height: 64px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+}
+
+.topMenuItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--theme-card-white);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 12px;
+  transition: opacity 0.2s;
+  opacity: 0.85;
+}
+
+.topMenuItem:hover {
+  opacity: 1;
+}
+
+.topMenuItemActive {
+  opacity: 1;
+  border-bottom: 2px solid var(--theme-popup-border);
+}
+
+.rightPanelMain {
+  flex: 1;
+  background: var(--theme-card-white);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }

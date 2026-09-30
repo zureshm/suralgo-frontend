@@ -2,7 +2,7 @@
 
 import styles from "./page.module.scss";
 import { useEffect, useState, Suspense } from "react";
-import { Settings, BarChart2, Grid2X2, LogOut } from "lucide-react";
+import { Settings, BarChart2, Grid2X2, LogOut, History, User, Activity } from "lucide-react";
 
 import { useTradeStore } from "../store/TradeStore";
 import { getPrices } from "@/lib/getPrices";
@@ -15,6 +15,15 @@ import SettingsPopup from "./SettingsPopup";
 import ChartPopup from "./ChartPopup";
 import OptionChainPopup from "./OptionChainPopup";
 import TotalExitPopup from "./TotalExitPopup";
+import ChartDesktop from "./ChartDesktop";
+import OptionsDesktop from "./OptionsDesktop";
+import SettingsDesktop from "./SettingsDesktop";
+import HistoryDesktop from "./HistoryDesktop";
+import AccountDesktop from "./AccountDesktop";
+import RiskManagement from "./RiskManagement";
+import ActiveTradesDesktop from "./ActiveTradesDesktop";
+
+type RightPanelTab = "chart" | "active" | "options" | "history" | "settings" | "account";
 
 export default function DashboardPage() {
   const [isHydrated, setIsHydrated] = useState(false);
@@ -23,11 +32,13 @@ export default function DashboardPage() {
   const [chartOpen, setChartOpen] = useState(false);
   const [optionChainOpen, setOptionChainOpen] = useState(false);
   const [totalExitOpen, setTotalExitOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<RightPanelTab>("chart");
   const {
     waitingTrades,
     removeWaitingTrade,
     activeTrades,
     logManualExit,
+    desktopViewEnabled,
   } = useTradeStore();
 
   useEffect(() => {
@@ -69,7 +80,7 @@ export default function DashboardPage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.container}>
+      <div className={`${styles.container} dashboard-container`}>
         <ConnectionStatus />
 
         <Watchlist />
@@ -83,11 +94,15 @@ export default function DashboardPage() {
           onCancelWaiting={removeWaitingTrade}
         />
 
-        <TradeHistory />
+        {!desktopViewEnabled && <TradeHistory />}
 
-        <Suspense fallback={<div>Loading...</div>}>
-          <BrokerLoginCard />
-        </Suspense>
+        {desktopViewEnabled ? (
+          <RiskManagement />
+        ) : (
+          <Suspense fallback={<div>Loading...</div>}>
+            <BrokerLoginCard />
+          </Suspense>
+        )}
 
         <div className={styles.bottomActions}></div>
 
@@ -115,6 +130,53 @@ export default function DashboardPage() {
         <OptionChainPopup open={optionChainOpen} onClose={() => setOptionChainOpen(false)} />
         <TotalExitPopup open={totalExitOpen} onClose={() => setTotalExitOpen(false)} />
       </div>
+      {desktopViewEnabled && (
+        <div className={styles.rightPanel}>
+          <div className={styles.rightPanelTop}>
+            <div className={`${styles.topMenuItem} ${activeTab === "chart" ? styles.topMenuItemActive : ""}`} onClick={() => setActiveTab("chart")}>
+              <BarChart2 size={20} />
+              <span>Chart</span>
+            </div>
+            <div className={`${styles.topMenuItem} ${activeTab === "active" ? styles.topMenuItemActive : ""}`} onClick={() => setActiveTab("active")}>
+              <Activity size={20} />
+              <span>Active</span>
+            </div>
+            <div className={`${styles.topMenuItem} ${activeTab === "options" ? styles.topMenuItemActive : ""}`} onClick={() => setActiveTab("options")}>
+              <Grid2X2 size={20} />
+              <span>Options</span>
+            </div>
+            <div className={`${styles.topMenuItem} ${activeTab === "history" ? styles.topMenuItemActive : ""}`} onClick={() => setActiveTab("history")}>
+              <History size={20} />
+              <span>History</span>
+            </div>
+            <div className={`${styles.topMenuItem} ${activeTab === "settings" ? styles.topMenuItemActive : ""}`} onClick={() => setActiveTab("settings")}>
+              <Settings size={20} />
+              <span>Settings</span>
+            </div>
+            <div className={`${styles.topMenuItem} ${activeTab === "account" ? styles.topMenuItemActive : ""}`} onClick={() => setActiveTab("account")}>
+              <User size={20} />
+              <span>Account</span>
+            </div>
+          </div>
+          <div className={styles.rightPanelMain}>
+            {activeTab === "chart" && <ChartDesktop />}
+            {activeTab === "active" && (
+              <ActiveTradesDesktop
+                activeTrades={activeTrades}
+                waitingTrades={waitingTrades}
+                activeLtps={activeLtps}
+                isHydrated={isHydrated}
+                onManualExit={logManualExit}
+                onCancelWaiting={removeWaitingTrade}
+              />
+            )}
+            {activeTab === "options" && <OptionsDesktop />}
+            {activeTab === "settings" && <SettingsDesktop />}
+            {activeTab === "history" && <HistoryDesktop />}
+            {activeTab === "account" && <AccountDesktop />}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
