@@ -40,6 +40,8 @@ const lsBool = (key: string, fallback: boolean) => {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:2000";
 const NIFTY50_WS_URL = process.env.NEXT_PUBLIC_NIFTY50_WS_URL || API_BASE_URL.replace(/^http/, "ws") + "/ws/nifty50";
+const NIFTY50_REST_URL = process.env.NEXT_PUBLIC_NIFTY50_REST_URL ||
+  NIFTY50_WS_URL.replace(/^ws/, "http").replace(/\/ws\/nifty50$/, "/nifty50-candles");
 
 function StrategyChartPage() {
   const searchParams = useSearchParams();
@@ -135,6 +137,21 @@ function StrategyChartPage() {
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     let disposed = false;
 
+    // Load full session history first (Zerodha-style): REST snapshot, then WS patches
+    fetch(NIFTY50_REST_URL)
+      .then((r) => r.json())
+      .then((data) => {
+        if (disposed) return;
+        const completed = (data.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
+        const current = data.currentCandle && isWithinMarketHours(data.currentCandle.time) ? data.currentCandle : null;
+        if (completed.length > 0 || current) {
+          setCandles(current ? [...completed, current] : completed);
+          setLoading(false);
+          setSpinning(false);
+        }
+      })
+      .catch(() => {});
+
     function connect() {
       if (disposed) return;
       ws = new WebSocket(NIFTY50_WS_URL);
@@ -150,10 +167,15 @@ function StrategyChartPage() {
             setCandles((prev) => {
               // Sticky guard: don't wipe on empty (after hours)
               if (incoming.length === 0 && !currentC && prev.length > 0) return prev;
-              
-              const all = [...incoming];
-              if (currentC) all.push(currentC);
-              return all;
+
+              // Merge by candle time — WS updates only patch/append, never clobber history
+              const map = new Map<number, CandleData>();
+              for (const c of prev) map.set(toChartTime(c.time) as number, c);
+              for (const c of incoming) map.set(toChartTime(c.time) as number, c);
+              if (currentC) map.set(toChartTime(currentC.time) as number, currentC);
+              const merged = Array.from(map.values())
+                .sort((a, b) => (toChartTime(a.time) as number) - (toChartTime(b.time) as number));
+              return merged.slice(-700);
             });
             setLoading(false);
             setSpinning(false);

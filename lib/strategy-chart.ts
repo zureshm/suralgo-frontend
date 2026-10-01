@@ -406,46 +406,36 @@ export function toChartTime(timeStr: string | number): UTCTimestamp {
 
 /**
  * Check if a given candle time is within the allowed trading session (09:00 - 15:30 IST)
- * Handles "HH:MM", "YYYY-MM-DD HH:MM", and ISO timestamps.
+ * Handles "HH:MM", "YYYY-MM-DD HH:MM", ISO timestamps, and unix seconds.
+ * Dated values are also rejected on weekends.
  */
 export function isWithinMarketHours(timeStr: string | number): boolean {
   if (!timeStr) return false;
 
-  let date: Date;
   if (typeof timeStr === "number") {
-    // Unix timestamp in seconds
-    date = new Date(timeStr * 1000);
-  } else if (timeStr.includes("T")) {
-    // ISO format: "2026-06-05T11:36:00+05:30"
-    // We want to extract the local time part regardless of browser timezone
-    // to match the IST session.
-    const match = timeStr.match(/T(\d{2}):(\d{2})/);
-    if (!match) return false;
-    const hh = parseInt(match[1], 10);
-    const mm = parseInt(match[2], 10);
-    const totalMinutes = hh * 60 + mm;
-    return totalMinutes >= 9 * 60 && totalMinutes <= (15 * 60 + 30);
-  } else {
-    // Simple formats like "2026-06-04 14:55" or "14:55"
-    const match = timeStr.match(/(\d{2}):(\d{2})/);
-    if (!match) return false;
-    const hh = parseInt(match[1], 10);
-    const mm = parseInt(match[2], 10);
-    const totalMinutes = hh * 60 + mm;
-    return totalMinutes >= 9 * 60 && totalMinutes <= (15 * 60 + 30);
+    // Unix timestamp in seconds — convert to IST and check weekday + time
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(timeStr * 1000 + istOffset);
+    const day = istDate.getUTCDay(); // 0 = Sun, 6 = Sat
+    if (day === 0 || day === 6) return false;
+    const totalMinutes = istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
+    return totalMinutes >= 9 * 60 && totalMinutes <= 15 * 60 + 30;
   }
 
-  // If we have a real Date object (from unix timestamp)
-  // Convert to IST HH:MM for the check
-  const istOffset = 5.5 * 60 * 60 * 1000;
-  const istDate = new Date(date.getTime() + istOffset);
-  const hh = istDate.getUTCHours();
-  const mm = istDate.getUTCMinutes();
-  const day = istDate.getUTCDay(); // 0 = Sun, 6 = Sat
+  // Dated formats: "YYYY-MM-DD HH:MM" or ISO "YYYY-MM-DDTHH:MM..."
+  const dtMatch = timeStr.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (dtMatch) {
+    const dow = new Date(
+      Date.UTC(+dtMatch[1], +dtMatch[2] - 1, +dtMatch[3])
+    ).getUTCDay();
+    if (dow === 0 || dow === 6) return false;
+    const totalMinutes = parseInt(dtMatch[4], 10) * 60 + parseInt(dtMatch[5], 10);
+    return totalMinutes >= 9 * 60 && totalMinutes <= 15 * 60 + 30;
+  }
 
-  // Skip weekends
-  if (day === 0 || day === 6) return false;
-
-  const totalMinutes = hh * 60 + mm;
-  return totalMinutes >= 9 * 60 && totalMinutes <= (15 * 60 + 30);
+  // Bare "HH:MM" — no date, check time only
+  const match = timeStr.match(/(\d{2}):(\d{2})/);
+  if (!match) return false;
+  const totalMinutes = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+  return totalMinutes >= 9 * 60 && totalMinutes <= 15 * 60 + 30;
 }

@@ -5,7 +5,7 @@ import path from "path";
 
 const AI_SETTINGS_PATH = path.join(process.cwd(), "data", "ai-guard-settings.json");
 
-// ---- Log capture (2000-line ring buffer, same as angel-feed server) ----
+// ---- Log capture (500-line ring buffer, same as angel-feed server) ----
 const MAX_AI_LOG_LINES = 2000;
 const _g = globalThis as unknown as { __aiLogBuffer?: string[] };
 if (!_g.__aiLogBuffer) _g.__aiLogBuffer = [];
@@ -84,7 +84,7 @@ const DEFAULT_SETTINGS: AiGuardSettings = {
   entryGuardEnabled: false,
   autoExitEnabled: false,
   confidenceThreshold: 70,
-  candlesCount: 120,
+  candlesCount: 90,
   provider: "local",
   model: "openai/gpt-oss-120b",
   recentCandlesCount: 30,
@@ -314,12 +314,12 @@ Return ONLY valid JSON:
 }`;
 }
 
-export function buildCompactCandles(candles: any[], maxCount: number, considerVolume: boolean = false, useHeikinAshi: boolean = true): string {
+export function buildCompactCandles(candles: { time?: string; open: number; high: number; low: number; close: number; volume?: number }[], maxCount: number, considerVolume: boolean = false, useHeikinAshi: boolean = true): string {
   if (!Array.isArray(candles) || candles.length === 0) return "";
   const processedCandles = useHeikinAshi ? convertToHeikinAshi(candles) : candles;
   const slice = processedCandles.slice(-maxCount);
   return slice
-    .map((c: any, i: number) => {
+    .map((c, i) => {
       const time = c.time || "";
       const o = Number(c.open).toFixed(2);
       const h = Number(c.high).toFixed(2);
@@ -336,7 +336,7 @@ export function buildCompactCandles(candles: any[], maxCount: number, considerVo
     .join("|");
 }
 
-export function buildMarketMetrics(candles: any[], maxCount: number, recentCandlesCount: number = 30, considerVolume: boolean = false, useHeikinAshi: boolean = true): string {
+export function buildMarketMetrics(candles: { time?: string; open: number; high: number; low: number; close: number; volume?: number }[], maxCount: number, recentCandlesCount: number = 30, considerVolume: boolean = false, useHeikinAshi: boolean = true): string {
   if (!Array.isArray(candles) || candles.length === 0) return "No data";
   const processedCandles = useHeikinAshi ? convertToHeikinAshi(candles) : candles;
   const slice = processedCandles.slice(-maxCount);
@@ -534,7 +534,7 @@ const DOWNWARDS_REASONS = [
 
 export function analyzeMarketRegimeLocal(
   symbol: string,
-  candles: any[],
+  candles: { time?: string; open: number; high: number; low: number; close: number; volume?: number }[],
   tradeContext?: { entryPrice?: string; ltp?: number; pnl?: number; signal?: string }
 ): AiAnalysisResult {
   const settings = getAiGuardSettings();
@@ -546,7 +546,6 @@ export function analyzeMarketRegimeLocal(
     return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "No candle data" };
   }
 
-  // Apply Heikin-Ashi if enabled
   const processedCandles = useHA ? convertToHeikinAshi(candles) : candles;
   const slice = processedCandles.slice(-candleCount);
   const n = slice.length;
@@ -554,8 +553,6 @@ export function analyzeMarketRegimeLocal(
   if (n === 0) {
     return { marketRegime: "UNKNOWN", blockEntry: false, suggestExit: false, confidence: 0, reason: "No candle data after slicing" };
   }
-
-  // ── Compute metrics (same as buildMarketMetrics but as numeric values) ──
 
   let high = -Infinity, low = Infinity;
   let totalBodySize = 0;
@@ -598,19 +595,16 @@ export function analyzeMarketRegimeLocal(
   const dirChangeRatio = n > 1 ? (dirChanges / (n - 1)) * 100 : 0;
   const bodyToRangeRatio = rangeWidth > 0 ? (avgBody / rangeWidth) * 100 : 0;
 
-  // Net move over full period
   const firstOpen = Number(slice[0].open);
   const netMove = lastClose - firstOpen;
   const netMovePct = firstOpen !== 0 ? (netMove / firstOpen) * 100 : 0;
 
-  // Last 10 candles net move
   const last10Start = Math.max(0, n - 10);
   const last10Open = Number(slice[last10Start].open);
   const last10Close = Number(slice[n - 1].close);
   const last10Move = last10Close - last10Open;
   const last10MovePct = last10Open !== 0 ? (last10Move / last10Open) * 100 : 0;
 
-  // Recent N-candle window
   const recentNStart = Math.max(0, n - recentCandlesCount);
   const recentN = slice.slice(recentNStart);
   const rn = recentN.length;
@@ -642,7 +636,6 @@ export function analyzeMarketRegimeLocal(
   const rnNetMovePct = rnFirstOpen !== 0 ? (rnNetMove / rnFirstOpen) * 100 : 0;
   const rnDirRatio = rn > 1 ? (rnDirChanges / (rn - 1)) * 100 : 0;
 
-  // Volatility narrowing
   const recentStart = Math.floor(n * 0.7);
   const olderEnd = Math.floor(n * 0.4);
   const olderStart = Math.floor(n * 0.1);
@@ -664,68 +657,53 @@ export function analyzeMarketRegimeLocal(
   const olderWidth = olderHigh > -Infinity ? olderHigh - olderLow : 0;
   const rangeNarrowing = olderWidth > 0 ? ((olderWidth - recentWidth2) / olderWidth) * 100 : 0;
 
-  // ── Rule engine (10 rules) ──
-
   const breakdown: RuleBreakdownEntry[] = [];
   let sidewaysScore = 0;
   let trendScore = 0;
   let trendDirection: "up" | "down" = "up";
 
-  // Rule 1: Direction change ratio (full) > 60% → SIDEWAYS
   const r1Triggered = dirChangeRatio > 60;
   if (r1Triggered) sidewaysScore += 2;
   breakdown.push({ name: "Dir change ratio (full)", value: `${dirChangeRatio.toFixed(0)}%`, triggered: r1Triggered });
 
-  // Rule 2: Direction change ratio (recent) > 60% → SIDEWAYS
   const r2Triggered = rnDirRatio > 60;
   if (r2Triggered) sidewaysScore += 2;
   breakdown.push({ name: "Dir change ratio (recent)", value: `${rnDirRatio.toFixed(0)}%`, triggered: r2Triggered });
 
-  // Rule 3: Body-to-range ratio < 20% → SIDEWAYS
   const r3Triggered = bodyToRangeRatio < 20;
   if (r3Triggered) sidewaysScore += 2;
   breakdown.push({ name: "Body-to-range ratio", value: `${bodyToRangeRatio.toFixed(1)}%`, triggered: r3Triggered });
 
-  // Rule 4: Volatility narrowing > 30% → SIDEWAYS
   const r4Triggered = rangeNarrowing > 30;
   if (r4Triggered) sidewaysScore += 1;
   breakdown.push({ name: "Volatility narrowing", value: `${rangeNarrowing > 0 ? "-" : "+"}${Math.abs(rangeNarrowing).toFixed(0)}%`, triggered: r4Triggered });
 
-  // Rule 5: Net move (recent N) abs < 2% → SIDEWAYS
   const r5Triggered = Math.abs(rnNetMovePct) < 2;
   if (r5Triggered) sidewaysScore += 1;
   breakdown.push({ name: "Net move (recent)", value: `${rnNetMovePct >= 0 ? "+" : ""}${rnNetMovePct.toFixed(2)}%`, triggered: r5Triggered });
 
-  // Rule 6: Last 10 candle net move abs < 1.5% → SIDEWAYS
   const r6Triggered = Math.abs(last10MovePct) < 1.5;
   if (r6Triggered) sidewaysScore += 1;
   breakdown.push({ name: "Last 10 move", value: `${last10MovePct >= 0 ? "+" : ""}${last10MovePct.toFixed(2)}%`, triggered: r6Triggered });
 
-  // Rule 7: Max consecutive same dir (full) >= 5 → TREND
   const r7Triggered = maxConsecutiveSame >= 5;
   if (r7Triggered) trendScore += 2;
   breakdown.push({ name: "Max consecutive (full)", value: `${maxConsecutiveSame} candles`, triggered: r7Triggered });
 
-  // Rule 8: Max consecutive same dir (recent) >= 4 → TREND
   const r8Triggered = rnMaxConsecutive >= 4;
   if (r8Triggered) trendScore += 2;
   breakdown.push({ name: "Max consecutive (recent)", value: `${rnMaxConsecutive} candles`, triggered: r8Triggered });
 
-  // Rule 9: Net move (recent N) abs >= 2% → TREND
   const r9Triggered = Math.abs(rnNetMovePct) >= 2;
   if (r9Triggered) trendScore += 2;
   breakdown.push({ name: "Net move strength (recent)", value: `${Math.abs(rnNetMovePct).toFixed(2)}%`, triggered: r9Triggered });
 
-  // Rule 10: Last 10 candle net move abs >= 1.5% → TREND
   const r10Triggered = Math.abs(last10MovePct) >= 1.5;
   if (r10Triggered) trendScore += 1;
   breakdown.push({ name: "Last 10 move strength", value: `${Math.abs(last10MovePct).toFixed(2)}%`, triggered: r10Triggered });
 
-  // Determine direction from net moves
   if (rnNetMove < 0 || last10Move < 0) trendDirection = "down";
   else trendDirection = "up";
-
-  // ── Decision ──
 
   let marketRegime: string;
   let blockEntry: boolean;
@@ -743,7 +721,6 @@ export function analyzeMarketRegimeLocal(
     if (rnHigh > -Infinity) rangeHigh = rnHigh;
     if (rnLow < Infinity) rangeLow = rnLow;
 
-    // Pick reason based on which rules triggered
     const reasons = SIDEWAYS_REASONS;
     let reasonIdx = 0;
     if (r1Triggered) reasonIdx = 0;
@@ -805,7 +782,6 @@ export function analyzeMarketRegimeLocal(
       });
     }
   } else {
-    // Ambiguous — conservative default
     marketRegime = "SIDEWAYS";
     blockEntry = true;
     suggestExit = true;
@@ -845,7 +821,7 @@ function calculateEMA(prices: number[], period: number): number[] {
 
 export function analyzeMarketRegimeLocalV2(
   symbol: string,
-  candles: any[],
+  candles: { time?: string; open: number; high: number; low: number; close: number; volume?: number }[],
   tradeContext?: { entryPrice?: string; ltp?: number; pnl?: number; signal?: string }
 ): AiAnalysisResult {
   const settings = getAiGuardSettings();
@@ -1130,7 +1106,7 @@ export function analyzeMarketRegimeLocalV3(
   const opens = rawSlice.map((c) => Number(c.open));
   const lastClose = closes[n - 1];
 
-  // 1. EMA 5 (fast) & EMA 13 (medium) — no EMA 30, faster response
+  // 1. Fast EMA 5 & EMA 13
   const ema5 = calculateEMA(closes, 5);
   const ema13 = calculateEMA(closes, 13);
   const currEma5 = ema5[n - 1];
@@ -1578,7 +1554,7 @@ export function analyzeMarketRegimeLocalV4(
 
 export async function analyzeMarketRegime(
   symbol: string,
-  candles: any[],
+  candles: { time?: string; open: number; high: number; low: number; close: number; volume?: number }[],
   tradeContext?: { entryPrice?: string; ltp?: number; pnl?: number; signal?: string }
 ): Promise<AiAnalysisResult> {
   const settings = getAiGuardSettings();
@@ -1639,6 +1615,7 @@ export async function analyzeMarketRegime(
   try {
     const provider = settings.provider || "groq";
     const config = getProviderConfig(provider);
+
     const keyIndex = apiKeyIndex;
     const apiKey = getNextApiKey();
     addAiLog(`[ai-guard] ${symbol}: using API key #${keyIndex % (aiGuardSettings.apiKeys?.length || 1)}${useVolume ? " (with volume)" : ""}`);

@@ -56,6 +56,8 @@ function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: Num
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:2000";
 const NIFTY50_WS_URL = process.env.NEXT_PUBLIC_NIFTY50_WS_URL || API_BASE_URL.replace(/^http/, "ws") + "/ws/nifty50";
+const NIFTY50_REST_URL = process.env.NEXT_PUBLIC_NIFTY50_REST_URL ||
+  NIFTY50_WS_URL.replace(/^ws/, "http").replace(/\/ws\/nifty50$/, "/nifty50-candles");
 
 type Props = {
   open: boolean;
@@ -375,6 +377,19 @@ export default function ChartPopup({ open, onClose }: Props) {
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     let disposed = false;
 
+    // Load full session history first (Zerodha-style): REST snapshot, then WS patches
+    fetch(NIFTY50_REST_URL)
+      .then((r) => r.json())
+      .then((data) => {
+        if (disposed) return;
+        const completed = (data.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
+        const current = data.currentCandle && isWithinMarketHours(data.currentCandle.time) ? data.currentCandle : null;
+        if (completed.length > 0 || current) {
+          setNifty50Data({ completedCandles: completed, currentCandle: current });
+        }
+      })
+      .catch(() => {});
+
     function connect() {
       if (disposed) return;
       ws = new WebSocket(NIFTY50_WS_URL);
@@ -397,8 +412,14 @@ export default function ChartPopup({ open, onClose }: Props) {
               if (incomingCompleted.length === 0 && !incomingCurrent && prev.completedCandles.length > 0) {
                 return prev;
               }
+              // Merge by candle time — WS updates only patch/append, never clobber history
+              const map = new Map<number, CandleData>();
+              for (const c of prev.completedCandles) map.set(toChartTime(c.time) as number, c);
+              for (const c of incomingCompleted) map.set(toChartTime(c.time) as number, c);
+              const merged = Array.from(map.values())
+                .sort((a, b) => (toChartTime(a.time) as number) - (toChartTime(b.time) as number));
               return {
-                completedCandles: incomingCompleted,
+                completedCandles: merged.slice(-700),
                 currentCandle: incomingCurrent,
               };
             });
