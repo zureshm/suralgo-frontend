@@ -420,7 +420,6 @@ export default function SettingsDesktop() {
 
             {/* Appearance Section */}
             <section>
-              <div className="mb-4" style={labelStyle}>Appearance & Sound</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Theme */}
                 <div className="p-4 rounded-xl border" style={{ background: "var(--theme-popup-field-bg)", borderColor: "var(--theme-popup-field-border)" }}>
@@ -473,7 +472,6 @@ export default function SettingsDesktop() {
 
             {/* Core Settings Section */}
             <section>
-              <div className="mb-4" style={labelStyle}>Safety & Performance</div>
               <div className="space-y-4">
                 {/* Auto Cutoff */}
                 <div className="p-4 rounded-xl border" style={{ background: "var(--theme-popup-field-bg)", borderColor: "var(--theme-popup-field-border)" }}>
@@ -616,9 +614,14 @@ export default function SettingsDesktop() {
 
             {/* AI Guard Section */}
             <section>
-              <div className="flex items-center justify-between mb-4">
-                <div style={labelStyle}>AI Guard Intelligence</div>
-                <button
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl border" style={{ background: "var(--theme-popup-field-bg)", borderColor: "var(--theme-popup-field-border)" }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Shield size={18} style={{ color: "var(--theme-popup-border)" }} />
+                    <h3 style={sectionTitleStyle}>Enable AI Guard</h3>
+                  </div>
+                  <button
                   type="button"
                   onClick={() => setAiGuardEnabled(!aiGuardEnabled)}
                   style={{
@@ -646,12 +649,12 @@ export default function SettingsDesktop() {
                       boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
                     }}
                   />
-                </button>
-              </div>
+                  </button>
+                </div>
 
-              {aiGuardEnabled && (
-                <div className="p-5 rounded-xl border space-y-6" style={{ background: "var(--theme-popup-field-bg)", borderColor: "var(--theme-popup-field-border)" }}>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {aiGuardEnabled && (
+                  <div className="space-y-6 pt-4 border-t border-black/5">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Primary AI Switches */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
@@ -769,7 +772,7 @@ export default function SettingsDesktop() {
                         <option value="claude" style={{ background: "var(--theme-popup-bg)" }}>Claude Haiku 3.5 (paid)</option>
                       </select>
                     </div>
-                  </div>
+                    </div>
 
                   {/* AI Advanced Params */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-black/5">
@@ -893,7 +896,9 @@ export default function SettingsDesktop() {
                   </div>
                   )}
                 </div>
-              )}
+                )}
+                </div>
+              </div>
             </section>
 
             {/* TEMP AI Testing Section */}
