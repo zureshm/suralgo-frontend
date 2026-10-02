@@ -6,6 +6,7 @@ import { Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Vol
 import { playSound, setVolume } from "@/lib/sounds";
 import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
+import { useSharedAiSettings } from "@/lib/useSharedAiSettings";
 
 interface ClampedNumericFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> {
   value: number;
@@ -94,17 +95,21 @@ export default function SettingsDesktop() {
   const autoCutoffLoadedRef = useRef(false);
   const autoCutoffDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [aiGuardEnabled, setAiGuardEnabled] = useState(false);
-  const [aiEntryGuardEnabled, setAiEntryGuardEnabled] = useState(false);
-  const [aiAutoExitEnabled, setAiAutoExitEnabled] = useState(false);
-  const [aiCandlesCount, setAiCandlesCount] = useState(120);
-  const [aiRecentCandlesCount, setAiRecentCandlesCount] = useState(30);
-  const [aiEntryBufferMaxCandles, setAiEntryBufferMaxCandles] = useState(1);
-  const [aiConsiderVolume, setAiConsiderVolume] = useState(false);
-  const [aiUseHeikinAshi, setAiUseHeikinAshi] = useState(true);
-  const [aiProvider, setAiProvider] = useState("local");
-  const [aiModel, setAiModel] = useState("openai/gpt-oss-120b");
-  const [aiApiKey, setAiApiKey] = useState("");
+  // Use shared AI settings across all components
+  const { settings: aiSettings, updateSettings: updateAiSettings } = useSharedAiSettings();
+  
+  // Convenience getters
+  const aiGuardEnabled = aiSettings.enabled;
+  const aiEntryGuardEnabled = aiSettings.entryGuardEnabled;
+  const aiAutoExitEnabled = aiSettings.autoExitEnabled;
+  const aiCandlesCount = aiSettings.candlesCount;
+  const aiRecentCandlesCount = aiSettings.recentCandlesCount;
+  const aiEntryBufferMaxCandles = aiSettings.entryBufferMaxCandles;
+  const aiConsiderVolume = aiSettings.considerVolume;
+  const aiUseHeikinAshi = aiSettings.useHeikinAshi;
+  const aiProvider = aiSettings.provider;
+  const aiModel = aiSettings.model;
+  const aiApiKey = aiSettings.apiKey;
 
   const aiSettingsLoadedRef = useRef(false);
   const aiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -165,18 +170,19 @@ export default function SettingsDesktop() {
       .then((r) => r.json())
       .then((data) => {
         if (data && typeof data === "object") {
-          setAiGuardEnabled(Boolean(data.enabled));
-          setAiEntryGuardEnabled(Boolean(data.entryGuardEnabled));
-          setAiAutoExitEnabled(Boolean(data.autoExitEnabled));
-          if (typeof data.candlesCount === "number") setAiCandlesCount(data.candlesCount);
-          if (typeof data.recentCandlesCount === "number") setAiRecentCandlesCount(data.recentCandlesCount);
-          if (typeof data.entryBufferMaxCandles === "number") setAiEntryBufferMaxCandles(data.entryBufferMaxCandles);
-          if (typeof data.considerVolume === "boolean") setAiConsiderVolume(data.considerVolume);
-          if (typeof data.useHeikinAshi === "boolean") setAiUseHeikinAshi(data.useHeikinAshi);
-          if (typeof data.provider === "string") setAiProvider(data.provider);
-          if (typeof data.model === "string") setAiModel(data.model);
-          if (Array.isArray(data.apiKeys)) setAiApiKey(data.apiKeys.join("\n"));
-          else if (typeof data.apiKey === "string") setAiApiKey(data.apiKey);
+          updateAiSettings({
+            enabled: Boolean(data.enabled),
+            entryGuardEnabled: Boolean(data.entryGuardEnabled),
+            autoExitEnabled: Boolean(data.autoExitEnabled),
+            candlesCount: typeof data.candlesCount === "number" ? data.candlesCount : 120,
+            recentCandlesCount: typeof data.recentCandlesCount === "number" ? data.recentCandlesCount : 30,
+            entryBufferMaxCandles: typeof data.entryBufferMaxCandles === "number" ? data.entryBufferMaxCandles : 1,
+            considerVolume: typeof data.considerVolume === "boolean" ? data.considerVolume : false,
+            useHeikinAshi: typeof data.useHeikinAshi === "boolean" ? data.useHeikinAshi : true,
+            provider: typeof data.provider === "string" ? data.provider : "local",
+            model: typeof data.model === "string" ? data.model : "openai/gpt-oss-120b",
+            apiKey: Array.isArray(data.apiKeys) ? data.apiKeys.join("\n") : (typeof data.apiKey === "string" ? data.apiKey : ""),
+          });
           // Sync to localStorage as cache
           localStorage.setItem("aiGuardEnabled", String(data.enabled));
           localStorage.setItem("aiEntryGuardEnabled", String(data.entryGuardEnabled));
@@ -193,28 +199,30 @@ export default function SettingsDesktop() {
       })
       .catch(() => {
         // Server unreachable — fall back to localStorage
+        const updates: any = {};
         const aiGuard = localStorage.getItem("aiGuardEnabled");
-        if (aiGuard) setAiGuardEnabled(aiGuard === "true");
+        if (aiGuard) updates.enabled = aiGuard === "true";
         const aiEntry = localStorage.getItem("aiEntryGuardEnabled");
-        if (aiEntry) setAiEntryGuardEnabled(aiEntry === "true");
+        if (aiEntry) updates.entryGuardEnabled = aiEntry === "true";
         const aiAutoExit = localStorage.getItem("aiAutoExitEnabled");
-        if (aiAutoExit) setAiAutoExitEnabled(aiAutoExit === "true");
+        if (aiAutoExit) updates.autoExitEnabled = aiAutoExit === "true";
         const aiCandles = localStorage.getItem("aiCandlesCount");
-        if (aiCandles) setAiCandlesCount(parseInt(aiCandles, 10));
+        if (aiCandles) updates.candlesCount = parseInt(aiCandles, 10);
         const aiRecentCandles = localStorage.getItem("aiRecentCandlesCount");
-        if (aiRecentCandles) setAiRecentCandlesCount(parseInt(aiRecentCandles, 10));
+        if (aiRecentCandles) updates.recentCandlesCount = parseInt(aiRecentCandles, 10);
         const aiEntryBuffer = localStorage.getItem("aiEntryBufferMaxCandles");
-        if (aiEntryBuffer) setAiEntryBufferMaxCandles(parseInt(aiEntryBuffer, 10));
+        if (aiEntryBuffer) updates.entryBufferMaxCandles = parseInt(aiEntryBuffer, 10);
         const aiVol = localStorage.getItem("aiConsiderVolume");
-        if (aiVol) setAiConsiderVolume(aiVol === "true");
+        if (aiVol) updates.considerVolume = aiVol === "true";
         const aiHA = localStorage.getItem("aiUseHeikinAshi");
-        if (aiHA) setAiUseHeikinAshi(aiHA === "true");
+        if (aiHA) updates.useHeikinAshi = aiHA === "true";
         const aiProv = localStorage.getItem("aiProvider");
-        if (aiProv) setAiProvider(aiProv);
+        if (aiProv) updates.provider = aiProv;
         const aiMdl = localStorage.getItem("aiModel");
-        if (aiMdl) setAiModel(aiMdl);
+        if (aiMdl) updates.model = aiMdl;
         const aiKey = localStorage.getItem("aiApiKey");
-        if (aiKey) setAiApiKey(aiKey);
+        if (aiKey) updates.apiKey = aiKey;
+        if (Object.keys(updates).length > 0) updateAiSettings(updates);
       })
       .finally(() => {
         aiSettingsLoadedRef.current = true;
@@ -623,7 +631,7 @@ export default function SettingsDesktop() {
                   </div>
                   <button
                   type="button"
-                  onClick={() => setAiGuardEnabled(!aiGuardEnabled)}
+                  onClick={() => updateAiSettings({ enabled: !aiGuardEnabled })}
                   style={{
                     width: 44,
                     height: 24,
@@ -661,7 +669,7 @@ export default function SettingsDesktop() {
                         <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Enable EntryGuard</label>
                         <button
                           type="button"
-                          onClick={() => setAiEntryGuardEnabled(!aiEntryGuardEnabled)}
+                          onClick={() => updateAiSettings({ entryGuardEnabled: !aiEntryGuardEnabled })}
                           style={{
                             width: 36,
                             height: 20,
@@ -693,7 +701,7 @@ export default function SettingsDesktop() {
                         <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Auto-execute Exits</label>
                         <button
                           type="button"
-                          onClick={() => setAiAutoExitEnabled(!aiAutoExitEnabled)}
+                          onClick={() => updateAiSettings({ autoExitEnabled: !aiAutoExitEnabled })}
                           style={{
                             width: 36,
                             height: 20,
@@ -760,7 +768,7 @@ export default function SettingsDesktop() {
                         )}
                       </div>
                       <select
-                        value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}
+                        value={aiProvider} onChange={(e) => updateAiSettings({ provider: e.target.value })}
                         className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
                         style={{ color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
                       >
@@ -778,22 +786,22 @@ export default function SettingsDesktop() {
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-black/5">
                     <div>
                       <label className="block mb-1" style={labelStyle}>Candles</label>
-                      <ClampedNumericField value={aiCandlesCount} onChange={setAiCandlesCount} min={30} max={120} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
+                      <ClampedNumericField value={aiCandlesCount} onChange={(val) => updateAiSettings({ candlesCount: val })} min={30} max={120} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
                     </div>
                     <div>
                       <label className="block mb-1" style={labelStyle}>Recent Wt</label>
-                      <ClampedNumericField value={aiRecentCandlesCount} onChange={setAiRecentCandlesCount} min={10} max={60} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
+                      <ClampedNumericField value={aiRecentCandlesCount} onChange={(val) => updateAiSettings({ recentCandlesCount: val })} min={10} max={60} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
                     </div>
                     <div>
                       <label className="block mb-1" style={labelStyle}>Buffer</label>
-                      <ClampedNumericField value={aiEntryBufferMaxCandles} onChange={setAiEntryBufferMaxCandles} min={1} max={10} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
+                      <ClampedNumericField value={aiEntryBufferMaxCandles} onChange={(val) => updateAiSettings({ entryBufferMaxCandles: val })} min={1} max={10} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
                     </div>
                     <div className="flex flex-col justify-end">
                       <div className="flex items-center justify-between h-8">
                         <label style={labelStyle}>HA</label>
                         <button
                           type="button"
-                          onClick={() => setAiUseHeikinAshi(!aiUseHeikinAshi)}
+                          onClick={() => updateAiSettings({ useHeikinAshi: !aiUseHeikinAshi })}
                           style={{
                             width: 32,
                             height: 18,
@@ -828,7 +836,7 @@ export default function SettingsDesktop() {
                   <div className="pt-4">
                     <label className="block mb-1" style={labelStyle}>Groq Model</label>
                     <select
-                      value={aiModel} onChange={(e) => setAiModel(e.target.value)}
+                      value={aiModel} onChange={(e) => updateAiSettings({ model: e.target.value })}
                       className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
                       style={{ color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
                     >
@@ -865,7 +873,7 @@ export default function SettingsDesktop() {
                     </div>
                     <textarea
                       value={aiApiKey}
-                      onChange={(e) => setAiApiKey(e.target.value)}
+                      onChange={(e) => updateAiSettings({ apiKey: e.target.value })}
                       placeholder={`Paste your ${aiProvider === "claude" ? "Claude" : "Groq"} API key(s) here — one per line`}
                       rows={3}
                       className="w-full px-3 py-2 rounded-lg text-xs resize-vertical"
