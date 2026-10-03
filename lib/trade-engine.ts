@@ -2731,9 +2731,16 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
       triggeredPositions.add(positionKey);
       trailingArmedPositions.delete(positionKey);
 
-      const slLog = (trade.trailingStopLossEnabled && slStepsCompleted > 0)
-        ? `TRAILING STOPLOSS hit for ₹${slExit} (trailed to ₹${trailedSLLevel.toFixed(2)}) at ${currentTime}`
-        : `STOPLOSS hit for ₹${slExit} at ${currentTime}`;
+      let slLog: string;
+      if (trade.isReEntryCycle) {
+        slLog = (trade.trailingStopLossEnabled && slStepsCompleted > 0)
+          ? `RE-ENTRY TRAILING STOPLOSS hit for ₹${slExit} (trailed to ₹${trailedSLLevel.toFixed(2)}) at ${currentTime}`
+          : `RE-ENTRY STOPLOSS hit for ₹${slExit} at ${currentTime}`;
+      } else {
+        slLog = (trade.trailingStopLossEnabled && slStepsCompleted > 0)
+          ? `TRAILING STOPLOSS hit for ₹${slExit} (trailed to ₹${trailedSLLevel.toFixed(2)}) at ${currentTime}`
+          : `STOPLOSS hit for ₹${slExit} at ${currentTime}`;
+      }
 
       completeCycleWithoutExit(trade.symbol, String(slExit), slLog);
       continue;
