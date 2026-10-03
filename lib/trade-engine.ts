@@ -791,6 +791,17 @@ function loadState() {
   } catch (e) {
 
     console.error("[trade-engine] Failed to load state:", e);
+    
+    // If file is corrupted, try to recover by renaming it and starting fresh
+    if (fs.existsSync(DB_PATH)) {
+      const backupPath = DB_PATH + ".corrupted";
+      try {
+        fs.renameSync(DB_PATH, backupPath);
+        console.log(`[trade-engine] Moved corrupted file to ${backupPath}. Starting with fresh state.`);
+      } catch (renameErr) {
+        console.error("[trade-engine] Failed to backup corrupted file:", renameErr);
+      }
+    }
 
   }
 
