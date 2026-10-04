@@ -785,20 +785,20 @@ export default function SettingsDesktop() {
                   {/* AI Advanced Params */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-black/5">
                     <div>
-                      <label className="block mb-1" style={labelStyle}>Candles</label>
+                      <label className="block mb-1" style={labelStyle}>Candles for analysis</label>
                       <ClampedNumericField value={aiCandlesCount} onChange={(val) => updateAiSettings({ candlesCount: val })} min={30} max={120} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
                     </div>
                     <div>
-                      <label className="block mb-1" style={labelStyle}>Recent Wt</label>
+                      <label className="block mb-1" style={labelStyle}>Recent Candles Weight</label>
                       <ClampedNumericField value={aiRecentCandlesCount} onChange={(val) => updateAiSettings({ recentCandlesCount: val })} min={10} max={60} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
                     </div>
                     <div>
-                      <label className="block mb-1" style={labelStyle}>Buffer</label>
-                      <ClampedNumericField value={aiEntryBufferMaxCandles} onChange={(val) => updateAiSettings({ entryBufferMaxCandles: val })} min={1} max={10} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
+                      <label className="block mb-1" style={labelStyle}>Buffer Buy upto</label>
+                      <ClampedNumericField value={aiEntryBufferMaxCandles} onChange={(val) => updateAiSettings({ entryBufferMaxCandles: val })} min={0} max={100} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
                     </div>
                     <div className="flex flex-col justify-end">
                       <div className="flex items-center justify-between h-8">
-                        <label style={labelStyle}>HA</label>
+                        <label style={labelStyle}>Heikin-Ashi Smoothing</label>
                         <button
                           type="button"
                           onClick={() => updateAiSettings({ useHeikinAshi: !aiUseHeikinAshi })}

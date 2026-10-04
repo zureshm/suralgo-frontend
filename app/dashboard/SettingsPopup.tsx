@@ -1029,8 +1029,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         <ClampedNumericField
                           value={aiEntryBufferMaxCandles}
                           onChange={(val) => updateAiSettings({ entryBufferMaxCandles: val })}
-                          min={1}
-                          max={10}
+                          min={0}
+                          max={100}
                           className="w-16 h-7 px-2 rounded-lg text-xs text-center"
                           style={{
                             background: "var(--theme-popup-field-bg)",

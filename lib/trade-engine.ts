@@ -2297,17 +2297,24 @@ function handleStrategySignal(signal: any) {
     const aiResult = lastAiResult[signalSymbol];
     const aiSettings = getAiGuardSettings();
     if (aiSettings.entryGuardEnabled && aiResult && aiResult.blockEntry && signal.signal !== "BOOMBUY") {
-      // Buffer the BUY instead of permanently blocking â€” wait up to 5 candles for upwards
-      pendingBuyBuffer[signalSymbol] = {
-        signalType: "BUY",
-        bufferedCandleTime: candleTime ?? "",
-        candlesElapsed: 0,
-        originalSignal: signal,
-      };
-      const blockedLog = `BUY buffered by AI Guard â€” ${aiResult.reason} (${aiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${aiSettings.entryBufferMaxCandles} candles)`;
-      if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, blockedLog); }
-      else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, blockedLog); }
-      addAiLog(`[ai-guard] BUY buffered for ${signalSymbol}: ${aiResult.reason} (${aiResult.confidence}%)`);
+      if (aiSettings.entryBufferMaxCandles > 0) {
+        // Buffer the BUY instead of permanently blocking â€” wait up to N candles for upwards
+        pendingBuyBuffer[signalSymbol] = {
+          signalType: "BUY",
+          bufferedCandleTime: candleTime ?? "",
+          candlesElapsed: 0,
+          originalSignal: signal,
+        };
+        const blockedLog = `BUY buffered by AI Guard â€” ${aiResult.reason} (${aiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${aiSettings.entryBufferMaxCandles} candles)`;
+        if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, blockedLog); }
+        else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, blockedLog); }
+        addAiLog(`[ai-guard] BUY buffered for ${signalSymbol}: ${aiResult.reason} (${aiResult.confidence}%)`);
+      } else {
+        const blockedLog = `BUY blocked by AI Guard â€” ${aiResult.reason} (${aiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)}`;
+        if (matchingTrade) { addLogToWaiting(matchingTrade.symbol, blockedLog); }
+        else if (activeForSymbol && !activeForSymbol.inPosition) { addLogToActive(activeForSymbol.symbol, blockedLog); }
+        addAiLog(`[ai-guard] BUY blocked for ${signalSymbol}: ${aiResult.reason} (${aiResult.confidence}%)`);
+      }
       lastHandledSignalKey[signalSymbol] = signalKey;
       return;
     }
@@ -2404,16 +2411,23 @@ function handleStrategySignal(signal: any) {
     const reAiResult = lastAiResult[signalSymbol];
     const reAiSettings = getAiGuardSettings();
     if (reAiSettings.entryGuardEnabled && reAiResult && reAiResult.blockEntry) {
-      pendingBuyBuffer[signalSymbol] = {
-        signalType: "REENTER",
-        bufferedCandleTime: candleTime ?? "",
-        candlesElapsed: 0,
-        originalSignal: signal,
-      };
-      const blockedLog = `REENTER buffered by AI Guard â€” ${reAiResult.reason} (${reAiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${reAiSettings.entryBufferMaxCandles} candles)`;
-      if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, blockedLog); }
-      else { addLogToActive(signalSymbol, blockedLog); }
-      addAiLog(`[ai-guard] REENTER buffered for ${signalSymbol}: ${reAiResult.reason} (${reAiResult.confidence}%)`);
+      if (reAiSettings.entryBufferMaxCandles > 0) {
+        pendingBuyBuffer[signalSymbol] = {
+          signalType: "REENTER",
+          bufferedCandleTime: candleTime ?? "",
+          candlesElapsed: 0,
+          originalSignal: signal,
+        };
+        const blockedLog = `REENTER buffered by AI Guard â€” ${reAiResult.reason} (${reAiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)} (waiting for upwards, up to ${reAiSettings.entryBufferMaxCandles} candles)`;
+        if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, blockedLog); }
+        else { addLogToActive(signalSymbol, blockedLog); }
+        addAiLog(`[ai-guard] REENTER buffered for ${signalSymbol}: ${reAiResult.reason} (${reAiResult.confidence}%)`);
+      } else {
+        const blockedLog = `REENTER blocked by AI Guard â€” ${reAiResult.reason} (${reAiResult.confidence}%) at ${fmtTime(signal.lastCandleTime)}`;
+        if (waitingTrades.find((t) => t.symbol === signalSymbol)) { addLogToWaiting(signalSymbol, blockedLog); }
+        else { addLogToActive(signalSymbol, blockedLog); }
+        addAiLog(`[ai-guard] REENTER blocked for ${signalSymbol}: ${reAiResult.reason} (${reAiResult.confidence}%)`);
+      }
       lastHandledSignalKey[signalSymbol] = signalKey;
       return;
     }
