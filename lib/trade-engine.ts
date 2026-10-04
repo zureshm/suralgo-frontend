@@ -909,6 +909,8 @@ const pendingSidewaysExits: Record<string, string> = {};
 export function clearAiResults() {
   for (const k of Object.keys(lastAiResult)) delete lastAiResult[k];
   for (const k of Object.keys(pendingSidewaysExits)) delete pendingSidewaysExits[k];
+  for (const k of Object.keys(pendingBuyBuffer)) delete pendingBuyBuffer[k];
+  for (const k of Object.keys(lastAiCandleTime)) delete lastAiCandleTime[k];
   aiSuggestions.length = 0;
 }
 
