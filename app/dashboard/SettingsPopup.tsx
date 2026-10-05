@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { FocusEvent, InputHTMLAttributes } from "react";
-import { X, Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock, Monitor } from "lucide-react";
+import { X, Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock, Monitor, ShieldAlert } from "lucide-react";
 import { playSound, setVolume } from "@/lib/sounds";
 import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
@@ -102,6 +102,18 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const autoCutoffLoadedRef = useRef(false);
   const autoCutoffDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Watchdog settings
+  const [watchdogEnabled, setWatchdogEnabled] = useState(false);
+  const [watchdogCheckpoints, setWatchdogCheckpoints] = useState([
+    { points: 20, breakBelow: 10 },
+    { points: 30, breakBelow: 15 },
+    { points: 40, breakBelow: 20 },
+    { points: 50, breakBelow: 25 },
+    { points: 60, breakBelow: 30 },
+  ]);
+  const watchdogLoadedRef = useRef(false);
+  const watchdogDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Use shared AI settings across all components
   const { settings: aiSettings, updateSettings: updateAiSettings } = useSharedAiSettings();
   
@@ -174,6 +186,22 @@ export default function SettingsPopup({ open, onClose }: Props) {
       })
       .catch(() => {
         autoCutoffLoadedRef.current = true;
+      });
+
+    // Fetch Watchdog settings from server
+    fetch("/next-api/settings/watchdog")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && typeof data === "object") {
+          if (typeof data.watchdogEnabled === "boolean") setWatchdogEnabled(data.watchdogEnabled);
+          if (Array.isArray(data.watchdogCheckpoints)) {
+            setWatchdogCheckpoints(data.watchdogCheckpoints);
+          }
+          watchdogLoadedRef.current = true;
+        }
+      })
+      .catch(() => {
+        watchdogLoadedRef.current = true;
       });
 
     // Fetch AI Guard settings from server first (source of truth for cross-device)
@@ -302,6 +330,25 @@ export default function SettingsPopup({ open, onClose }: Props) {
       if (autoCutoffDebounceRef.current) clearTimeout(autoCutoffDebounceRef.current);
     };
   }, [autoCutoffEnabled, autoCutoffHours, autoCutoffMinutes, autoCutoffAmpm]);
+
+  // Auto-save Watchdog settings to server when changed
+  useEffect(() => {
+    if (!watchdogLoadedRef.current) return;
+    if (watchdogDebounceRef.current) clearTimeout(watchdogDebounceRef.current);
+    watchdogDebounceRef.current = setTimeout(() => {
+      fetch("/next-api/settings/watchdog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          watchdogEnabled,
+          watchdogCheckpoints,
+        }),
+      }).catch((err) => console.error("Failed to save watchdog settings:", err));
+    }, 300);
+    return () => {
+      if (watchdogDebounceRef.current) clearTimeout(watchdogDebounceRef.current);
+    };
+  }, [watchdogEnabled, watchdogCheckpoints]);
 
   // Test API key when it changes (or provider changes)
   const testAiConnection = useCallback(async () => {
@@ -704,6 +751,128 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   <option value="pm">PM</option>
                   <option value="am">AM</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
+
+            {/* Watchdog section */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert size={18} style={{ color: "var(--theme-popup-border)" }} />
+                  <h3 className="text-sm font-bold" style={{ color: "var(--theme-popup-text)" }}>Watchdog</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWatchdogEnabled(!watchdogEnabled)}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    background: watchdogEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                    boxShadow: watchdogEnabled ? "0 0 10px rgba(251, 191, 36, 0.45)" : "none",
+                    position: "relative",
+                    transition: "background 0.2s, box-shadow 0.2s",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 3,
+                      left: watchdogEnabled ? 23 : 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                    }}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-baseline gap-2 mt-1 mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--theme-popup-text)" }}>Checkpoints</span>
+                <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>Based on current trade points achieved</span>
+              </div>
+
+              <div className={`space-y-2 transition-opacity duration-200 ${watchdogEnabled ? "opacity-100" : "opacity-35 pointer-events-none"}`}>
+                {watchdogCheckpoints.map((cp, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-lg border flex flex-col gap-2"
+                    style={{
+                      background: "var(--theme-popup-field-bg)",
+                      borderColor: "var(--theme-popup-field-border)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>
+                        CP {idx + 1} Points
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-emerald-400">+</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={999}
+                          value={cp.points}
+                          disabled={!watchdogEnabled}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            setWatchdogCheckpoints((prev) => {
+                              const updated = [...prev];
+                              updated[idx] = { ...updated[idx], points: val };
+                              return updated;
+                            });
+                          }}
+                          className="w-16 h-7 px-1 border rounded text-center text-xs font-semibold focus:outline-none"
+                          style={{
+                            background: "var(--theme-popup-bg)",
+                            color: "var(--theme-popup-text)",
+                            borderColor: "var(--theme-popup-field-border)",
+                          }}
+                        />
+                        <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                      <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>
+                        Break when reach below
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-amber-400">+</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={999}
+                          value={cp.breakBelow}
+                          disabled={!watchdogEnabled}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            setWatchdogCheckpoints((prev) => {
+                              const updated = [...prev];
+                              updated[idx] = { ...updated[idx], breakBelow: val };
+                              return updated;
+                            });
+                          }}
+                          className="w-16 h-7 px-1 border rounded text-center text-xs font-semibold focus:outline-none"
+                          style={{
+                            background: "var(--theme-popup-bg)",
+                            color: "var(--theme-popup-text)",
+                            borderColor: "var(--theme-popup-field-border)",
+                          }}
+                        />
+                        <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
