@@ -100,6 +100,10 @@ export default function HistoryDesktop() {
               const tradesDisplay = item.config
                 ? `Trades: ${completedCycles} of ${item.config.numberOfTrades}`
                 : `Trades: ${completedCycles}`;
+              const hasAiInvolved = item.logs.some(log => 
+                log.toLowerCase().includes("ai guard") || 
+                log.toLowerCase().includes("ai detected")
+              );
 
               return (
                 <div
@@ -108,7 +112,10 @@ export default function HistoryDesktop() {
                   style={{ background: "var(--theme-popup-field-bg)", borderColor: "var(--theme-popup-field-border)" }}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-black" style={{ color: "var(--theme-popup-border)" }}>{item.symbol}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-black" style={{ color: "var(--theme-popup-border)" }}>{item.symbol}</div>
+                      {hasAiInvolved && <span className="text-base">🤖</span>}
+                    </div>
                     <div className="flex items-center gap-3">
                       <div
                         className="text-sm font-mono font-bold"
