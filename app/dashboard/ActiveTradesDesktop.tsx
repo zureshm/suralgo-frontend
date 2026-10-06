@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
 import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
@@ -90,8 +89,7 @@ export default function ActiveTradesDesktop({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, setSelection } = useTradeStore();
-  const router = useRouter();
+  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled } = useTradeStore();
 
   const [pendingAction, setPendingAction] = useState<Record<string, "force-buy" | "end-cycle">>({});
   const [addedAtMap, setAddedAtMap] = useState<Record<string, number>>({});
@@ -200,15 +198,7 @@ export default function ActiveTradesDesktop({
             <div key={t.symbol} className={styles.trade} style={cardStyle}>
               <div className={styles.tradeRow}>
                 <div className={styles.tradeSymbol} style={{ fontWeight: 700 }}>
-                  <span
-                    style={{ cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: "2px" }}
-                    onClick={() => {
-                      setSelection({ symbol: t.symbol, price: t.entryPrice });
-                      router.push("/trade");
-                    }}
-                  >
-                    {t.symbol}
-                  </span>
+                  {t.symbol}
                   {t.symbol.endsWith("CE") && ceBadge}
                   {t.symbol.endsWith("PE") && peBadge}
                   {renderAiRegimeBadge(t.symbol)}
