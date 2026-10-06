@@ -558,10 +558,12 @@ export interface WatchdogSettings {
 
 const DEFAULT_WATCHDOG_CHECKPOINTS: WatchdogCheckpoint[] = [
   { points: 20, breakBelow: 10 },
-  { points: 30, breakBelow: 15 },
-  { points: 40, breakBelow: 20 },
-  { points: 50, breakBelow: 25 },
-  { points: 60, breakBelow: 30 },
+  { points: 35, breakBelow: 20 },
+  { points: 50, breakBelow: 35 },
+  { points: 80, breakBelow: 60 },
+  { points: 100, breakBelow: 80 },
+  { points: 130, breakBelow: 100 },
+  { points: 180, breakBelow: 150 },
 ];
 
 let watchdogEnabled = false;
@@ -579,11 +581,11 @@ export function setWatchdogSettings(settings: Partial<WatchdogSettings>) {
     watchdogEnabled = settings.watchdogEnabled;
   }
   if (Array.isArray(settings.watchdogCheckpoints)) {
-    watchdogCheckpoints = settings.watchdogCheckpoints.slice(0, 5).map((cp, idx) => ({
+    watchdogCheckpoints = settings.watchdogCheckpoints.slice(0, 7).map((cp, idx) => ({
       points: Number.isFinite(Number(cp.points)) ? Number(cp.points) : (DEFAULT_WATCHDOG_CHECKPOINTS[idx]?.points ?? 0),
       breakBelow: Number.isFinite(Number(cp.breakBelow)) ? Number(cp.breakBelow) : (DEFAULT_WATCHDOG_CHECKPOINTS[idx]?.breakBelow ?? 0),
     }));
-    while (watchdogCheckpoints.length < 5) {
+    while (watchdogCheckpoints.length < 7) {
       const idx = watchdogCheckpoints.length;
       watchdogCheckpoints.push({ ...DEFAULT_WATCHDOG_CHECKPOINTS[idx] });
     }
@@ -883,11 +885,11 @@ function loadState() {
 
       if (typeof data.watchdogEnabled === "boolean") watchdogEnabled = data.watchdogEnabled;
       if (Array.isArray(data.watchdogCheckpoints)) {
-        watchdogCheckpoints = data.watchdogCheckpoints.slice(0, 5).map((cp: any, idx: number) => ({
+        watchdogCheckpoints = data.watchdogCheckpoints.slice(0, 7).map((cp: any, idx: number) => ({
           points: typeof cp.points === "number" ? cp.points : (DEFAULT_WATCHDOG_CHECKPOINTS[idx]?.points ?? 0),
           breakBelow: typeof cp.breakBelow === "number" ? cp.breakBelow : (DEFAULT_WATCHDOG_CHECKPOINTS[idx]?.breakBelow ?? 0),
         }));
-        while (watchdogCheckpoints.length < 5) {
+        while (watchdogCheckpoints.length < 7) {
           const idx = watchdogCheckpoints.length;
           watchdogCheckpoints.push({ ...DEFAULT_WATCHDOG_CHECKPOINTS[idx] });
         }
@@ -3292,46 +3294,6 @@ export function updateWaitingTrade(trade: WaitingTrade) {
   persistState();
   return true;
 }
-
-// Override config of a running (active) trade — only merges safe fields, preserves all runtime state
-export function updateActiveTradeConfig(symbol: string, config: Record<string, unknown>) {
-  const idx = activeTrades.findIndex((t) => t.symbol === symbol && t.status === "ACTIVE");
-  if (idx === -1) return false;
-
-  const SAFE_FIELDS = [
-    "stopLossNumberEnabled", "stopLossNumber",
-    "trailingStopLossEnabled", "trailingStopLossSteps",
-    "targetPointsEnabled", "targetPoints", "targetMode",
-    "trailingAfterTarget", "trailingMode",
-    "minToHoldEnabled", "minToHold", "minToHoldTrigger", "minToHoldTrailing", "minToHoldMode", "minToHoldArmMode",
-    "maxProfitLossEnabled", "maxProfit", "maxLoss",
-    "sellWhenLossCandlesEnabled", "sellWhenLossCandles",
-    "reEntryAfterTargetEnabled", "reEntryStartCandle", "reEntryCandles", "reEntryPoints",
-    "reEntryStopLossEnabled", "reEntryStopLoss",
-    "reEntryAsTrailingEnabled", "reEntryTrailingPoints",
-    "reEntryMinTargetEnabled", "reEntryMinTargetPoints", "reEntryMinTargetTrigger", "reEntryMinTargetTrailing",
-    "signalReEntryEnabled",
-    "rangeEnabled", "timeFrom", "timeFromAmpm", "timeTo", "timeToAmpm",
-    "buyOverride", "waitAfterSellEnabled", "waitAfterSellCandles",
-    "triggerTimerEnabled", "triggerTimeEnabled", "triggerPriceEnabled",
-    "triggerHours", "triggerMinutes", "triggerSeconds", "triggerMinPrice", "triggerMaxPrice",
-  ];
-
-  const safeUpdate: Record<string, unknown> = {};
-  for (const key of SAFE_FIELDS) {
-    if (key in config) {
-      safeUpdate[key] = config[key];
-    }
-  }
-
-  activeTrades = activeTrades.map((t, i) =>
-    i === idx ? { ...t, ...safeUpdate } as ActiveTrade : t
-  );
-  persistState();
-  return true;
-}
-
-
 
 export function activateWaitingTradeFromClient(symbol: string, entryPrice: string, logLine: string, candleSize?: number) {
   const trade = waitingTrades.find((t) => t.symbol === symbol);

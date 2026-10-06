@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { FocusEvent, InputHTMLAttributes } from "react";
-import { Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock, Monitor, ShieldAlert } from "lucide-react";
+import { Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock, Monitor, Dog } from "lucide-react";
 import { playSound, setVolume } from "@/lib/sounds";
 import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
@@ -98,10 +98,12 @@ export default function SettingsDesktop() {
   const [watchdogEnabled, setWatchdogEnabled] = useState(false);
   const [watchdogCheckpoints, setWatchdogCheckpoints] = useState([
     { points: 20, breakBelow: 10 },
-    { points: 30, breakBelow: 15 },
-    { points: 40, breakBelow: 20 },
-    { points: 50, breakBelow: 25 },
-    { points: 60, breakBelow: 30 },
+    { points: 35, breakBelow: 20 },
+    { points: 50, breakBelow: 35 },
+    { points: 80, breakBelow: 60 },
+    { points: 100, breakBelow: 80 },
+    { points: 130, breakBelow: 100 },
+    { points: 180, breakBelow: 150 },
   ]);
   const watchdogLoadedRef = useRef(false);
   const watchdogDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -563,9 +565,10 @@ export default function SettingsDesktop() {
                       />
                     </button>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className={`flex items-center gap-3 transition-opacity duration-200 ${autoCutoffEnabled ? "opacity-100" : "opacity-35 pointer-events-none"}`}>
                     <input
                       type="text" maxLength={2} value={autoCutoffHours}
+                      disabled={!autoCutoffEnabled}
                       onChange={(e) => setAutoCutoffHours(e.target.value.replace(/\D/g, ""))}
                       className="w-12 h-8 px-1 border rounded text-center text-sm font-semibold focus:outline-none"
                       style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
@@ -573,12 +576,14 @@ export default function SettingsDesktop() {
                     <span className="font-bold">:</span>
                     <input
                       type="text" maxLength={2} value={autoCutoffMinutes}
+                      disabled={!autoCutoffEnabled}
                       onChange={(e) => setAutoCutoffMinutes(e.target.value.replace(/\D/g, ""))}
                       className="w-12 h-8 px-1 border rounded text-center text-sm font-semibold focus:outline-none"
                       style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
                     />
                     <select
                       value={autoCutoffAmpm}
+                      disabled={!autoCutoffEnabled}
                       onChange={(e) => setAutoCutoffAmpm(e.target.value)}
                       className="h-8 px-2 border rounded text-sm font-semibold focus:outline-none cursor-pointer"
                       style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
@@ -593,7 +598,7 @@ export default function SettingsDesktop() {
                 <div className="p-4 rounded-xl border" style={{ background: "var(--theme-popup-field-bg)", borderColor: "var(--theme-popup-field-border)" }}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <ShieldAlert size={18} style={iconStyle} />
+                      <Dog size={18} style={iconStyle} />
                       <h3 style={sectionTitleStyle}>Watchdog</h3>
                     </div>
                     <button
@@ -627,12 +632,14 @@ export default function SettingsDesktop() {
                     </button>
                   </div>
 
+                  {watchdogEnabled && (
+                  <>
                   <div className="flex items-baseline gap-2 mb-4">
                     <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--theme-popup-text)" }}>Checkpoints</span>
                     <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>Based on current trade points achieved</span>
                   </div>
 
-                  <div className={`space-y-2.5 transition-opacity duration-200 ${watchdogEnabled ? "opacity-100" : "opacity-35 pointer-events-none"}`}>
+                  <div className="space-y-2.5">
                     {watchdogCheckpoints.map((cp, idx) => (
                       <div key={idx} className="flex flex-wrap items-center justify-between gap-3 p-2.5 rounded-lg border border-white/5" style={{ background: "var(--theme-popup-bg)" }}>
                         <div className="flex items-center gap-3">
@@ -691,6 +698,8 @@ export default function SettingsDesktop() {
                       </div>
                     ))}
                   </div>
+                  </>
+                  )}
                 </div>
 
                 {/* Force Buy & Desktop Toggle */}
