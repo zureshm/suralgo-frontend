@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, type CSSProperties } from "react";
-import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play } from "lucide-react";
+import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play, TrendingUp } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
@@ -89,7 +89,7 @@ export default function ActiveTradesDesktop({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled } = useTradeStore();
+  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, niftySignalBindings } = useTradeStore();
 
   const [pendingAction, setPendingAction] = useState<Record<string, "force-buy" | "end-cycle">>({});
   const [addedAtMap, setAddedAtMap] = useState<Record<string, number>>({});
@@ -134,6 +134,36 @@ export default function ActiveTradesDesktop({
     else if (ru === "CHOPPY" || ru === "CHOP") { label = "CHOPPY"; color = "#ec4899"; }
     else if (ru === "TRADEABLE") { label = "TRADEABLE"; color = "#06b6d4"; }
     return <span style={{ marginLeft, background: color, color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>{label}</span>;
+  };
+
+  // Signal-source badge — click toggles between the symbol's own candles
+  // (REAL) and the Nifty50 index stream (N50). Reverting to REAL with no
+  // real history leaves the chart blank and signals WAIT — harmless.
+  const renderSignalIcon = (symbol: string) => {
+    const bound = niftySignalBindings[symbol];
+    return (
+      <button
+        type="button"
+        title={bound
+          ? `Running on ${bound} (Nifty50 stream) — click to switch back to real candles`
+          : "Signal source: symbol's own candles — click to switch to Nifty50"}
+        onClick={() => {
+          fetch(`/next-api/trades/${encodeURIComponent(symbol)}/use-nifty`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: !bound }),
+          }).catch(() => {});
+        }}
+        style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          marginLeft: 4, height: 15, padding: "0 3px", fontSize: 9, fontWeight: 800,
+          letterSpacing: 0.4, lineHeight: 1, borderRadius: 3, cursor: "pointer",
+          color: bound ? "#0891b2" : "#64748b",
+          border: bound ? "1.5px solid #0891b2" : "1.5px solid #94a3b8",
+          background: "transparent",
+        }}
+      >{bound ? "N50" : "REAL"}</button>
+    );
   };
 
   const renderAiToggle = (symbol: string) => {
@@ -201,6 +231,7 @@ export default function ActiveTradesDesktop({
                   {t.symbol}
                   {t.symbol.endsWith("CE") && ceBadge}
                   {t.symbol.endsWith("PE") && peBadge}
+                  {renderSignalIcon(t.symbol)}
                   {renderAiRegimeBadge(t.symbol)}
                 </div>
               </div>
@@ -514,7 +545,7 @@ export default function ActiveTradesDesktop({
                             fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
                           }}
                         >
-                          <span>Keep anyway</span>
+                          <span>Keep</span>
                         </button>
                       )}
                       <button
@@ -528,6 +559,18 @@ export default function ActiveTradesDesktop({
                       >
                         <Play className="w-3 h-3" />
                         <span>Force&nbsp;Init</span>
+                      </button>
+                      <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        title="Use Nifty — take BUY/SELL signals from the Nifty50 index candle stream (mirrored for PE)"
+                        style={{ padding: "2px 6px", fontSize: "11px", background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/use-nifty`, { method: "POST" }).catch(() => {});
+                        }}
+                      >
+                        <TrendingUp className="w-3 h-3" />
+                        <span>Use&nbsp;Nifty</span>
                       </button>
                     </div>
                   </div>
@@ -568,6 +611,18 @@ export default function ActiveTradesDesktop({
                         <span>Force&nbsp;Init</span>
                       </button>
                       <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        title="Use Nifty — take BUY/SELL signals from the Nifty50 index candle stream (mirrored for PE)"
+                        style={{ padding: "2px 6px", fontSize: "11px", background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/use-nifty`, { method: "POST" }).catch(() => {});
+                        }}
+                      >
+                        <TrendingUp className="w-3 h-3" />
+                        <span>Use&nbsp;Nifty</span>
+                      </button>
+                      <button
                         className={`${styles.waitingBtn} ${styles.danger}`}
                         type="button"
                         style={{ padding: "2px 8px", fontSize: "11px" }}
@@ -598,6 +653,7 @@ export default function ActiveTradesDesktop({
                     {t.symbol}
                     {t.symbol.endsWith("CE") && ceBadge}
                     {t.symbol.endsWith("PE") && peBadge}
+                    {renderSignalIcon(t.symbol)}
                     {renderAiRegimeBadge(t.symbol)}
                     {(() => {
                       const histStatus = symbolHistoryStatus[t.symbol];

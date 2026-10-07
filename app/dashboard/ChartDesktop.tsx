@@ -59,6 +59,25 @@ const NIFTY50_WS_URL = process.env.NEXT_PUBLIC_NIFTY50_WS_URL || API_BASE_URL.re
 const NIFTY50_REST_URL = process.env.NEXT_PUBLIC_NIFTY50_REST_URL ||
   NIFTY50_WS_URL.replace(/^ws/, "http").replace(/\/ws\/nifty50$/, "/nifty50-candles");
 
+// Candle palettes — bound (index-signal) symbols render cyan/pink so the
+// FAKE stream is visually distinct from real option candles.
+const REAL_CANDLE_COLORS = {
+  upColor: "#0ad125",
+  downColor: "#ea3434",
+  borderUpColor: "#0ad125",
+  borderDownColor: "#ea3434",
+  wickUpColor: "#0ad125",
+  wickDownColor: "#ea3434",
+};
+const FAKE_CANDLE_COLORS = {
+  upColor: "#22d3ee",
+  downColor: "#ec4899",
+  borderUpColor: "#22d3ee",
+  borderDownColor: "#ec4899",
+  wickUpColor: "#22d3ee",
+  wickDownColor: "#ec4899",
+};
+
 type Nifty50CandleData = {
   completedCandles: CandleData[];
   currentCandle: CandleData | null;
@@ -78,7 +97,7 @@ function attachCtrlWheelZoom(chart: IChartApi, container: HTMLDivElement) {
 }
 
 export default function ChartDesktop() {
-  const { activeTrades, waitingTrades } = useTradeStore();
+  const { activeTrades, waitingTrades, niftySignalBindings } = useTradeStore();
   const [symbolCandles, setSymbolCandles] = useState<SymbolCandles>({});
   const [, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -619,6 +638,10 @@ export default function ChartDesktop() {
           for (const sym of Object.keys(result)) {
             filteredResult[sym] = (result[sym] || []).filter(c => isWithinMarketHours(c.time));
           }
+          // Bound symbols chart the candles the strategy actually evaluates
+          for (const [sym, src] of Object.entries(niftySignalBindings)) {
+            if (filteredResult[src]?.length) filteredResult[sym] = filteredResult[src];
+          }
           setSymbolCandles(filteredResult);
           setError(null);
         })
@@ -638,7 +661,7 @@ export default function ChartDesktop() {
       clearTimeout(kickoff);
       clearInterval(interval);
     };
-  }, [refreshKey]);
+  }, [refreshKey, niftySignalBindings]);
 
   useEffect(() => {
     const symbols = Object.keys(symbolCandles)
@@ -688,14 +711,8 @@ export default function ChartDesktop() {
 
         attachCtrlWheelZoom(chart, container);
 
-        const main = chart.addSeries(CandlestickSeries, {
-          upColor: "#0ad125",
-          downColor: "#ea3434",
-          borderUpColor: "#0ad125",
-          borderDownColor: "#ea3434",
-          wickUpColor: "#0ad125",
-          wickDownColor: "#ea3434",
-        });
+        const main = chart.addSeries(CandlestickSeries,
+          niftySignalBindings[symbol] ? FAKE_CANDLE_COLORS : REAL_CANDLE_COLORS);
 
         main.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.08 } });
 
@@ -719,6 +736,7 @@ export default function ChartDesktop() {
 
       if (!seriesInstances.current[symbol]) return;
       const { main, ema1: ema1Line, ema2: ema2Line, markerPlugin, labelPlugin } = seriesInstances.current[symbol];
+      main.applyOptions(niftySignalBindings[symbol] ? FAKE_CANDLE_COLORS : REAL_CANDLE_COLORS);
 
       const mapped = candles
         .filter((c) => c != null)
@@ -789,7 +807,7 @@ export default function ChartDesktop() {
         );
       }
     });
-  }, [symbolCandles, activeSymbols, heikenAshi,
+  }, [symbolCandles, activeSymbols, heikenAshi, niftySignalBindings,
       sEma1Enabled, sEma1Period, sEma2Enabled, sEma2Period,
       sUtbot1Enabled, sUtbot1Key, sUtbot1Atr,
       sUtbot2Enabled, sUtbot2Key, sUtbot2Atr,
@@ -973,7 +991,7 @@ export default function ChartDesktop() {
                       <span>{symbol}</span>
                       {hasData && (
                         <span className="ml-2 font-normal opacity-50">
-                          ({symbolCandles[symbol]?.length || 0} candles)
+                          ({symbolCandles[symbol]?.length || 0} candles{niftySignalBindings[symbol] ? ` · ${niftySignalBindings[symbol]}` : ""})
                         </span>
                       )}
                     </div>
