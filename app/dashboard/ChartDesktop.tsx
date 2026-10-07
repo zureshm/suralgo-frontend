@@ -64,6 +64,19 @@ type Nifty50CandleData = {
   currentCandle: CandleData | null;
 };
 
+// Ctrl+wheel zoom helper — plain wheel scrolls the page (chart wheel handlers
+// are disabled via handleScroll/handleScale); Ctrl+wheel adjusts barSpacing.
+function attachCtrlWheelZoom(chart: IChartApi, container: HTMLDivElement) {
+  const onWheel = (e: WheelEvent) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const ts = chart.timeScale();
+    const spacing = ts.options().barSpacing;
+    ts.applyOptions({ barSpacing: Math.min(100, Math.max(1, e.deltaY < 0 ? spacing * 1.15 : spacing / 1.15)) });
+  };
+  container.addEventListener("wheel", onWheel, { passive: false });
+}
+
 export default function ChartDesktop() {
   const { activeTrades, waitingTrades } = useTradeStore();
   const [symbolCandles, setSymbolCandles] = useState<SymbolCandles>({});
@@ -460,7 +473,11 @@ export default function ChartDesktop() {
         rightPriceScale: {
           borderColor: "rgba(0,0,0,0.1)",
         },
+        handleScroll: { mouseWheel: false },
+        handleScale: { mouseWheel: false },
       });
+
+      attachCtrlWheelZoom(chart, container);
 
       const series = chart.addSeries(CandlestickSeries, {
         upColor: "#0a8a43",
@@ -665,7 +682,11 @@ export default function ChartDesktop() {
           rightPriceScale: {
             borderColor: "rgba(255,255,255.1)",
           },
+          handleScroll: { mouseWheel: false },
+          handleScale: { mouseWheel: false },
         });
+
+        attachCtrlWheelZoom(chart, container);
 
         const main = chart.addSeries(CandlestickSeries, {
           upColor: "#0ad125",
