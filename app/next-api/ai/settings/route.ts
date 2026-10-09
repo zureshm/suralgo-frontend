@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     setAiGuardSettings({
       enabled: Boolean(body.enabled),
       entryGuardEnabled: Boolean(body.entryGuardEnabled),
+      reEntryGuardEnabled: Boolean(body.reEntryGuardEnabled),
       autoExitEnabled: Boolean(body.autoExitEnabled),
       confidenceThreshold: Number(body.confidenceThreshold) || 70,
       candlesCount: Number(body.candlesCount) || 120,

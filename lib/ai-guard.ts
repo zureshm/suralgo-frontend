@@ -34,6 +34,7 @@ export function clearAiLogs(): void {
 export type AiGuardSettings = {
   enabled: boolean;
   entryGuardEnabled: boolean;
+  reEntryGuardEnabled: boolean;
   autoExitEnabled: boolean;
   confidenceThreshold: number;
   candlesCount: number;
@@ -83,6 +84,7 @@ export type AiSuggestion = {
 const DEFAULT_SETTINGS: AiGuardSettings = {
   enabled: false,
   entryGuardEnabled: false,
+  reEntryGuardEnabled: false,
   autoExitEnabled: false,
   confidenceThreshold: 70,
   candlesCount: 90,

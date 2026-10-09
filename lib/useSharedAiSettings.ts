@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 let sharedAiSettings = {
   enabled: false,
   entryGuardEnabled: false,
+  reEntryGuardEnabled: false,
   autoExitEnabled: false,
   candlesCount: 120,
   recentCandlesCount: 30,
