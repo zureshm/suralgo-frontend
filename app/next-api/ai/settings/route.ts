@@ -23,6 +23,7 @@ export async function POST(request: Request) {
       candlesCount: Number(body.candlesCount) || 120,
       recentCandlesCount: Number(body.recentCandlesCount) || 30,
       entryBufferMaxCandles: Number.isFinite(Number(body.entryBufferMaxCandles)) ? Number(body.entryBufferMaxCandles) : 1,
+      exitBufferCandles: Number.isFinite(Number(body.exitBufferCandles)) ? Number(body.exitBufferCandles) : 3,
       considerVolume: Boolean(body.considerVolume),
       useHeikinAshi: body.useHeikinAshi !== false,
       provider: String(body.provider || "groq"),

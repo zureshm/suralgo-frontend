@@ -105,13 +105,16 @@ export default function SettingsPopup({ open, onClose }: Props) {
   // Watchdog settings
   const [watchdogEnabled, setWatchdogEnabled] = useState(false);
   const [watchdogCheckpoints, setWatchdogCheckpoints] = useState([
-    { points: 20, breakBelow: 10 },
-    { points: 35, breakBelow: 20 },
-    { points: 50, breakBelow: 35 },
-    { points: 80, breakBelow: 60 },
+    { points: 16, breakBelow: 10 },
+    { points: 25, breakBelow: 15 },
+    { points: 40, breakBelow: 25 },
+    { points: 60, breakBelow: 40 },
     { points: 100, breakBelow: 80 },
-    { points: 130, breakBelow: 100 },
-    { points: 180, breakBelow: 150 },
+    { points: 130, breakBelow: 105 },
+    { points: 150, breakBelow: 125 },
+    { points: 170, breakBelow: 145 },
+    { points: 190, breakBelow: 160 },
+    { points: 210, breakBelow: 180 },
   ]);
   const watchdogLoadedRef = useRef(false);
   const watchdogDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -126,6 +129,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const aiCandlesCount = aiSettings.candlesCount;
   const aiRecentCandlesCount = aiSettings.recentCandlesCount;
   const aiEntryBufferMaxCandles = aiSettings.entryBufferMaxCandles;
+  const aiExitBufferCandles = aiSettings.exitBufferCandles;
   const aiConsiderVolume = aiSettings.considerVolume;
   const aiUseHeikinAshi = aiSettings.useHeikinAshi;
   const aiProvider = aiSettings.provider;
@@ -218,6 +222,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
             candlesCount: typeof data.candlesCount === "number" ? data.candlesCount : 120,
             recentCandlesCount: typeof data.recentCandlesCount === "number" ? data.recentCandlesCount : 30,
             entryBufferMaxCandles: typeof data.entryBufferMaxCandles === "number" ? data.entryBufferMaxCandles : 1,
+            exitBufferCandles: typeof data.exitBufferCandles === "number" ? data.exitBufferCandles : 3,
             considerVolume: typeof data.considerVolume === "boolean" ? data.considerVolume : false,
             useHeikinAshi: typeof data.useHeikinAshi === "boolean" ? data.useHeikinAshi : true,
             provider: typeof data.provider === "string" ? data.provider : "local",
@@ -231,6 +236,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
           localStorage.setItem("aiCandlesCount", String(data.candlesCount));
           localStorage.setItem("aiRecentCandlesCount", String(data.recentCandlesCount));
           localStorage.setItem("aiEntryBufferMaxCandles", String(data.entryBufferMaxCandles || 1));
+          localStorage.setItem("aiExitBufferCandles", String(data.exitBufferCandles || 3));
           localStorage.setItem("aiConsiderVolume", String(data.considerVolume || false));
           localStorage.setItem("aiUseHeikinAshi", String(data.useHeikinAshi !== false));
           localStorage.setItem("aiProvider", data.provider);
@@ -253,6 +259,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
         if (aiRecentCandles) updates.recentCandlesCount = parseInt(aiRecentCandles, 10);
         const aiEntryBuffer = localStorage.getItem("aiEntryBufferMaxCandles");
         if (aiEntryBuffer) updates.entryBufferMaxCandles = parseInt(aiEntryBuffer, 10);
+        const aiExitBuffer = localStorage.getItem("aiExitBufferCandles");
+        if (aiExitBuffer) updates.exitBufferCandles = parseInt(aiExitBuffer, 10);
         const aiVol = localStorage.getItem("aiConsiderVolume");
         if (aiVol) updates.considerVolume = aiVol === "true";
         const aiHA = localStorage.getItem("aiUseHeikinAshi");
@@ -278,12 +286,13 @@ export default function SettingsPopup({ open, onClose }: Props) {
     localStorage.setItem("aiCandlesCount", String(aiCandlesCount));
     localStorage.setItem("aiRecentCandlesCount", String(aiRecentCandlesCount));
     localStorage.setItem("aiEntryBufferMaxCandles", String(aiEntryBufferMaxCandles));
+    localStorage.setItem("aiExitBufferCandles", String(aiExitBufferCandles));
     localStorage.setItem("aiConsiderVolume", String(aiConsiderVolume));
     localStorage.setItem("aiUseHeikinAshi", String(aiUseHeikinAshi));
     localStorage.setItem("aiProvider", aiProvider);
     localStorage.setItem("aiModel", aiModel);
     localStorage.setItem("aiApiKey", aiApiKey);
-  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
+  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiExitBufferCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
 
   // POST AI Guard settings to backend (debounced, only after initial server load)
   const postAiSettings = useCallback(() => {
@@ -300,6 +309,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
           candlesCount: aiCandlesCount,
           recentCandlesCount: aiRecentCandlesCount,
           entryBufferMaxCandles: aiEntryBufferMaxCandles,
+          exitBufferCandles: aiExitBufferCandles,
           considerVolume: aiConsiderVolume,
           useHeikinAshi: aiUseHeikinAshi,
           provider: aiProvider,
@@ -308,7 +318,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
         }),
       }).catch(() => {});
     }, 500);
-  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
+  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiExitBufferCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
 
   useEffect(() => { postAiSettings(); }, [postAiSettings]);
 
@@ -1131,6 +1141,33 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </button>
                     </div>
                   </div>
+
+                  {/* Exit buffer (sideways confirmation candles) */}
+                  {aiAutoExitEnabled && (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="relative flex items-center gap-1.5">
+                          <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Exit buffer (sideways)</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <ClampedNumericField
+                            value={aiExitBufferCandles}
+                            onChange={(val) => updateAiSettings({ exitBufferCandles: val })}
+                            min={1}
+                            max={30}
+                            className="w-16 h-7 px-2 rounded-lg text-xs text-center"
+                            style={{
+                              background: "var(--theme-popup-field-bg)",
+                              color: "var(--theme-accent-gold, var(--theme-popup-text))",
+                              border: "1px solid var(--theme-popup-field-border)",
+                              fontWeight: 700,
+                            }}
+                          />
+                          <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>candles</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Candles count input */}
                   <div className="mb-3">

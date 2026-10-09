@@ -8,6 +8,7 @@ let sharedAiSettings = {
   candlesCount: 120,
   recentCandlesCount: 30,
   entryBufferMaxCandles: 1,
+  exitBufferCandles: 3,
   considerVolume: false,
   useHeikinAshi: true,
   provider: "local",
