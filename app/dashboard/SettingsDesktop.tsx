@@ -837,116 +837,6 @@ export default function SettingsDesktop() {
 
                 {aiGuardEnabled && (
                   <div className="space-y-6 pt-4 border-t border-black/5">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Primary AI Switches */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Enable EntryGuard</label>
-                        <button
-                          type="button"
-                          onClick={() => updateAiSettings({ entryGuardEnabled: !aiEntryGuardEnabled })}
-                          style={{
-                            width: 36,
-                            height: 20,
-                            borderRadius: 10,
-                            background: aiEntryGuardEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
-                            boxShadow: aiEntryGuardEnabled ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
-                            position: "relative",
-                            transition: "background 0.2s, box-shadow 0.2s",
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: 2,
-                              left: aiEntryGuardEnabled ? 19 : 2,
-                              width: 16,
-                              height: 16,
-                              borderRadius: "50%",
-                              background: "var(--theme-toggle-dot, #fff)",
-                              transition: "left 0.2s",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-                            }}
-                          />
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Enable Re-Entry Guard</label>
-                        <button
-                          type="button"
-                          onClick={() => updateAiSettings({ reEntryGuardEnabled: !aiReEntryGuardEnabled })}
-                          style={{
-                            width: 36,
-                            height: 20,
-                            borderRadius: 10,
-                            background: aiReEntryGuardEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
-                            boxShadow: aiReEntryGuardEnabled ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
-                            position: "relative",
-                            transition: "background 0.2s, box-shadow 0.2s",
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: 2,
-                              left: aiReEntryGuardEnabled ? 19 : 2,
-                              width: 16,
-                              height: 16,
-                              borderRadius: "50%",
-                              background: "var(--theme-toggle-dot, #fff)",
-                              transition: "left 0.2s",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-                            }}
-                          />
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Auto-execute Exits</label>
-                        <button
-                          type="button"
-                          onClick={() => updateAiSettings({ autoExitEnabled: !aiAutoExitEnabled })}
-                          style={{
-                            width: 36,
-                            height: 20,
-                            borderRadius: 10,
-                            background: aiAutoExitEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
-                            boxShadow: aiAutoExitEnabled ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
-                            position: "relative",
-                            transition: "background 0.2s, box-shadow 0.2s",
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: 2,
-                              left: aiAutoExitEnabled ? 19 : 2,
-                              width: 16,
-                              height: 16,
-                              borderRadius: "50%",
-                              background: "var(--theme-toggle-dot, #fff)",
-                              transition: "left 0.2s",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-                            }}
-                          />
-                        </button>
-                      </div>
-                      {aiAutoExitEnabled && (
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Exit buffer (sideways)</label>
-                          <div className="flex items-center gap-1.5">
-                            <ClampedNumericField value={aiExitBufferCandles} onChange={(val) => updateAiSettings({ exitBufferCandles: val })} min={1} max={30} className="w-14 h-7 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
-                            <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>candles</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
                     {/* AI Provider */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
@@ -996,6 +886,137 @@ export default function SettingsDesktop() {
                         <option value="claude" style={{ background: "var(--theme-popup-bg)" }}>Claude Haiku 3.5 (paid)</option>
                       </select>
                     </div>
+
+                    {/* Primary AI Switches */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-black/5">
+                      <div className="flex items-center justify-start gap-3">
+                        <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Enable EntryGuard</label>
+                        <button
+                          type="button"
+                          onClick={() => updateAiSettings({ entryGuardEnabled: !aiEntryGuardEnabled })}
+                          style={{
+                            width: 36,
+                            height: 20,
+                            borderRadius: 10,
+                            background: aiEntryGuardEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                            boxShadow: aiEntryGuardEnabled ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
+                            position: "relative",
+                            transition: "background 0.2s, box-shadow 0.2s",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: 2,
+                              left: aiEntryGuardEnabled ? 19 : 2,
+                              width: 16,
+                              height: 16,
+                              borderRadius: "50%",
+                              background: "var(--theme-toggle-dot, #fff)",
+                              transition: "left 0.2s",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                            }}
+                          />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-start gap-3">
+                        <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Enable Re-Entry Guard</label>
+                        <button
+                          type="button"
+                          onClick={() => updateAiSettings({ reEntryGuardEnabled: !aiReEntryGuardEnabled })}
+                          style={{
+                            width: 36,
+                            height: 20,
+                            borderRadius: 10,
+                            background: aiReEntryGuardEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                            boxShadow: aiReEntryGuardEnabled ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
+                            position: "relative",
+                            transition: "background 0.2s, box-shadow 0.2s",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: 2,
+                              left: aiReEntryGuardEnabled ? 19 : 2,
+                              width: 16,
+                              height: 16,
+                              borderRadius: "50%",
+                              background: "var(--theme-toggle-dot, #fff)",
+                              transition: "left 0.2s",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                            }}
+                          />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-start gap-3">
+                        <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Auto-execute Exits</label>
+                        <button
+                          type="button"
+                          onClick={() => updateAiSettings({ autoExitEnabled: !aiAutoExitEnabled })}
+                          style={{
+                            width: 36,
+                            height: 20,
+                            borderRadius: 10,
+                            background: aiAutoExitEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                            boxShadow: aiAutoExitEnabled ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
+                            position: "relative",
+                            transition: "background 0.2s, box-shadow 0.2s",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: 2,
+                              left: aiAutoExitEnabled ? 19 : 2,
+                              width: 16,
+                              height: 16,
+                              borderRadius: "50%",
+                              background: "var(--theme-toggle-dot, #fff)",
+                              transition: "left 0.2s",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                            }}
+                          />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-start gap-3">
+                        <label className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>Heikin-Ashi Smoothing</label>
+                        <button
+                          type="button"
+                          onClick={() => updateAiSettings({ useHeikinAshi: !aiUseHeikinAshi })}
+                          style={{
+                            width: 36,
+                            height: 20,
+                            borderRadius: 10,
+                            background: aiUseHeikinAshi ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                            boxShadow: aiUseHeikinAshi ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
+                            position: "relative",
+                            transition: "background 0.2s, box-shadow 0.2s",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: 2,
+                              left: aiUseHeikinAshi ? 19 : 2,
+                              width: 16,
+                              height: 16,
+                              borderRadius: "50%",
+                              background: "var(--theme-toggle-dot, #fff)",
+                              transition: "left 0.2s",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                            }}
+                          />
+                        </button>
+                      </div>
                     </div>
 
                   {/* AI Advanced Params */}
@@ -1012,39 +1033,15 @@ export default function SettingsDesktop() {
                       <label className="block mb-1" style={labelStyle}>Buffer Buy upto</label>
                       <ClampedNumericField value={aiEntryBufferMaxCandles} onChange={(val) => updateAiSettings({ entryBufferMaxCandles: val })} min={0} max={100} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
                     </div>
-                    <div className="flex flex-col justify-end">
-                      <div className="flex items-center justify-between h-8">
-                        <label style={labelStyle}>Heikin-Ashi Smoothing</label>
-                        <button
-                          type="button"
-                          onClick={() => updateAiSettings({ useHeikinAshi: !aiUseHeikinAshi })}
-                          style={{
-                            width: 32,
-                            height: 18,
-                            borderRadius: 9,
-                            background: aiUseHeikinAshi ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
-                            position: "relative",
-                            transition: "background 0.2s",
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: 2,
-                              left: aiUseHeikinAshi ? 16 : 2,
-                              width: 14,
-                              height: 14,
-                              borderRadius: "50%",
-                              background: "var(--theme-toggle-dot, #fff)",
-                              transition: "left 0.2s",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-                            }}
-                          />
-                        </button>
+                    {aiAutoExitEnabled && (
+                      <div>
+                        <label className="block mb-1" style={labelStyle}>Exit buffer (sideways)</label>
+                        <div className="flex items-center gap-1.5">
+                          <ClampedNumericField value={aiExitBufferCandles} onChange={(val) => updateAiSettings({ exitBufferCandles: val })} min={1} max={30} className="w-full h-8 rounded border border-black/10 text-center font-bold text-xs" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-accent-gold, var(--theme-popup-text))", borderColor: "var(--theme-popup-field-border)" }} />
+                          <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>candles</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Groq Model dropdown */}
