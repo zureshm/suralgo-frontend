@@ -643,6 +643,11 @@ const symbolHistoryStatus: Record<string, { status: string; candleCount: number 
 // instead of their own candles; real LTP still drives entry/exit pricing.
 const niftySignalBinding: Record<string, "FAKE_CE" | "FAKE_PE"> = {};
 
+// Rolling last-11 candle closes per signal source (real symbol or FAKE_CE/PE).
+// Auto Re-entry uses these for its "beat the highest close of the previous
+// 10 candles" breakout check.
+const recentCloses: Record<string, number[]> = {};
+
 // Ring buffer of history-fetch log lines for the Log Monitor page
 const historyFetchLogs: string[] = [];
 const MAX_HISTORY_LOGS = 200;
@@ -2756,6 +2761,22 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
           const startCandle = trade.reEntryStartCandle ?? 1;
           if (candlesSinceSell <= trade.reEntryCandles) {
             if (candlesSinceSell >= startCandle && ltp > reEntryThreshold) {
+              // High-close wall — price must beat the highest close of the
+              // previous 10 candles from this trade's signal source (its own
+              // stream, or the bound FAKE_CE/PE index stream).
+              const wallSrc = niftySignalBinding[trade.symbol] ?? trade.symbol;
+              const closes = recentCloses[wallSrc] || [];
+              if (closes.length >= 2) {
+                const wall = Math.max(...closes.slice(0, -1));
+                const cur = niftySignalBinding[trade.symbol] ? closes[closes.length - 1] : ltp;
+                if (!(cur > wall)) {
+                  if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
+                    lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
+                    addLogToActive(trade.symbol, `RE-ENTRY blocked — price below highest close of last 10 candles (₹${wall.toFixed(2)}) at ${currentTime}`);
+                  }
+                  continue;
+                }
+              }
               // AI Guard check â€” block re-entry if AI says sideways/reversing
               const aiSettings = getAiGuardSettings();
               if (aiSettings.reEntryGuardEnabled && isAiGuardActive() && aiSymbolEnabled[trade.symbol] === true) {
@@ -3061,6 +3082,16 @@ async function tick() {
       try {
         const res = await fetch(`${STRATEGY_URL}/evaluate?symbol=${encodeURIComponent(sym)}`);
         const signal = await res.json();
+
+        // Rolling closes per signal source — feeds the auto re-entry
+        // "highest close of previous 10 candles" breakout wall.
+        if (signal && Array.isArray(signal.candles) && signal.candles.length > 0) {
+          recentCloses[sym] = signal.candles
+            .slice(-11)
+            .map((c: { close?: unknown }) => Number(c?.close))
+            .filter(Number.isFinite);
+        }
+
         if (signal && signal.signal) {
           if (signal.symbol === "FAKE_CE" || signal.symbol === "FAKE_PE") {
             // Relay the fake-stream signal to every bound symbol, with close stamped
@@ -3326,6 +3357,7 @@ export function bindNiftySignal(symbol: string) {
 export function unbindNiftySignal(symbol: string) {
   if (!niftySignalBinding[symbol]) return;
   delete niftySignalBinding[symbol];
+  delete recentCloses[symbol];
   pushHistoryLog(`${symbol} unbound — strategy signals reverted to its own candles`);
   addLogToWaiting(symbol, `Signal source switched back to ${symbol}'s own candles`);
   persistState();
@@ -3370,6 +3402,7 @@ export function addWaitingTrade(trade: WaitingTrade) {
   // Reset history status and kick off one-time check (non-blocking)
   delete symbolHistoryStatus[trade.symbol];
   delete niftySignalBinding[trade.symbol];
+  delete recentCloses[trade.symbol];
   checkSymbolHistoryStatus(trade.symbol);
 
   // Clean up stale state before adding new trade
@@ -3517,6 +3550,7 @@ export function cancelWaitingTrade(symbol: string) {
   delete lastHandledSignalKey[symbol];
   delete lastBuyCandleTime[symbol];
   delete niftySignalBinding[symbol];
+  delete recentCloses[symbol];
 
   setAiSymbolEnabled(symbol, false);
 
@@ -3619,6 +3653,7 @@ export function removeCompletedTrade(symbol: string) {
   delete lastHandledSignalKey[symbol];
   delete lastBuyCandleTime[symbol];
   delete niftySignalBinding[symbol];
+  delete recentCloses[symbol];
 
   setAiSymbolEnabled(symbol, false);
 
