@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
-import { RefreshCw, Loader2, BarChart2 } from "lucide-react";
+import { RefreshCw, Loader2, BarChart2, ChevronDown } from "lucide-react";
 import { createChart, CandlestickSeries, IChartApi, SeriesMarker, Time, createSeriesMarkers, LineSeries, ISeriesApi, ISeriesMarkersPluginApi } from "lightweight-charts";
 import { useTradeStore } from "../store/TradeStore";
 import {
@@ -51,6 +51,45 @@ function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: Num
         onBlur?.(e);
       }}
     />
+  );
+}
+
+// Dropdown wrapper for indicator controls — groups checkboxes/inputs behind a
+// single toolbar button. enabledCount shows e.g. "UTBOT (2)". Closes on
+// outside mousedown.
+function IndicatorMenu({ label, enabledCount, children }: { label: string; enabledCount: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 px-2.5 h-6 rounded text-[10px] font-bold"
+        style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+      >
+        {label} ({enabledCount})
+        <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-1 z-50 rounded-md p-2 flex flex-col gap-2"
+          style={{ background: "var(--theme-popup-bg, #1e1e2e)", border: "1px solid var(--theme-popup-field-border)", boxShadow: "0 4px 14px rgba(0,0,0,0.35)", minWidth: 185 }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -167,9 +206,9 @@ export default function ChartDesktop() {
   const [utbot1Key, setUtbot1Key] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("nifty_utbot1_key");
-      return saved !== null ? parseFloat(saved) : 2;
+      return saved !== null ? parseFloat(saved) : 1;
     }
-    return 2;
+    return 1;
   });
   const [utbot1Atr, setUtbot1Atr] = useState(() => {
     if (typeof window !== "undefined") {
@@ -189,16 +228,16 @@ export default function ChartDesktop() {
   const [utbot2Key, setUtbot2Key] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("nifty_utbot2_key");
-      return saved !== null ? parseFloat(saved) : 3;
+      return saved !== null ? parseFloat(saved) : 2;
     }
-    return 3;
+    return 2;
   });
   const [utbot2Atr, setUtbot2Atr] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("nifty_utbot2_atr");
-      return saved !== null ? parseInt(saved, 10) : 10;
+      return saved !== null ? parseInt(saved, 10) : 300;
     }
-    return 10;
+    return 300;
   });
 
   const [utbot3Enabled, setUtbot3Enabled] = useState(() => {
@@ -211,13 +250,57 @@ export default function ChartDesktop() {
   const [utbot3Key, setUtbot3Key] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("nifty_utbot3_key");
-      return saved !== null ? parseFloat(saved) : 4;
+      return saved !== null ? parseFloat(saved) : 2;
     }
-    return 4;
+    return 2;
   });
   const [utbot3Atr, setUtbot3Atr] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("nifty_utbot3_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+
+  const [utbot4Enabled, setUtbot4Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_utbot4_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [utbot4Key, setUtbot4Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_utbot4_key");
+      return saved !== null ? parseFloat(saved) : 3;
+    }
+    return 3;
+  });
+  const [utbot4Atr, setUtbot4Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_utbot4_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+
+  const [utbot5Enabled, setUtbot5Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_utbot5_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [utbot5Key, setUtbot5Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_utbot5_key");
+      return saved !== null ? parseFloat(saved) : 4;
+    }
+    return 4;
+  });
+  const [utbot5Atr, setUtbot5Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_utbot5_atr");
       return saved !== null ? parseInt(saved, 10) : 10;
     }
     return 10;
@@ -275,9 +358,9 @@ export default function ChartDesktop() {
   const [sUtbot1Key, setSUtbot1Key] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("strategy_utbot1_key");
-      return saved !== null ? parseFloat(saved) : 2;
+      return saved !== null ? parseFloat(saved) : 1;
     }
-    return 2;
+    return 1;
   });
   const [sUtbot1Atr, setSUtbot1Atr] = useState(() => {
     if (typeof window !== "undefined") {
@@ -296,16 +379,16 @@ export default function ChartDesktop() {
   const [sUtbot2Key, setSUtbot2Key] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("strategy_utbot2_key");
-      return saved !== null ? parseFloat(saved) : 3;
+      return saved !== null ? parseFloat(saved) : 2;
     }
-    return 3;
+    return 2;
   });
   const [sUtbot2Atr, setSUtbot2Atr] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("strategy_utbot2_atr");
-      return saved !== null ? parseInt(saved, 10) : 10;
+      return saved !== null ? parseInt(saved, 10) : 300;
     }
-    return 10;
+    return 300;
   });
   const [sUtbot3Enabled, setSUtbot3Enabled] = useState(() => {
     if (typeof window !== "undefined") {
@@ -317,13 +400,55 @@ export default function ChartDesktop() {
   const [sUtbot3Key, setSUtbot3Key] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("strategy_utbot3_key");
-      return saved !== null ? parseFloat(saved) : 4;
+      return saved !== null ? parseFloat(saved) : 2;
     }
-    return 4;
+    return 2;
   });
   const [sUtbot3Atr, setSUtbot3Atr] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("strategy_utbot3_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [sUtbot4Enabled, setSUtbot4Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot4_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sUtbot4Key, setSUtbot4Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot4_key");
+      return saved !== null ? parseFloat(saved) : 3;
+    }
+    return 3;
+  });
+  const [sUtbot4Atr, setSUtbot4Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot4_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [sUtbot5Enabled, setSUtbot5Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot5_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sUtbot5Key, setSUtbot5Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot5_key");
+      return saved !== null ? parseFloat(saved) : 4;
+    }
+    return 4;
+  });
+  const [sUtbot5Atr, setSUtbot5Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_utbot5_atr");
       return saved !== null ? parseInt(saved, 10) : 10;
     }
     return 10;
@@ -348,6 +473,14 @@ export default function ChartDesktop() {
     localStorage.setItem("nifty_utbot3_key", String(utbot3Key));
     localStorage.setItem("nifty_utbot3_atr", String(utbot3Atr));
 
+    localStorage.setItem("nifty_utbot4_enabled", String(utbot4Enabled));
+    localStorage.setItem("nifty_utbot4_key", String(utbot4Key));
+    localStorage.setItem("nifty_utbot4_atr", String(utbot4Atr));
+
+    localStorage.setItem("nifty_utbot5_enabled", String(utbot5Enabled));
+    localStorage.setItem("nifty_utbot5_key", String(utbot5Key));
+    localStorage.setItem("nifty_utbot5_atr", String(utbot5Atr));
+
     localStorage.setItem("strategy_heiken_ashi", String(heikenAshi));
     localStorage.setItem("nifty_heiken_ashi", String(niftyHeikenAshi));
 
@@ -367,16 +500,28 @@ export default function ChartDesktop() {
     localStorage.setItem("strategy_utbot3_enabled", String(sUtbot3Enabled));
     localStorage.setItem("strategy_utbot3_key", String(sUtbot3Key));
     localStorage.setItem("strategy_utbot3_atr", String(sUtbot3Atr));
+
+    localStorage.setItem("strategy_utbot4_enabled", String(sUtbot4Enabled));
+    localStorage.setItem("strategy_utbot4_key", String(sUtbot4Key));
+    localStorage.setItem("strategy_utbot4_atr", String(sUtbot4Atr));
+
+    localStorage.setItem("strategy_utbot5_enabled", String(sUtbot5Enabled));
+    localStorage.setItem("strategy_utbot5_key", String(sUtbot5Key));
+    localStorage.setItem("strategy_utbot5_atr", String(sUtbot5Atr));
   }, [
     ema1Enabled, ema1Period, ema2Enabled, ema2Period,
     utbot1Enabled, utbot1Key, utbot1Atr,
     utbot2Enabled, utbot2Key, utbot2Atr,
     utbot3Enabled, utbot3Key, utbot3Atr,
+    utbot4Enabled, utbot4Key, utbot4Atr,
+    utbot5Enabled, utbot5Key, utbot5Atr,
     heikenAshi, niftyHeikenAshi,
     sEma1Enabled, sEma1Period, sEma2Enabled, sEma2Period,
     sUtbot1Enabled, sUtbot1Key, sUtbot1Atr,
     sUtbot2Enabled, sUtbot2Key, sUtbot2Atr,
-    sUtbot3Enabled, sUtbot3Key, sUtbot3Atr
+    sUtbot3Enabled, sUtbot3Key, sUtbot3Atr,
+    sUtbot4Enabled, sUtbot4Key, sUtbot4Atr,
+    sUtbot5Enabled, sUtbot5Key, sUtbot5Atr
   ]);
 
   const activeSymbolsKey = useMemo(() => {
@@ -608,6 +753,16 @@ export default function ChartDesktop() {
           utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#16a34a" : "#dc2626" })
         );
       }
+      if (utbot4Enabled) {
+        calculateUTBot(utbotCandles, utbot4Key, utbot4Atr).forEach(s =>
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#2563eb" : "#daa520" })
+        );
+      }
+      if (utbot5Enabled) {
+        calculateUTBot(utbotCandles, utbot5Key, utbot5Atr).forEach(s =>
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#005050" : "#8b0000" })
+        );
+      }
 
       labelPlugin.setData(
         displayCandles.map((c) => ({ time: c.time as number, high: c.high, low: c.low })),
@@ -617,7 +772,9 @@ export default function ChartDesktop() {
   }, [nifty50Data, ema1Enabled, ema1Period, ema2Enabled, ema2Period,
       utbot1Enabled, utbot1Key, utbot1Atr,
       utbot2Enabled, utbot2Key, utbot2Atr,
-      utbot3Enabled, utbot3Key, utbot3Atr, niftyHeikenAshi]);
+      utbot3Enabled, utbot3Key, utbot3Atr,
+      utbot4Enabled, utbot4Key, utbot4Atr,
+      utbot5Enabled, utbot5Key, utbot5Atr, niftyHeikenAshi]);
 
   useEffect(() => {
     return () => {
@@ -810,6 +967,16 @@ export default function ChartDesktop() {
             utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#16a34a" : "#dc2626" })
           );
         }
+        if (sUtbot4Enabled) {
+          calculateUTBot(displayCandles, sUtbot4Key, sUtbot4Atr).forEach(s =>
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#2563eb" : "#daa520" })
+          );
+        }
+        if (sUtbot5Enabled) {
+          calculateUTBot(displayCandles, sUtbot5Key, sUtbot5Atr).forEach(s =>
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#005050" : "#8b0000" })
+          );
+        }
 
         labelPlugin.setData(
           displayCandles.map((c) => ({ time: c.time as number, high: c.high, low: c.low })),
@@ -821,7 +988,9 @@ export default function ChartDesktop() {
       sEma1Enabled, sEma1Period, sEma2Enabled, sEma2Period,
       sUtbot1Enabled, sUtbot1Key, sUtbot1Atr,
       sUtbot2Enabled, sUtbot2Key, sUtbot2Atr,
-      sUtbot3Enabled, sUtbot3Key, sUtbot3Atr]);
+      sUtbot3Enabled, sUtbot3Key, sUtbot3Atr,
+      sUtbot4Enabled, sUtbot4Key, sUtbot4Atr,
+      sUtbot5Enabled, sUtbot5Key, sUtbot5Atr]);
 
 
 
@@ -863,46 +1032,62 @@ export default function ChartDesktop() {
           className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 shrink-0 text-xs mb-1 rounded-t-lg"
           style={{ background: "rgba(0,0,0,0.05)", border: "1px solid var(--theme-popup-field-border)", borderBottom: "none" }}
         >
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={ema1Enabled} onChange={(e) => setEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500" />
-            <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 1</span>
-            <NumericField
-              value={ema1Period}
-              onChange={setEma1Period}
-              className="w-10 h-6 rounded text-center text-[10px] font-bold"
-              style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
-              fallback="10"
-            />
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={ema2Enabled} onChange={(e) => setEma2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-yellow-500" />
-            <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 2</span>
-            <NumericField
-              value={ema2Period}
-              onChange={setEma2Period}
-              className="w-10 h-6 rounded text-center text-[10px] font-bold"
-              style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
-              fallback="30"
-            />
-          </label>
-          <label className="flex items-center gap-1.5 border-l border-black/10 pl-4">
-            <input type="checkbox" checked={utbot1Enabled} onChange={(e) => setUtbot1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
-            <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 1</span>
-            <NumericField value={utbot1Key} onChange={setUtbot1Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="2" />
-            <NumericField value={utbot1Atr} onChange={setUtbot1Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={utbot2Enabled} onChange={(e) => setUtbot2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-cyan-500" />
-            <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 2</span>
-            <NumericField value={utbot2Key} onChange={setUtbot2Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
-            <NumericField value={utbot2Atr} onChange={setUtbot2Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={utbot3Enabled} onChange={(e) => setUtbot3Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-500" />
-            <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 3</span>
-            <NumericField value={utbot3Key} onChange={setUtbot3Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
-            <NumericField value={utbot3Atr} onChange={setUtbot3Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
-          </label>
+          <IndicatorMenu label="EMA" enabledCount={Number(ema1Enabled) + Number(ema2Enabled)}>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={ema1Enabled} onChange={(e) => setEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 1</span>
+              <NumericField
+                value={ema1Period}
+                onChange={setEma1Period}
+                className="w-10 h-6 rounded text-center text-[10px] font-bold"
+                style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+                fallback="10"
+              />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={ema2Enabled} onChange={(e) => setEma2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-yellow-500" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 2</span>
+              <NumericField
+                value={ema2Period}
+                onChange={setEma2Period}
+                className="w-10 h-6 rounded text-center text-[10px] font-bold"
+                style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+                fallback="30"
+              />
+            </label>
+          </IndicatorMenu>
+          <IndicatorMenu label="UTBOT" enabledCount={Number(utbot1Enabled) + Number(utbot2Enabled) + Number(utbot3Enabled) + Number(utbot4Enabled) + Number(utbot5Enabled)}>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={utbot1Enabled} onChange={(e) => setUtbot1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 1</span>
+              <NumericField value={utbot1Key} onChange={setUtbot1Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="2" />
+              <NumericField value={utbot1Atr} onChange={setUtbot1Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={utbot2Enabled} onChange={(e) => setUtbot2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-cyan-500" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 2</span>
+              <NumericField value={utbot2Key} onChange={setUtbot2Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+              <NumericField value={utbot2Atr} onChange={setUtbot2Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={utbot3Enabled} onChange={(e) => setUtbot3Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-500" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 3</span>
+              <NumericField value={utbot3Key} onChange={setUtbot3Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
+              <NumericField value={utbot3Atr} onChange={setUtbot3Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={utbot4Enabled} onChange={(e) => setUtbot4Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-600" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 4</span>
+              <NumericField value={utbot4Key} onChange={setUtbot4Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+              <NumericField value={utbot4Atr} onChange={setUtbot4Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={utbot5Enabled} onChange={(e) => setUtbot5Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-[#005050]" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 5</span>
+              <NumericField value={utbot5Key} onChange={setUtbot5Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="1" />
+              <NumericField value={utbot5Atr} onChange={setUtbot5Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
+            </label>
+          </IndicatorMenu>
           <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">
             <span className="text-[9px] font-bold opacity-50" style={{ color: "var(--theme-popup-text)" }}>HEIKEN ASHI</span>
             <button type="button" onClick={() => setNiftyHeikenAshi(!niftyHeikenAshi)} style={{
@@ -949,34 +1134,50 @@ export default function ChartDesktop() {
             className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 shrink-0 text-xs mb-1 rounded-t-lg"
             style={{ background: "rgba(0,0,0,0.05)", border: "1px solid var(--theme-popup-field-border)", borderBottom: "none" }}
           >
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={sEma1Enabled} onChange={(e) => setSEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 1</span>
-              <NumericField value={sEma1Period} onChange={setSEma1Period} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
-            </label>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={sEma2Enabled} onChange={(e) => setSEma2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-yellow-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 2</span>
-              <NumericField value={sEma2Period} onChange={setSEma2Period} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="20" />
-            </label>
-            <label className="flex items-center gap-1.5 border-l border-black/10 pl-4">
-              <input type="checkbox" checked={sUtbot1Enabled} onChange={(e) => setSUtbot1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 1</span>
-              <NumericField value={sUtbot1Key} onChange={setSUtbot1Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="2" />
-              <NumericField value={sUtbot1Atr} onChange={setSUtbot1Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
-            </label>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={sUtbot2Enabled} onChange={(e) => setSUtbot2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-cyan-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 2</span>
-              <NumericField value={sUtbot2Key} onChange={setSUtbot2Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
-              <NumericField value={sUtbot2Atr} onChange={setSUtbot2Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
-            </label>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={sUtbot3Enabled} onChange={(e) => setSUtbot3Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 3</span>
-              <NumericField value={utbot3Key} onChange={setUtbot3Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
-              <NumericField value={utbot3Atr} onChange={setUtbot3Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
-            </label>
+            <IndicatorMenu label="EMA" enabledCount={Number(sEma1Enabled) + Number(sEma2Enabled)}>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sEma1Enabled} onChange={(e) => setSEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 1</span>
+                <NumericField value={sEma1Period} onChange={setSEma1Period} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sEma2Enabled} onChange={(e) => setSEma2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-yellow-500" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 2</span>
+                <NumericField value={sEma2Period} onChange={setSEma2Period} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="20" />
+              </label>
+            </IndicatorMenu>
+            <IndicatorMenu label="UTBOT" enabledCount={Number(sUtbot1Enabled) + Number(sUtbot2Enabled) + Number(sUtbot3Enabled) + Number(sUtbot4Enabled) + Number(sUtbot5Enabled)}>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sUtbot1Enabled} onChange={(e) => setSUtbot1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 1</span>
+                <NumericField value={sUtbot1Key} onChange={setSUtbot1Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="2" />
+                <NumericField value={sUtbot1Atr} onChange={setSUtbot1Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sUtbot2Enabled} onChange={(e) => setSUtbot2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-cyan-500" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 2</span>
+                <NumericField value={sUtbot2Key} onChange={setSUtbot2Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+                <NumericField value={sUtbot2Atr} onChange={setSUtbot2Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sUtbot3Enabled} onChange={(e) => setSUtbot3Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-500" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 3</span>
+                <NumericField value={sUtbot3Key} onChange={setSUtbot3Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
+                <NumericField value={sUtbot3Atr} onChange={setSUtbot3Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sUtbot4Enabled} onChange={(e) => setSUtbot4Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-600" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 4</span>
+                <NumericField value={sUtbot4Key} onChange={setSUtbot4Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+                <NumericField value={sUtbot4Atr} onChange={setSUtbot4Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sUtbot5Enabled} onChange={(e) => setSUtbot5Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-[#005050]" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 5</span>
+                <NumericField value={sUtbot5Key} onChange={setSUtbot5Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="1" />
+                <NumericField value={sUtbot5Atr} onChange={setSUtbot5Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
+              </label>
+            </IndicatorMenu>
             <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">
               <span className="text-[9px] font-bold opacity-50" style={{ color: "var(--theme-popup-text)" }}>HEIKEN ASHI</span>
               <button type="button" onClick={() => setHeikenAshi(!heikenAshi)} style={{
