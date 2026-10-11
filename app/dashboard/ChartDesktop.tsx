@@ -83,17 +83,27 @@ type Nifty50CandleData = {
   currentCandle: CandleData | null;
 };
 
-// Ctrl+wheel zoom helper — plain wheel scrolls the page (chart wheel handlers
-// are disabled via handleScroll/handleScale); Ctrl+wheel adjusts barSpacing.
+// Ctrl+wheel / right-drag+wheel zoom helper — plain wheel scrolls the page
+// (chart wheel handlers are disabled via handleScroll/handleScale).
+// e.buttons bit 1 (value 2) = right button held during the wheel event.
 function attachCtrlWheelZoom(chart: IChartApi, container: HTMLDivElement) {
+  let rightDragged = false;
   const onWheel = (e: WheelEvent) => {
-    if (!e.ctrlKey) return;
+    if (!e.ctrlKey && !(e.buttons & 2)) return;
     e.preventDefault();
+    if (e.buttons & 2) rightDragged = true;
     const ts = chart.timeScale();
     const spacing = ts.options().barSpacing;
     ts.applyOptions({ barSpacing: Math.min(100, Math.max(1, e.deltaY < 0 ? spacing * 1.15 : spacing / 1.15)) });
   };
+  const onContextMenu = (e: MouseEvent) => {
+    if (rightDragged) {
+      e.preventDefault();
+      rightDragged = false;
+    }
+  };
   container.addEventListener("wheel", onWheel, { passive: false });
+  container.addEventListener("contextmenu", onContextMenu);
 }
 
 export default function ChartDesktop() {
