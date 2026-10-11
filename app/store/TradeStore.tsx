@@ -2,6 +2,10 @@
 
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+// Deep content compare — lets syncFromServer keep stable references so
+// unchanged server state doesn't re-render consumers every 1s poll.
+const sameContent = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
 type TradeSelection = {
   symbol: string;
   price: string;
@@ -341,6 +345,7 @@ export function TradeStoreProvider({
   // Hydrate desktop view preference from localStorage (client-only)
   useEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDesktopViewEnabledState(localStorage.getItem("dummy_desktopView") === "1");
     } catch {}
   }, []);
@@ -915,11 +920,12 @@ export function TradeStoreProvider({
     // the server has activated.
     if (!initialSyncDone.current) {
       initialSyncDone.current = true;
-      setWaitingTrades(state.waitingTrades);
+      setWaitingTrades((prev) => sameContent(prev, state.waitingTrades) ? prev : state.waitingTrades);
     } else {
-      setWaitingTrades((prev) =>
-        prev.filter((w) => !state.activeTrades.some((a) => a.symbol === w.symbol))
-      );
+      setWaitingTrades((prev) => {
+        const next = prev.filter((w) => !state.activeTrades.some((a) => a.symbol === w.symbol));
+        return next.length === prev.length ? prev : next;
+      });
     }
     // Merge: use server trades as base, but keep frontend-only trades that server
     // doesn't know about yet (e.g. just activated, POST hasn't reached server)
@@ -933,16 +939,19 @@ export function TradeStoreProvider({
           merged.push(local);
         }
       }
-      return merged;
+      return sameContent(prev, merged) ? prev : merged;
     });
     if (pendingClearAll.current) {
       // Don't overwrite — user just cleared all history
     } else if (pendingHistoryDeletes.current.size > 0) {
-      setTradeHistory(state.tradeHistory.filter(
-        (item) => !pendingHistoryDeletes.current.has(item.id)
-      ));
+      setTradeHistory((prev) => {
+        const next = state.tradeHistory.filter(
+          (item) => !pendingHistoryDeletes.current.has(item.id)
+        );
+        return sameContent(prev, next) ? prev : next;
+      });
     } else {
-      setTradeHistory(state.tradeHistory);
+      setTradeHistory((prev) => sameContent(prev, state.tradeHistory) ? prev : state.tradeHistory);
     }
     if (state.lastStrategyCandleTime) {
       lastStrategyCandleTimeRef.current = state.lastStrategyCandleTime;
@@ -951,26 +960,26 @@ export function TradeStoreProvider({
       setInitializedSymbols((prev) => {
         const next = new Set(prev);
         for (const sym of state.symbolsWithFirstSignal!) next.add(sym);
-        return next;
+        return next.size === prev.size ? prev : next;
       });
     }
     if (state.symbolHistoryStatus) {
-      setSymbolHistoryStatus(state.symbolHistoryStatus);
+      setSymbolHistoryStatus((prev) => sameContent(prev, state.symbolHistoryStatus) ? prev : state.symbolHistoryStatus!);
     }
     if (Array.isArray(state.aiSuggestions)) {
-      setAiSuggestions(state.aiSuggestions);
+      setAiSuggestions((prev) => sameContent(prev, state.aiSuggestions) ? prev : state.aiSuggestions!);
     }
     if (typeof state.aiGuardActive === "boolean") {
       setAiGuardActive(state.aiGuardActive);
     }
     if (state.aiSymbolEnabled) {
-      setAiSymbolEnabled(state.aiSymbolEnabled);
+      setAiSymbolEnabled((prev) => sameContent(prev, state.aiSymbolEnabled) ? prev : state.aiSymbolEnabled!);
     }
     if (state.aiRegime) {
-      setAiRegime(state.aiRegime);
+      setAiRegime((prev) => sameContent(prev, state.aiRegime) ? prev : state.aiRegime!);
     }
     if (state.niftySignalBinding) {
-      setNiftySignalBindings(state.niftySignalBinding);
+      setNiftySignalBindings((prev) => sameContent(prev, state.niftySignalBinding) ? prev : state.niftySignalBinding!);
     }
   }, []);
 

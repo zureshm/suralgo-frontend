@@ -338,6 +338,7 @@
   align-items: stretch;
   justify-content: flex-start;
   gap: 14px;
+  overflow-x: hidden;
 }
 
 :global(.desktop-view) .container {
@@ -347,6 +348,7 @@
 
 .rightPanel {
   flex: 1;
+  min-width: 0;
   height: calc(100vh - 24px);
   position: sticky;
   top: 12px;
