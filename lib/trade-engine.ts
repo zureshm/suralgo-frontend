@@ -363,6 +363,8 @@ type ActiveTrade = {
   completedCycles: number;
 
   entryTime?: string;
+  entryCandleTime?: string;
+  entryTimestamp?: number;
 
   exitTime?: string;
 
@@ -910,6 +912,11 @@ function loadState() {
           }
         }
       }
+      if (data.lastBuyCandleTime && typeof data.lastBuyCandleTime === "object") {
+        for (const [k, v] of Object.entries(data.lastBuyCandleTime)) {
+          if (typeof v === "string") lastBuyCandleTime[k] = v;
+        }
+      }
 
       if (typeof data.autoCutoffEnabled === "boolean") autoCutoffEnabled = data.autoCutoffEnabled;
       if (typeof data.autoCutoffHours === "string") autoCutoffHours = data.autoCutoffHours;
@@ -1005,6 +1012,7 @@ function persistState() {
 
       symbolsWithFirstSignal: [...symbolsWithFirstSignal],
       symbolHistoryStatus,
+      lastBuyCandleTime,
 
     }, null, 2);
 
@@ -1337,6 +1345,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     buyOverride: trade.buyOverride,
 
     entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
+    entryCandleTime: lastStrategyCandleTime,
+    entryTimestamp: Date.now(),
 
     exitTime: undefined,
 
@@ -1764,6 +1774,8 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
       ...trade, entryPrice, inPosition: true,
 
       entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
+      entryCandleTime: lastStrategyCandleTime,
+      entryTimestamp: Date.now(),
 
       logs: reEntryLogs,
 
@@ -2157,6 +2169,8 @@ function handleStrategySignal(signal: any) {
             } else if (activeTrade2 && !activeTrade2.inPosition) {
               updateActiveTradeBuy(signalSymbol, entryPrice, fireLog);
             }
+            // Override lastBuyCandleTime with the buffer's original candle time (not stale lastStrategyCandleTime)
+            if (buffered.bufferedCandleTime) lastBuyCandleTime[signalSymbol] = buffered.bufferedCandleTime;
             delete pendingBuyBuffer[signalSymbol];
             setPendingSkippedBuy(signalSymbol, false);
             addAiLog(`[ai-guard] Buffered BUY fired for ${signalSymbol}: upwards confirmed after ${buffered.candlesElapsed} candle(s)`);
@@ -2252,6 +2266,13 @@ function handleStrategySignal(signal: any) {
     // Block strategy exit signals on the same candle as entry or within 5s grace period
     if (lastBuyCandleTime[signalSymbol] && signal.lastCandleTime === lastBuyCandleTime[signalSymbol]) return;
     if (lastBuyTimestamp[signalSymbol] && (Date.now() - lastBuyTimestamp[signalSymbol]) < BUY_GRACE_PERIOD_MS) return;
+    // Block exit signals from candles strictly older than entry candle (persisted guard — survives restart)
+    if (activeForSymbol.entryCandleTime) {
+      const entryMin = toMinutes(activeForSymbol.entryCandleTime);
+      const signalMin = toMinutes(signal.lastCandleTime);
+      if (entryMin >= 0 && signalMin >= 0 && signalMin < entryMin) return;
+    }
+    if (activeForSymbol.entryTimestamp && (Date.now() - activeForSymbol.entryTimestamp) < BUY_GRACE_PERIOD_MS) return;
 
     completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "STOPLOSS hit for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
@@ -2276,6 +2297,13 @@ function handleStrategySignal(signal: any) {
     // Block strategy exit signals on the same candle as entry or within 5s grace period
     if (lastBuyCandleTime[signalSymbol] && signal.lastCandleTime === lastBuyCandleTime[signalSymbol]) return;
     if (lastBuyTimestamp[signalSymbol] && (Date.now() - lastBuyTimestamp[signalSymbol]) < BUY_GRACE_PERIOD_MS) return;
+    // Block exit signals from candles strictly older than entry candle (persisted guard — survives restart)
+    if (activeForSymbol.entryCandleTime) {
+      const entryMin = toMinutes(activeForSymbol.entryCandleTime);
+      const signalMin = toMinutes(signal.lastCandleTime);
+      if (entryMin >= 0 && signalMin >= 0 && signalMin < entryMin) return;
+    }
+    if (activeForSymbol.entryTimestamp && (Date.now() - activeForSymbol.entryTimestamp) < BUY_GRACE_PERIOD_MS) return;
 
     if (activeForSymbol.trailingAfterTargetEnabled && activeForSymbol.trailingAfterTarget > 0) {
 
@@ -2310,6 +2338,13 @@ function handleStrategySignal(signal: any) {
     // Block strategy exit signals on the same candle as entry or within 5s grace period
     if (lastBuyCandleTime[signalSymbol] && signal.lastCandleTime === lastBuyCandleTime[signalSymbol]) return;
     if (lastBuyTimestamp[signalSymbol] && (Date.now() - lastBuyTimestamp[signalSymbol]) < BUY_GRACE_PERIOD_MS) return;
+    // Block exit signals from candles strictly older than entry candle (persisted guard — survives restart)
+    if (activeForSymbol.entryCandleTime) {
+      const entryMin = toMinutes(activeForSymbol.entryCandleTime);
+      const signalMin = toMinutes(signal.lastCandleTime);
+      if (entryMin >= 0 && signalMin >= 0 && signalMin < entryMin) return;
+    }
+    if (activeForSymbol.entryTimestamp && (Date.now() - activeForSymbol.entryTimestamp) < BUY_GRACE_PERIOD_MS) return;
 
     completeCycleWithoutExit(activeForSymbol.symbol, String(latestClose ?? ""), "SELL triggered for ₹" + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
@@ -2340,6 +2375,13 @@ function handleStrategySignal(signal: any) {
     // Block strategy exit signals on the same candle as entry or within 5s grace period
     if (lastBuyCandleTime[signalSymbol] && signal.lastCandleTime === lastBuyCandleTime[signalSymbol]) return;
     if (lastBuyTimestamp[signalSymbol] && (Date.now() - lastBuyTimestamp[signalSymbol]) < BUY_GRACE_PERIOD_MS) return;
+    // Block exit signals from candles strictly older than entry candle (persisted guard — survives restart)
+    if (activeForSymbol.entryCandleTime) {
+      const entryMin = toMinutes(activeForSymbol.entryCandleTime);
+      const signalMin = toMinutes(signal.lastCandleTime);
+      if (entryMin >= 0 && signalMin >= 0 && signalMin < entryMin) return;
+    }
+    if (activeForSymbol.entryTimestamp && (Date.now() - activeForSymbol.entryTimestamp) < BUY_GRACE_PERIOD_MS) return;
 
     setPendingSkippedBuy(signalSymbol, false);
 
@@ -2828,6 +2870,9 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     if (triggeredPositions.has(positionKey)) continue;
 
+    // Grace period after BUY — don't fire SL/Target within 5s of entry
+    if (lastBuyTimestamp[trade.symbol] && (Date.now() - lastBuyTimestamp[trade.symbol]) < BUY_GRACE_PERIOD_MS) continue;
+    if (trade.entryTimestamp && (Date.now() - trade.entryTimestamp) < BUY_GRACE_PERIOD_MS) continue;
 
 
 
