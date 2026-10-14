@@ -11,6 +11,8 @@ import {
   calculateEMA,
   toHeikenAshi,
   calculateUTBot,
+  calculateSuperTrend,
+  SuperTrendPrimitive,
   UTBotLabel,
   UTBotLabelsPrimitive,
   toChartTime,
@@ -154,7 +156,7 @@ export default function ChartDesktop() {
   const [spinning, setSpinning] = useState(false);
   const chartRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const chartInstances = useRef<Record<string, IChartApi>>({});
-  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time>; labelPlugin: UTBotLabelsPrimitive }>>({});
+  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time>; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive }>>({});
   const observers = useRef<Record<string, ResizeObserver>>({});
 
   // Nifty50 live chart state
@@ -162,7 +164,7 @@ export default function ChartDesktop() {
   const [nifty50Connected, setNifty50Connected] = useState(false);
   const nifty50ChartRef = useRef<HTMLDivElement | null>(null);
   const nifty50ChartInstance = useRef<IChartApi | null>(null);
-  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; labelPlugin: UTBotLabelsPrimitive } | null>(null);
+  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive } | null>(null);
   const nifty50Observer = useRef<ResizeObserver | null>(null);
 
   // Indicators state
@@ -304,6 +306,49 @@ export default function ChartDesktop() {
       return saved !== null ? parseInt(saved, 10) : 10;
     }
     return 10;
+  });
+
+  const [st1Enabled, setSt1Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_st1_enabled");
+      return saved !== null ? saved === "true" : true;
+    }
+    return true;
+  });
+  const [st1Period, setSt1Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_st1_period");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [st1Mult, setSt1Mult] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_st1_mult");
+      return saved !== null ? parseFloat(saved) : 3;
+    }
+    return 3;
+  });
+  const [st2Enabled, setSt2Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_st2_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [st2Period, setSt2Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_st2_period");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [st2Mult, setSt2Mult] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_st2_mult");
+      return saved !== null ? parseFloat(saved) : 3;
+    }
+    return 3;
   });
 
   const [heikenAshi, setHeikenAshi] = useState(() => {
@@ -454,6 +499,49 @@ export default function ChartDesktop() {
     return 10;
   });
 
+  const [sSt1Enabled, setSSt1Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_st1_enabled");
+      return saved !== null ? saved === "true" : true;
+    }
+    return true;
+  });
+  const [sSt1Period, setSSt1Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_st1_period");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [sSt1Mult, setSSt1Mult] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_st1_mult");
+      return saved !== null ? parseFloat(saved) : 3;
+    }
+    return 3;
+  });
+  const [sSt2Enabled, setSSt2Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_st2_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sSt2Period, setSSt2Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_st2_period");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [sSt2Mult, setSSt2Mult] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_st2_mult");
+      return saved !== null ? parseFloat(saved) : 3;
+    }
+    return 3;
+  });
+
   // Save indicator settings
   useEffect(() => {
     localStorage.setItem("nifty_ema1_enabled", String(ema1Enabled));
@@ -508,6 +596,20 @@ export default function ChartDesktop() {
     localStorage.setItem("strategy_utbot5_enabled", String(sUtbot5Enabled));
     localStorage.setItem("strategy_utbot5_key", String(sUtbot5Key));
     localStorage.setItem("strategy_utbot5_atr", String(sUtbot5Atr));
+
+    localStorage.setItem("nifty_st1_enabled", String(st1Enabled));
+    localStorage.setItem("nifty_st1_period", String(st1Period));
+    localStorage.setItem("nifty_st1_mult", String(st1Mult));
+    localStorage.setItem("nifty_st2_enabled", String(st2Enabled));
+    localStorage.setItem("nifty_st2_period", String(st2Period));
+    localStorage.setItem("nifty_st2_mult", String(st2Mult));
+
+    localStorage.setItem("strategy_st1_enabled", String(sSt1Enabled));
+    localStorage.setItem("strategy_st1_period", String(sSt1Period));
+    localStorage.setItem("strategy_st1_mult", String(sSt1Mult));
+    localStorage.setItem("strategy_st2_enabled", String(sSt2Enabled));
+    localStorage.setItem("strategy_st2_period", String(sSt2Period));
+    localStorage.setItem("strategy_st2_mult", String(sSt2Mult));
   }, [
     ema1Enabled, ema1Period, ema2Enabled, ema2Period,
     utbot1Enabled, utbot1Key, utbot1Atr,
@@ -515,13 +617,17 @@ export default function ChartDesktop() {
     utbot3Enabled, utbot3Key, utbot3Atr,
     utbot4Enabled, utbot4Key, utbot4Atr,
     utbot5Enabled, utbot5Key, utbot5Atr,
+    st1Enabled, st1Period, st1Mult,
+    st2Enabled, st2Period, st2Mult,
     heikenAshi, niftyHeikenAshi,
     sEma1Enabled, sEma1Period, sEma2Enabled, sEma2Period,
     sUtbot1Enabled, sUtbot1Key, sUtbot1Atr,
     sUtbot2Enabled, sUtbot2Key, sUtbot2Atr,
     sUtbot3Enabled, sUtbot3Key, sUtbot3Atr,
     sUtbot4Enabled, sUtbot4Key, sUtbot4Atr,
-    sUtbot5Enabled, sUtbot5Key, sUtbot5Atr
+    sUtbot5Enabled, sUtbot5Key, sUtbot5Atr,
+    sSt1Enabled, sSt1Period, sSt1Mult,
+    sSt2Enabled, sSt2Period, sSt2Mult
   ]);
 
   const activeSymbolsKey = useMemo(() => {
@@ -670,8 +776,13 @@ export default function ChartDesktop() {
       const labelPlugin = new UTBotLabelsPrimitive();
       series.attachPrimitive(labelPlugin);
 
+      const st1Plugin = new SuperTrendPrimitive();
+      const st2Plugin = new SuperTrendPrimitive();
+      series.attachPrimitive(st1Plugin);
+      series.attachPrimitive(st2Plugin);
+
       nifty50ChartInstance.current = chart;
-      nifty50SeriesInstance.current = { main: series, ema1: ema1Line, ema2: ema2Line, labelPlugin };
+      nifty50SeriesInstance.current = { main: series, ema1: ema1Line, ema2: ema2Line, labelPlugin, st1Plugin, st2Plugin };
 
       const ro = new ResizeObserver(() => {
         if (!nifty50ChartInstance.current) return;
@@ -683,7 +794,7 @@ export default function ChartDesktop() {
     }
 
     if (!nifty50SeriesInstance.current) return;
-    const { main, ema1: ema1Line, ema2: ema2Line, labelPlugin } = nifty50SeriesInstance.current;
+    const { main, ema1: ema1Line, ema2: ema2Line, labelPlugin, st1Plugin, st2Plugin } = nifty50SeriesInstance.current;
 
     const mapped = allCandles
       .filter((c) => c != null)
@@ -768,13 +879,18 @@ export default function ChartDesktop() {
         displayCandles.map((c) => ({ time: c.time as number, high: c.high, low: c.low })),
         utbotLabels
       );
+
+      st1Plugin.setData(st1Enabled ? calculateSuperTrend(displayCandles, st1Period, st1Mult) : []);
+      st2Plugin.setData(st2Enabled ? calculateSuperTrend(displayCandles, st2Period, st2Mult) : []);
     }
   }, [nifty50Data, ema1Enabled, ema1Period, ema2Enabled, ema2Period,
       utbot1Enabled, utbot1Key, utbot1Atr,
       utbot2Enabled, utbot2Key, utbot2Atr,
       utbot3Enabled, utbot3Key, utbot3Atr,
       utbot4Enabled, utbot4Key, utbot4Atr,
-      utbot5Enabled, utbot5Key, utbot5Atr, niftyHeikenAshi]);
+      utbot5Enabled, utbot5Key, utbot5Atr,
+      st1Enabled, st1Period, st1Mult,
+      st2Enabled, st2Period, st2Mult, niftyHeikenAshi]);
 
   useEffect(() => {
     return () => {
@@ -889,8 +1005,13 @@ export default function ChartDesktop() {
         const labelPlugin = new UTBotLabelsPrimitive();
         main.attachPrimitive(labelPlugin);
 
+        const st1Plugin = new SuperTrendPrimitive();
+        const st2Plugin = new SuperTrendPrimitive();
+        main.attachPrimitive(st1Plugin);
+        main.attachPrimitive(st2Plugin);
+
         chartInstances.current[symbol] = chart;
-        seriesInstances.current[symbol] = { main, ema1: ema1Line, ema2: ema2Line, markerPlugin: createSeriesMarkers(main), labelPlugin };
+        seriesInstances.current[symbol] = { main, ema1: ema1Line, ema2: ema2Line, markerPlugin: createSeriesMarkers(main), labelPlugin, st1Plugin, st2Plugin };
 
         const ro = new ResizeObserver(() => {
           if (!chartInstances.current[symbol]) return;
@@ -902,7 +1023,7 @@ export default function ChartDesktop() {
       }
 
       if (!seriesInstances.current[symbol]) return;
-      const { main, ema1: ema1Line, ema2: ema2Line, markerPlugin, labelPlugin } = seriesInstances.current[symbol];
+      const { main, ema1: ema1Line, ema2: ema2Line, markerPlugin, labelPlugin, st1Plugin, st2Plugin } = seriesInstances.current[symbol];
       main.applyOptions(niftySignalBindings[symbol] ? FAKE_CANDLE_COLORS : REAL_CANDLE_COLORS);
 
       const mapped = candles
@@ -982,6 +1103,9 @@ export default function ChartDesktop() {
           displayCandles.map((c) => ({ time: c.time as number, high: c.high, low: c.low })),
           utbotLabels
         );
+
+        st1Plugin.setData(sSt1Enabled ? calculateSuperTrend(displayCandles, sSt1Period, sSt1Mult) : []);
+        st2Plugin.setData(sSt2Enabled ? calculateSuperTrend(displayCandles, sSt2Period, sSt2Mult) : []);
       }
     });
   }, [symbolCandles, activeSymbols, heikenAshi, niftySignalBindings,
@@ -990,7 +1114,9 @@ export default function ChartDesktop() {
       sUtbot2Enabled, sUtbot2Key, sUtbot2Atr,
       sUtbot3Enabled, sUtbot3Key, sUtbot3Atr,
       sUtbot4Enabled, sUtbot4Key, sUtbot4Atr,
-      sUtbot5Enabled, sUtbot5Key, sUtbot5Atr]);
+      sUtbot5Enabled, sUtbot5Key, sUtbot5Atr,
+      sSt1Enabled, sSt1Period, sSt1Mult,
+      sSt2Enabled, sSt2Period, sSt2Mult]);
 
 
 
@@ -1088,6 +1214,20 @@ export default function ChartDesktop() {
               <NumericField value={utbot5Atr} onChange={setUtbot5Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
             </label>
           </IndicatorMenu>
+          <IndicatorMenu label="SUPERTREND" enabledCount={Number(st1Enabled) + Number(st2Enabled)}>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={st1Enabled} onChange={(e) => setSt1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-600" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>ST 1</span>
+              <NumericField value={st1Period} onChange={setSt1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              <NumericField value={st1Mult} onChange={setSt1Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={st2Enabled} onChange={(e) => setSt2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>ST 2</span>
+              <NumericField value={st2Period} onChange={setSt2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              <NumericField value={st2Mult} onChange={setSt2Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+            </label>
+          </IndicatorMenu>
           <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">
             <span className="text-[9px] font-bold opacity-50" style={{ color: "var(--theme-popup-text)" }}>HEIKEN ASHI</span>
             <button type="button" onClick={() => setNiftyHeikenAshi(!niftyHeikenAshi)} style={{
@@ -1176,6 +1316,20 @@ export default function ChartDesktop() {
                 <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 5</span>
                 <NumericField value={sUtbot5Key} onChange={setSUtbot5Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="1" />
                 <NumericField value={sUtbot5Atr} onChange={setSUtbot5Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
+              </label>
+            </IndicatorMenu>
+            <IndicatorMenu label="SUPERTREND" enabledCount={Number(sSt1Enabled) + Number(sSt2Enabled)}>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sSt1Enabled} onChange={(e) => setSSt1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-600" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>ST 1</span>
+                <NumericField value={sSt1Period} onChange={setSSt1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+                <NumericField value={sSt1Mult} onChange={setSSt1Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sSt2Enabled} onChange={(e) => setSSt2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>ST 2</span>
+                <NumericField value={sSt2Period} onChange={setSSt2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+                <NumericField value={sSt2Mult} onChange={setSSt2Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
               </label>
             </IndicatorMenu>
             <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">

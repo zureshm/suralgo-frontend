@@ -169,6 +169,37 @@ export function toHeikenAshi<T extends { open: number; high: number; low: number
   return ha;
 }
 
+// RMA (Running Moving Average) — TradingView's Wilder smoothing, used by
+// both UTBot (xATRTrailingStop) and SuperTrend (ATR bands).
+function calculateRMA(data: number[], period: number): number[] {
+  if (data.length < period) return [];
+  const rma: number[] = [];
+  const alpha = 1 / period;
+
+  // First value is SMA
+  let sum = 0;
+  for (let i = 0; i < period; i++) sum += data[i];
+  rma.push(sum / period);
+
+  // Subsequent values use alpha
+  for (let i = period; i < data.length; i++) {
+    rma.push(alpha * data[i] + (1 - alpha) * rma[rma.length - 1]);
+  }
+  return rma;
+}
+
+// Calculate True Range series (starts at candle index 1)
+function calculateTR(candles: { high: number; low: number; close: number }[]): number[] {
+  const trs: number[] = [];
+  for (let i = 1; i < candles.length; i++) {
+    const high = candles[i].high;
+    const low = candles[i].low;
+    const prevClose = candles[i - 1].close;
+    trs.push(Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose)));
+  }
+  return trs;
+}
+
 // UTBot Signal Type
 export type UTBotSignal = {
   time: number;
@@ -180,32 +211,9 @@ export function calculateUTBot(candles: { time: string | number; open: number; h
   if (!Number.isFinite(key) || key <= 0 || !Number.isFinite(atrPeriod) || atrPeriod < 1 || candles.length < atrPeriod + 1) return [];
 
   // 1. Calculate TR (True Range)
-  const trs: number[] = [];
-  for (let i = 1; i < candles.length; i++) {
-    const high = candles[i].high;
-    const low = candles[i].low;
-    const prevClose = candles[i - 1].close;
-    trs.push(Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose)));
-  }
+  const trs = calculateTR(candles);
 
   // 2. Calculate ATR using RMA (Running Moving Average) - as used in TradingView's ATR
-  function calculateRMA(data: number[], period: number): number[] {
-    if (data.length < period) return [];
-    const rma: number[] = [];
-    const alpha = 1 / period;
-
-    // First value is SMA
-    let sum = 0;
-    for (let i = 0; i < period; i++) sum += data[i];
-    rma.push(sum / period);
-
-    // Subsequent values use alpha
-    for (let i = period; i < data.length; i++) {
-      rma.push(alpha * data[i] + (1 - alpha) * rma[rma.length - 1]);
-    }
-    return rma;
-  }
-
   const atrs = calculateRMA(trs, atrPeriod);
   if (atrs.length === 0) return [];
 
@@ -248,6 +256,159 @@ export function calculateUTBot(candles: { time: string | number; open: number; h
   }
 
   return signals;
+}
+
+// SuperTrend — TradingView algorithm: hl2 source, RMA ATR bands with
+// ratcheting, direction flips when close crosses the opposite band.
+export type SuperTrendPoint = { time: number; st: number; hl2: number; up: boolean };
+
+export function calculateSuperTrend(
+  candles: { time: string | number; open: number; high: number; low: number; close: number }[],
+  period: number,
+  multiplier: number
+): SuperTrendPoint[] {
+  if (!Number.isFinite(period) || period < 1 || !Number.isFinite(multiplier) || multiplier <= 0 || candles.length < period + 1) return [];
+
+  const atrs = calculateRMA(calculateTR(candles), period);
+  if (atrs.length === 0) return [];
+
+  const points: SuperTrendPoint[] = [];
+  // ATR index i corresponds to candle index (period + i) — same offset as UTBot
+  const startCandleIdx = period;
+
+  let prevUpper = 0;
+  let prevLower = 0;
+  let prevST = 0;
+
+  for (let i = 0; i < atrs.length; i++) {
+    const candleIdx = startCandleIdx + i;
+    const c = candles[candleIdx];
+    const hl2 = (c.high + c.low) / 2;
+    const prevClose = candles[candleIdx - 1].close;
+
+    let upper = hl2 + multiplier * atrs[i];
+    let lower = hl2 - multiplier * atrs[i];
+
+    if (i > 0) {
+      if (!(lower > prevLower || prevClose < prevLower)) lower = prevLower;
+      if (!(upper < prevUpper || prevClose > prevUpper)) upper = prevUpper;
+    }
+
+    let up: boolean;
+    if (i === 0) {
+      up = c.close > upper;
+    } else if (prevST === prevUpper) {
+      // Was in downtrend — flip up when close breaks above upper band
+      up = c.close > upper;
+    } else {
+      // Was in uptrend — flip down when close breaks below lower band
+      up = !(c.close < lower);
+    }
+
+    const st = up ? lower : upper;
+    points.push({ time: toChartTime(c.time) as number, st, hl2, up });
+
+    prevUpper = upper;
+    prevLower = lower;
+    prevST = st;
+  }
+
+  return points;
+}
+
+// SuperTrend overlay — TradingView-style: colored line plus a translucent
+// band filled between the supertrend value and the candle mid-price (hl2).
+// Attached to the candlestick series like UTBotLabelsPrimitive.
+export class SuperTrendPrimitive implements ISeriesPrimitive<Time> {
+  private _timeScale: ITimeScaleApi<Time> | null = null;
+  private _series: ISeriesApi<"Candlestick"> | null = null;
+  private _requestUpdate: (() => void) | null = null;
+  private _points: SuperTrendPoint[] = [];
+  private _paneViews: IPrimitivePaneView[];
+
+  constructor() {
+    this._paneViews = [new SuperTrendPaneView(this)];
+  }
+
+  attached(param: SeriesAttachedParameter<Time>) {
+    this._timeScale = param.chart.timeScale();
+    this._series = param.series as ISeriesApi<"Candlestick">;
+    this._requestUpdate = param.requestUpdate;
+  }
+
+  detached() {
+    this._timeScale = null;
+    this._series = null;
+  }
+
+  setData(points: SuperTrendPoint[]) {
+    this._points = points;
+    this._requestUpdate?.();
+  }
+
+  paneViews() {
+    return this._paneViews;
+  }
+
+  drawOverlay(ctx: CanvasRenderingContext2D) {
+    const ts = this._timeScale;
+    const series = this._series;
+    if (!ts || !series || this._points.length < 2) return;
+
+    const coords: { x: number; ySt: number; yHl2: number; up: boolean }[] = [];
+    for (const p of this._points) {
+      const x = ts.timeToCoordinate(p.time as Time);
+      const ySt = series.priceToCoordinate(p.st);
+      const yHl2 = series.priceToCoordinate(p.hl2);
+      if (x === null || ySt === null || yHl2 === null) continue;
+      coords.push({ x, ySt, yHl2, up: p.up });
+    }
+    if (coords.length < 2) return;
+
+    // Pass 1: translucent band between supertrend line and hl2
+    for (let i = 0; i < coords.length - 1; i++) {
+      const a = coords[i];
+      const b = coords[i + 1];
+      if (b.x <= a.x) continue;
+      ctx.fillStyle = a.up ? "rgba(22,163,74,0.18)" : "rgba(220,38,38,0.18)";
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.ySt);
+      ctx.lineTo(b.x, b.ySt);
+      ctx.lineTo(b.x, b.yHl2);
+      ctx.lineTo(a.x, a.yHl2);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Pass 2: supertrend line, colored per segment
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = "round";
+    for (let i = 0; i < coords.length - 1; i++) {
+      const a = coords[i];
+      const b = coords[i + 1];
+      if (b.x <= a.x) continue;
+      ctx.strokeStyle = a.up ? "#16a34a" : "#dc2626";
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.ySt);
+      ctx.lineTo(b.x, b.ySt);
+      ctx.stroke();
+    }
+  }
+}
+
+class SuperTrendPaneView implements IPrimitivePaneView {
+  constructor(private _source: SuperTrendPrimitive) {}
+
+  renderer(): IPrimitivePaneRenderer {
+    const source = this._source;
+    return {
+      draw(target) {
+        target.useMediaCoordinateSpace(({ context: ctx }) => {
+          source.drawOverlay(ctx);
+        });
+      },
+    };
+  }
 }
 
 // UTBot label — TradingView-style colored box with white text and arrow tail
