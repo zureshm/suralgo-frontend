@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTradeStore } from "../store/TradeStore";
 import { useWatchlist, WatchlistItem } from "../store/WatchlistContext";
 import { getPrices } from "@/lib/getPrices";
+import { sortSymbolsByPairs } from "@/lib/symbol-sort";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ListPlus, Trash2, Lock } from "lucide-react";
@@ -77,7 +78,7 @@ export default function Watchlist() {
   const activeSlots = waitingTrades.length + activeTrades.filter((t) => t.status === "ACTIVE").length;
   const atMaxCapacity = activeSlots >= 8;
 
-  const watchlistItems = watchlist.map((row) => {
+  const watchlistItems = sortSymbolsByPairs(watchlist, (row) => row.symbol).map((row) => {
     const isWaiting = waitingTrades.some((t) => t.symbol === row.symbol);
     const isRunning = activeTrades.some((t) => t.symbol === row.symbol);
     const isInTrade = isWaiting || isRunning;

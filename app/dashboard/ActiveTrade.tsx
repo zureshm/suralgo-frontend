@@ -8,6 +8,7 @@ import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw,
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
+import { sortSymbolsByPairs } from "@/lib/symbol-sort";
 
 function TradeLogsConsole({ logs }: { logs: string[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -108,7 +109,7 @@ export default function ActiveTrade({
   }, []);
 
   const safeActiveTrades = mounted ? activeTrades : [];
-  const safeWaitingTrades = mounted ? waitingTrades : [];
+  const safeWaitingTrades = sortSymbolsByPairs(mounted ? waitingTrades : [], (t) => t.symbol);
 
   // AI regime badge — shared by waiting and active trades (only when symbol AI is enabled)
   const renderAiRegimeBadge = (symbol: string, marginLeft = 6) => {
