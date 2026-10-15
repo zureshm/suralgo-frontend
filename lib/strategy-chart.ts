@@ -151,6 +151,83 @@ export function calculateEMA(prices: number[], period: number): number[] {
   return ema;
 }
 
+// Calculate WMA (Weighted Moving Average) — output[i] aligns to prices[i],
+// leading undefined entries until the window fills.
+function wmaAligned(prices: number[], period: number): (number | undefined)[] {
+  const out: (number | undefined)[] = new Array(prices.length);
+  const denom = (period * (period + 1)) / 2;
+  for (let i = period - 1; i < prices.length; i++) {
+    let sum = 0;
+    for (let j = 0; j < period; j++) sum += prices[i - j] * (period - j);
+    out[i] = sum / denom;
+  }
+  return out;
+}
+
+// Calculate HMA (Hull Moving Average): WMA(2*WMA(n/2) − WMA(n), sqrt(n)).
+// Much lower lag than EMA at the same period while staying smooth.
+export function calculateHMA(prices: number[], period: number): number[] {
+  if (period <= 0 || prices.length < period) return [];
+  const half = Math.max(1, Math.floor(period / 2));
+  const sqrtP = Math.max(1, Math.round(Math.sqrt(period)));
+
+  const wHalf = wmaAligned(prices, half);
+  const wFull = wmaAligned(prices, period);
+
+  const diff: (number | undefined)[] = prices.map((_, i) =>
+    wHalf[i] !== undefined && wFull[i] !== undefined
+      ? 2 * (wHalf[i] as number) - (wFull[i] as number)
+      : undefined
+  );
+
+  const firstIdx = diff.findIndex((d) => d !== undefined);
+  if (firstIdx < 0) return [];
+  const diffVals = diff.slice(firstIdx) as number[];
+  return calculateWMAValues(diffVals, sqrtP);
+}
+
+function calculateWMAValues(prices: number[], period: number): number[] {
+  if (period <= 0 || prices.length < period) return [];
+  const out: number[] = [];
+  const denom = (period * (period + 1)) / 2;
+  for (let i = period - 1; i < prices.length; i++) {
+    let sum = 0;
+    for (let j = 0; j < period; j++) sum += prices[i - j] * (period - j);
+    out.push(sum / denom);
+  }
+  return out;
+}
+
+// HMA computed over a short trailing window (default 30 candles) ending at an
+// anchor minute ("HH:MM" UTC, blank = latest candle). The returned series only
+// covers the window — matches how short-window MAs are used for re-entry checks.
+export function shortHmaSeries(
+  candles: { time: number; close: number }[],
+  period: number,
+  anchorMin: string,
+  windowSize = 30
+): { time: UTCTimestamp; value: number }[] {
+  if (candles.length === 0 || period <= 0) return [];
+
+  let endIdx = candles.length - 1;
+  const anchor = anchorMin.trim();
+  if (anchor) {
+    for (let i = candles.length - 1; i >= 0; i--) {
+      const hhmm = new Date(candles[i].time * 1000).toISOString().slice(11, 16);
+      if (hhmm === anchor) { endIdx = i; break; }
+    }
+  }
+
+  const startIdx = Math.max(0, endIdx - windowSize + 1);
+  const slice = candles.slice(startIdx, endIdx + 1);
+  const values = calculateHMA(slice.map((c) => c.close), period);
+
+  return values.map((val, idx) => ({
+    time: slice[idx + (slice.length - values.length)].time as UTCTimestamp,
+    value: val,
+  }));
+}
+
 // Convert candles to Heiken Ashi values (times unchanged)
 export function toHeikenAshi<T extends { open: number; high: number; low: number; close: number }>(candles: T[]): T[] {
   const ha: T[] = [];

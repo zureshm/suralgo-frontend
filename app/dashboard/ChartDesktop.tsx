@@ -9,6 +9,7 @@ import {
   CandleData,
   SymbolCandles,
   calculateEMA,
+  shortHmaSeries,
   toHeikenAshi,
   calculateUTBot,
   calculateSuperTrend,
@@ -156,7 +157,7 @@ export default function ChartDesktop() {
   const [spinning, setSpinning] = useState(false);
   const chartRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const chartInstances = useRef<Record<string, IChartApi>>({});
-  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time>; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive }>>({});
+  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time>; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive }>>({});
   const observers = useRef<Record<string, ResizeObserver>>({});
 
   // Nifty50 live chart state
@@ -164,7 +165,7 @@ export default function ChartDesktop() {
   const [nifty50Connected, setNifty50Connected] = useState(false);
   const nifty50ChartRef = useRef<HTMLDivElement | null>(null);
   const nifty50ChartInstance = useRef<IChartApi | null>(null);
-  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive } | null>(null);
+  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive } | null>(null);
   const nifty50Observer = useRef<ResizeObserver | null>(null);
 
   // Indicators state
@@ -349,6 +350,41 @@ export default function ChartDesktop() {
       return saved !== null ? parseFloat(saved) : 3;
     }
     return 3;
+  });
+
+  const [seEnabled, setSeEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_se_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [se1Period, setSe1Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_se1_period");
+      return saved !== null ? parseInt(saved, 10) : 4;
+    }
+    return 4;
+  });
+  const [se2Period, setSe2Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_se2_period");
+      return saved !== null ? parseInt(saved, 10) : 8;
+    }
+    return 8;
+  });
+  const [seTime, setSeTime] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nifty_se_time") || "";
+    }
+    return "";
+  });
+  const [seCount, setSeCount] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_se_count");
+      return saved !== null ? parseInt(saved, 10) : 30;
+    }
+    return 30;
   });
 
   const [heikenAshi, setHeikenAshi] = useState(() => {
@@ -542,6 +578,41 @@ export default function ChartDesktop() {
     return 3;
   });
 
+  const [sSeEnabled, setSSeEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_se_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sSe1Period, setSSe1Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_se1_period");
+      return saved !== null ? parseInt(saved, 10) : 4;
+    }
+    return 4;
+  });
+  const [sSe2Period, setSSe2Period] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_se2_period");
+      return saved !== null ? parseInt(saved, 10) : 8;
+    }
+    return 8;
+  });
+  const [sSeTime, setSSeTime] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("strategy_se_time") || "";
+    }
+    return "";
+  });
+  const [sSeCount, setSSeCount] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_se_count");
+      return saved !== null ? parseInt(saved, 10) : 30;
+    }
+    return 30;
+  });
+
   // Save indicator settings
   useEffect(() => {
     localStorage.setItem("nifty_ema1_enabled", String(ema1Enabled));
@@ -610,6 +681,18 @@ export default function ChartDesktop() {
     localStorage.setItem("strategy_st2_enabled", String(sSt2Enabled));
     localStorage.setItem("strategy_st2_period", String(sSt2Period));
     localStorage.setItem("strategy_st2_mult", String(sSt2Mult));
+
+    localStorage.setItem("nifty_se_enabled", String(seEnabled));
+    localStorage.setItem("nifty_se1_period", String(se1Period));
+    localStorage.setItem("nifty_se2_period", String(se2Period));
+    localStorage.setItem("nifty_se_time", seTime);
+    localStorage.setItem("nifty_se_count", String(seCount));
+
+    localStorage.setItem("strategy_se_enabled", String(sSeEnabled));
+    localStorage.setItem("strategy_se1_period", String(sSe1Period));
+    localStorage.setItem("strategy_se2_period", String(sSe2Period));
+    localStorage.setItem("strategy_se_time", sSeTime);
+    localStorage.setItem("strategy_se_count", String(sSeCount));
   }, [
     ema1Enabled, ema1Period, ema2Enabled, ema2Period,
     utbot1Enabled, utbot1Key, utbot1Atr,
@@ -627,7 +710,9 @@ export default function ChartDesktop() {
     sUtbot4Enabled, sUtbot4Key, sUtbot4Atr,
     sUtbot5Enabled, sUtbot5Key, sUtbot5Atr,
     sSt1Enabled, sSt1Period, sSt1Mult,
-    sSt2Enabled, sSt2Period, sSt2Mult
+    sSt2Enabled, sSt2Period, sSt2Mult,
+    seEnabled, se1Period, se2Period, seTime, seCount,
+    sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount
   ]);
 
   const activeSymbolsKey = useMemo(() => {
@@ -653,7 +738,7 @@ export default function ChartDesktop() {
       .then((r) => r.json())
       .then((data) => {
         if (disposed) return;
-        const completed = (data.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
+        const completed = (data.completedCandles || []).filter((c: CandleData) => isWithinMarketHours(c.time));
         const current = data.currentCandle && isWithinMarketHours(data.currentCandle.time) ? data.currentCandle : null;
         if (completed.length > 0 || current) {
           setNifty50Data({ completedCandles: completed, currentCandle: current });
@@ -675,7 +760,7 @@ export default function ChartDesktop() {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "snapshot" || msg.type === "update") {
-            const incomingCompleted = (msg.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
+            const incomingCompleted = (msg.completedCandles || []).filter((c: CandleData) => isWithinMarketHours(c.time));
             const incomingCurrent = msg.currentCandle && isWithinMarketHours(msg.currentCandle.time) ? msg.currentCandle : null;
 
             setNifty50Data((prev) => {
@@ -772,6 +857,8 @@ export default function ChartDesktop() {
 
       const ema1Line = chart.addSeries(LineSeries, { color: "#2563eb", lineWidth: 1 });
       const ema2Line = chart.addSeries(LineSeries, { color: "#f97316", lineWidth: 1 });
+      const se1Line = chart.addSeries(LineSeries, { color: "#1d4ed8", lineWidth: 2 });
+      const se2Line = chart.addSeries(LineSeries, { color: "#db2777", lineWidth: 2 });
 
       const labelPlugin = new UTBotLabelsPrimitive();
       series.attachPrimitive(labelPlugin);
@@ -782,7 +869,7 @@ export default function ChartDesktop() {
       series.attachPrimitive(st2Plugin);
 
       nifty50ChartInstance.current = chart;
-      nifty50SeriesInstance.current = { main: series, ema1: ema1Line, ema2: ema2Line, labelPlugin, st1Plugin, st2Plugin };
+      nifty50SeriesInstance.current = { main: series, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, labelPlugin, st1Plugin, st2Plugin };
 
       const ro = new ResizeObserver(() => {
         if (!nifty50ChartInstance.current) return;
@@ -794,7 +881,7 @@ export default function ChartDesktop() {
     }
 
     if (!nifty50SeriesInstance.current) return;
-    const { main, ema1: ema1Line, ema2: ema2Line, labelPlugin, st1Plugin, st2Plugin } = nifty50SeriesInstance.current;
+    const { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, labelPlugin, st1Plugin, st2Plugin } = nifty50SeriesInstance.current;
 
     const mapped = allCandles
       .filter((c) => c != null)
@@ -882,6 +969,9 @@ export default function ChartDesktop() {
 
       st1Plugin.setData(st1Enabled ? calculateSuperTrend(displayCandles, st1Period, st1Mult) : []);
       st2Plugin.setData(st2Enabled ? calculateSuperTrend(displayCandles, st2Period, st2Mult) : []);
+
+      se1Line?.setData(seEnabled ? shortHmaSeries(displayCandles, se1Period, seTime, seCount) : []);
+      se2Line?.setData(seEnabled ? shortHmaSeries(displayCandles, se2Period, seTime, seCount) : []);
     }
   }, [nifty50Data, ema1Enabled, ema1Period, ema2Enabled, ema2Period,
       utbot1Enabled, utbot1Key, utbot1Atr,
@@ -890,7 +980,8 @@ export default function ChartDesktop() {
       utbot4Enabled, utbot4Key, utbot4Atr,
       utbot5Enabled, utbot5Key, utbot5Atr,
       st1Enabled, st1Period, st1Mult,
-      st2Enabled, st2Period, st2Mult, niftyHeikenAshi]);
+      st2Enabled, st2Period, st2Mult,
+      seEnabled, se1Period, se2Period, seTime, seCount, niftyHeikenAshi]);
 
   useEffect(() => {
     return () => {
@@ -1001,6 +1092,8 @@ export default function ChartDesktop() {
 
         const ema1Line = chart.addSeries(LineSeries, { color: "#5488fa", lineWidth: 1 });
         const ema2Line = chart.addSeries(LineSeries, { color: "#ffd932", lineWidth: 1 });
+        const se1Line = chart.addSeries(LineSeries, { color: "#1d4ed8", lineWidth: 2 });
+        const se2Line = chart.addSeries(LineSeries, { color: "#db2777", lineWidth: 2 });
 
         const labelPlugin = new UTBotLabelsPrimitive();
         main.attachPrimitive(labelPlugin);
@@ -1011,7 +1104,7 @@ export default function ChartDesktop() {
         main.attachPrimitive(st2Plugin);
 
         chartInstances.current[symbol] = chart;
-        seriesInstances.current[symbol] = { main, ema1: ema1Line, ema2: ema2Line, markerPlugin: createSeriesMarkers(main), labelPlugin, st1Plugin, st2Plugin };
+        seriesInstances.current[symbol] = { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, markerPlugin: createSeriesMarkers(main), labelPlugin, st1Plugin, st2Plugin };
 
         const ro = new ResizeObserver(() => {
           if (!chartInstances.current[symbol]) return;
@@ -1023,7 +1116,7 @@ export default function ChartDesktop() {
       }
 
       if (!seriesInstances.current[symbol]) return;
-      const { main, ema1: ema1Line, ema2: ema2Line, markerPlugin, labelPlugin, st1Plugin, st2Plugin } = seriesInstances.current[symbol];
+      const { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, markerPlugin, labelPlugin, st1Plugin, st2Plugin } = seriesInstances.current[symbol];
       main.applyOptions(niftySignalBindings[symbol] ? FAKE_CANDLE_COLORS : REAL_CANDLE_COLORS);
 
       const mapped = candles
@@ -1106,6 +1199,9 @@ export default function ChartDesktop() {
 
         st1Plugin.setData(sSt1Enabled ? calculateSuperTrend(displayCandles, sSt1Period, sSt1Mult) : []);
         st2Plugin.setData(sSt2Enabled ? calculateSuperTrend(displayCandles, sSt2Period, sSt2Mult) : []);
+
+        se1Line?.setData(sSeEnabled ? shortHmaSeries(displayCandles, sSe1Period, sSeTime, sSeCount) : []);
+        se2Line?.setData(sSeEnabled ? shortHmaSeries(displayCandles, sSe2Period, sSeTime, sSeCount) : []);
       }
     });
   }, [symbolCandles, activeSymbols, heikenAshi, niftySignalBindings,
@@ -1116,7 +1212,8 @@ export default function ChartDesktop() {
       sUtbot4Enabled, sUtbot4Key, sUtbot4Atr,
       sUtbot5Enabled, sUtbot5Key, sUtbot5Atr,
       sSt1Enabled, sSt1Period, sSt1Mult,
-      sSt2Enabled, sSt2Period, sSt2Mult]);
+      sSt2Enabled, sSt2Period, sSt2Mult,
+      sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount]);
 
 
 
@@ -1228,6 +1325,35 @@ export default function ChartDesktop() {
               <NumericField value={st2Mult} onChange={setSt2Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
             </label>
           </IndicatorMenu>
+          <IndicatorMenu label="SHORT HMA" enabledCount={Number(seEnabled)}>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={seEnabled} onChange={(e) => setSeEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
+              <span style={{ color: "#1d4ed8", fontSize: "10px", fontWeight: "bold" }}>HMA 1</span>
+              <NumericField value={se1Period} onChange={setSe1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "#db2777", fontSize: "10px", fontWeight: "bold" }}>HMA 2</span>
+              <NumericField value={se2Period} onChange={setSe2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="8" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>AT</span>
+              <input
+                value={seTime}
+                onChange={(e) => setSeTime(e.target.value)}
+                placeholder="LATEST"
+                className="w-14 h-6 rounded text-center text-[10px] font-bold"
+                style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+              />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>LAST</span>
+              <NumericField value={seCount} onChange={setSeCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
+            </label>
+          </IndicatorMenu>
           <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">
             <span className="text-[9px] font-bold opacity-50" style={{ color: "var(--theme-popup-text)" }}>HEIKEN ASHI</span>
             <button type="button" onClick={() => setNiftyHeikenAshi(!niftyHeikenAshi)} style={{
@@ -1330,6 +1456,35 @@ export default function ChartDesktop() {
                 <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>ST 2</span>
                 <NumericField value={sSt2Period} onChange={setSSt2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
                 <NumericField value={sSt2Mult} onChange={setSSt2Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+              </label>
+            </IndicatorMenu>
+            <IndicatorMenu label="SHORT HMA" enabledCount={Number(sSeEnabled)}>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sSeEnabled} onChange={(e) => setSSeEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
+                <span style={{ color: "#1d4ed8", fontSize: "10px", fontWeight: "bold" }}>HMA 1</span>
+                <NumericField value={sSe1Period} onChange={setSSe1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "#db2777", fontSize: "10px", fontWeight: "bold" }}>HMA 2</span>
+                <NumericField value={sSe2Period} onChange={setSSe2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="8" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>AT</span>
+                <input
+                  value={sSeTime}
+                  onChange={(e) => setSSeTime(e.target.value)}
+                  placeholder="LATEST"
+                  className="w-14 h-6 rounded text-center text-[10px] font-bold"
+                  style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+                />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>LAST</span>
+                <NumericField value={sSeCount} onChange={setSSeCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
               </label>
             </IndicatorMenu>
             <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">
