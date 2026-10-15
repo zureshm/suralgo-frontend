@@ -9,7 +9,9 @@ import {
   CandleData,
   SymbolCandles,
   calculateEMA,
-  shortHmaSeries,
+  shortMaSeries,
+  SHORT_MA_TYPES,
+  ShortMaType,
   toHeikenAshi,
   calculateUTBot,
   calculateSuperTrend,
@@ -386,6 +388,25 @@ export default function ChartDesktop() {
     }
     return 30;
   });
+  const [seMaType, setSeMaType] = useState<ShortMaType>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_se_matype");
+      return SHORT_MA_TYPES.some((t) => t.value === saved) ? (saved as ShortMaType) : "hma";
+    }
+    return "hma";
+  });
+  const [se1Color, setSe1Color] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nifty_se1_color") || "#1d4ed8";
+    }
+    return "#1d4ed8";
+  });
+  const [se2Color, setSe2Color] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nifty_se2_color") || "#db2777";
+    }
+    return "#db2777";
+  });
 
   const [heikenAshi, setHeikenAshi] = useState(() => {
     if (typeof window !== "undefined") {
@@ -612,6 +633,25 @@ export default function ChartDesktop() {
     }
     return 30;
   });
+  const [sSeMaType, setSSeMaType] = useState<ShortMaType>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_se_matype");
+      return SHORT_MA_TYPES.some((t) => t.value === saved) ? (saved as ShortMaType) : "hma";
+    }
+    return "hma";
+  });
+  const [sSe1Color, setSSe1Color] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("strategy_se1_color") || "#1d4ed8";
+    }
+    return "#1d4ed8";
+  });
+  const [sSe2Color, setSSe2Color] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("strategy_se2_color") || "#db2777";
+    }
+    return "#db2777";
+  });
 
   // Save indicator settings
   useEffect(() => {
@@ -687,12 +727,18 @@ export default function ChartDesktop() {
     localStorage.setItem("nifty_se2_period", String(se2Period));
     localStorage.setItem("nifty_se_time", seTime);
     localStorage.setItem("nifty_se_count", String(seCount));
+    localStorage.setItem("nifty_se_matype", seMaType);
+    localStorage.setItem("nifty_se1_color", se1Color);
+    localStorage.setItem("nifty_se2_color", se2Color);
 
     localStorage.setItem("strategy_se_enabled", String(sSeEnabled));
     localStorage.setItem("strategy_se1_period", String(sSe1Period));
     localStorage.setItem("strategy_se2_period", String(sSe2Period));
     localStorage.setItem("strategy_se_time", sSeTime);
     localStorage.setItem("strategy_se_count", String(sSeCount));
+    localStorage.setItem("strategy_se_matype", sSeMaType);
+    localStorage.setItem("strategy_se1_color", sSe1Color);
+    localStorage.setItem("strategy_se2_color", sSe2Color);
   }, [
     ema1Enabled, ema1Period, ema2Enabled, ema2Period,
     utbot1Enabled, utbot1Key, utbot1Atr,
@@ -711,8 +757,8 @@ export default function ChartDesktop() {
     sUtbot5Enabled, sUtbot5Key, sUtbot5Atr,
     sSt1Enabled, sSt1Period, sSt1Mult,
     sSt2Enabled, sSt2Period, sSt2Mult,
-    seEnabled, se1Period, se2Period, seTime, seCount,
-    sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount
+    seEnabled, se1Period, se2Period, seTime, seCount, seMaType, se1Color, se2Color,
+    sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color
   ]);
 
   const activeSymbolsKey = useMemo(() => {
@@ -970,8 +1016,10 @@ export default function ChartDesktop() {
       st1Plugin.setData(st1Enabled ? calculateSuperTrend(displayCandles, st1Period, st1Mult) : []);
       st2Plugin.setData(st2Enabled ? calculateSuperTrend(displayCandles, st2Period, st2Mult) : []);
 
-      se1Line?.setData(seEnabled ? shortHmaSeries(displayCandles, se1Period, seTime, seCount) : []);
-      se2Line?.setData(seEnabled ? shortHmaSeries(displayCandles, se2Period, seTime, seCount) : []);
+      se1Line?.setData(seEnabled ? shortMaSeries(displayCandles, se1Period, seTime, seCount, seMaType) : []);
+      se2Line?.setData(seEnabled ? shortMaSeries(displayCandles, se2Period, seTime, seCount, seMaType) : []);
+      se1Line?.applyOptions({ color: se1Color });
+      se2Line?.applyOptions({ color: se2Color });
     }
   }, [nifty50Data, ema1Enabled, ema1Period, ema2Enabled, ema2Period,
       utbot1Enabled, utbot1Key, utbot1Atr,
@@ -981,7 +1029,7 @@ export default function ChartDesktop() {
       utbot5Enabled, utbot5Key, utbot5Atr,
       st1Enabled, st1Period, st1Mult,
       st2Enabled, st2Period, st2Mult,
-      seEnabled, se1Period, se2Period, seTime, seCount, niftyHeikenAshi]);
+      seEnabled, se1Period, se2Period, seTime, seCount, seMaType, se1Color, se2Color, niftyHeikenAshi]);
 
   useEffect(() => {
     return () => {
@@ -1200,8 +1248,10 @@ export default function ChartDesktop() {
         st1Plugin.setData(sSt1Enabled ? calculateSuperTrend(displayCandles, sSt1Period, sSt1Mult) : []);
         st2Plugin.setData(sSt2Enabled ? calculateSuperTrend(displayCandles, sSt2Period, sSt2Mult) : []);
 
-        se1Line?.setData(sSeEnabled ? shortHmaSeries(displayCandles, sSe1Period, sSeTime, sSeCount) : []);
-        se2Line?.setData(sSeEnabled ? shortHmaSeries(displayCandles, sSe2Period, sSeTime, sSeCount) : []);
+        se1Line?.setData(sSeEnabled ? shortMaSeries(displayCandles, sSe1Period, sSeTime, sSeCount, sSeMaType) : []);
+        se2Line?.setData(sSeEnabled ? shortMaSeries(displayCandles, sSe2Period, sSeTime, sSeCount, sSeMaType) : []);
+        se1Line?.applyOptions({ color: sSe1Color });
+        se2Line?.applyOptions({ color: sSe2Color });
       }
     });
   }, [symbolCandles, activeSymbols, heikenAshi, niftySignalBindings,
@@ -1213,7 +1263,7 @@ export default function ChartDesktop() {
       sUtbot5Enabled, sUtbot5Key, sUtbot5Atr,
       sSt1Enabled, sSt1Period, sSt1Mult,
       sSt2Enabled, sSt2Period, sSt2Mult,
-      sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount]);
+      sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color]);
 
 
 
@@ -1325,16 +1375,18 @@ export default function ChartDesktop() {
               <NumericField value={st2Mult} onChange={setSt2Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
             </label>
           </IndicatorMenu>
-          <IndicatorMenu label="SHORT HMA" enabledCount={Number(seEnabled)}>
+          <IndicatorMenu label={`SHORT ${seMaType.toUpperCase()}`} enabledCount={Number(seEnabled)}>
             <label className="flex items-center gap-1.5">
               <input type="checkbox" checked={seEnabled} onChange={(e) => setSeEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
-              <span style={{ color: "#1d4ed8", fontSize: "10px", fontWeight: "bold" }}>HMA 1</span>
+              <span style={{ color: se1Color, fontSize: "10px", fontWeight: "bold" }}>MA 1</span>
               <NumericField value={se1Period} onChange={setSe1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
+              <input type="color" value={se1Color} onChange={(e) => setSe1Color(e.target.value)} className="w-6 h-6 cursor-pointer" style={{ border: "none", background: "none", padding: 0 }} title="MA 1 color" />
             </label>
             <label className="flex items-center gap-1.5">
               <span className="w-3.5" />
-              <span style={{ color: "#db2777", fontSize: "10px", fontWeight: "bold" }}>HMA 2</span>
+              <span style={{ color: se2Color, fontSize: "10px", fontWeight: "bold" }}>MA 2</span>
               <NumericField value={se2Period} onChange={setSe2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="8" />
+              <input type="color" value={se2Color} onChange={(e) => setSe2Color(e.target.value)} className="w-6 h-6 cursor-pointer" style={{ border: "none", background: "none", padding: 0 }} title="MA 2 color" />
             </label>
             <label className="flex items-center gap-1.5">
               <span className="w-3.5" />
@@ -1352,6 +1404,18 @@ export default function ChartDesktop() {
               <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>LAST</span>
               <NumericField value={seCount} onChange={setSeCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
               <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>TYPE</span>
+              <select
+                value={seMaType}
+                onChange={(e) => setSeMaType(e.target.value as ShortMaType)}
+                className="h-6 rounded text-center text-[10px] font-bold px-1"
+                style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+              >
+                {SHORT_MA_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
             </label>
           </IndicatorMenu>
           <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">
@@ -1458,16 +1522,18 @@ export default function ChartDesktop() {
                 <NumericField value={sSt2Mult} onChange={setSSt2Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
               </label>
             </IndicatorMenu>
-            <IndicatorMenu label="SHORT HMA" enabledCount={Number(sSeEnabled)}>
+            <IndicatorMenu label={`SHORT ${sSeMaType.toUpperCase()}`} enabledCount={Number(sSeEnabled)}>
               <label className="flex items-center gap-1.5">
                 <input type="checkbox" checked={sSeEnabled} onChange={(e) => setSSeEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
-                <span style={{ color: "#1d4ed8", fontSize: "10px", fontWeight: "bold" }}>HMA 1</span>
+                <span style={{ color: sSe1Color, fontSize: "10px", fontWeight: "bold" }}>MA 1</span>
                 <NumericField value={sSe1Period} onChange={setSSe1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
+                <input type="color" value={sSe1Color} onChange={(e) => setSSe1Color(e.target.value)} className="w-6 h-6 cursor-pointer" style={{ border: "none", background: "none", padding: 0 }} title="MA 1 color" />
               </label>
               <label className="flex items-center gap-1.5">
                 <span className="w-3.5" />
-                <span style={{ color: "#db2777", fontSize: "10px", fontWeight: "bold" }}>HMA 2</span>
+                <span style={{ color: sSe2Color, fontSize: "10px", fontWeight: "bold" }}>MA 2</span>
                 <NumericField value={sSe2Period} onChange={setSSe2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="8" />
+                <input type="color" value={sSe2Color} onChange={(e) => setSSe2Color(e.target.value)} className="w-6 h-6 cursor-pointer" style={{ border: "none", background: "none", padding: 0 }} title="MA 2 color" />
               </label>
               <label className="flex items-center gap-1.5">
                 <span className="w-3.5" />
@@ -1485,6 +1551,18 @@ export default function ChartDesktop() {
                 <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>LAST</span>
                 <NumericField value={sSeCount} onChange={setSSeCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
                 <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>TYPE</span>
+                <select
+                  value={sSeMaType}
+                  onChange={(e) => setSSeMaType(e.target.value as ShortMaType)}
+                  className="h-6 rounded text-center text-[10px] font-bold px-1"
+                  style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+                >
+                  {SHORT_MA_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
               </label>
             </IndicatorMenu>
             <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">

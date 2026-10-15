@@ -198,14 +198,79 @@ function calculateWMAValues(prices: number[], period: number): number[] {
   return out;
 }
 
-// HMA computed over a short trailing window (default 30 candles) ending at an
-// anchor minute ("HH:MM" UTC, blank = latest candle). The returned series only
-// covers the window — matches how short-window MAs are used for re-entry checks.
-export function shortHmaSeries(
+// Calculate SMA (Simple Moving Average) — returns values from index period-1 onward.
+export function calculateSMA(prices: number[], period: number): number[] {
+  if (period <= 0 || prices.length < period) return [];
+  const out: number[] = [];
+  let sum = 0;
+  for (let i = 0; i < prices.length; i++) {
+    sum += prices[i];
+    if (i >= period) sum -= prices[i - period];
+    if (i >= period - 1) out.push(sum / period);
+  }
+  return out;
+}
+
+// Calculate DEMA (Double EMA): 2*EMA(n) − EMA(EMA(n)). Output tail-aligned to prices.
+export function calculateDEMA(prices: number[], period: number): number[] {
+  const e1 = calculateEMA(prices, period);
+  const e2 = calculateEMA(e1, period);
+  const off1 = period - 1;
+  const off2 = 2 * (period - 1);
+  const out: number[] = [];
+  for (let i = off2; i < prices.length; i++) {
+    out.push(2 * e1[i - off1] - e2[i - off2]);
+  }
+  return out;
+}
+
+// Calculate TEMA (Triple EMA): 3*EMA − 3*EMA(EMA) + EMA(EMA(EMA)). Output tail-aligned.
+export function calculateTEMA(prices: number[], period: number): number[] {
+  const e1 = calculateEMA(prices, period);
+  const e2 = calculateEMA(e1, period);
+  const e3 = calculateEMA(e2, period);
+  const off1 = period - 1;
+  const off2 = 2 * (period - 1);
+  const off3 = 3 * (period - 1);
+  const out: number[] = [];
+  for (let i = off3; i < prices.length; i++) {
+    out.push(3 * e1[i - off1] - 3 * e2[i - off2] + e3[i - off3]);
+  }
+  return out;
+}
+
+export type ShortMaType = "hma" | "ema" | "wma" | "sma" | "dema" | "tema";
+
+export const SHORT_MA_TYPES: { value: ShortMaType; label: string }[] = [
+  { value: "hma", label: "HMA" },
+  { value: "wma", label: "WMA" },
+  { value: "ema", label: "EMA" },
+  { value: "sma", label: "SMA" },
+  { value: "dema", label: "DEMA" },
+  { value: "tema", label: "TEMA" },
+];
+
+function applyShortMa(prices: number[], period: number, type: ShortMaType): number[] {
+  switch (type) {
+    case "sma": return calculateSMA(prices, period);
+    case "ema": return calculateEMA(prices, period);
+    case "wma": return calculateWMAValues(prices, period);
+    case "dema": return calculateDEMA(prices, period);
+    case "tema": return calculateTEMA(prices, period);
+    default: return calculateHMA(prices, period);
+  }
+}
+
+// Moving average computed over a short trailing window (default 30 candles)
+// ending at an anchor minute ("HH:MM" UTC, blank = latest candle). The returned
+// series only covers the window — matches how short-window MAs are used for
+// re-entry checks.
+export function shortMaSeries(
   candles: { time: number; close: number }[],
   period: number,
   anchorMin: string,
-  windowSize = 30
+  windowSize = 30,
+  maType: ShortMaType = "hma"
 ): { time: UTCTimestamp; value: number }[] {
   if (candles.length === 0 || period <= 0) return [];
 
@@ -220,7 +285,7 @@ export function shortHmaSeries(
 
   const startIdx = Math.max(0, endIdx - windowSize + 1);
   const slice = candles.slice(startIdx, endIdx + 1);
-  const values = calculateHMA(slice.map((c) => c.close), period);
+  const values = applyShortMa(slice.map((c) => c.close), period, maType);
 
   return values.map((val, idx) => ({
     time: slice[idx + (slice.length - values.length)].time as UTCTimestamp,
