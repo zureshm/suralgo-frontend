@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { RefreshCw, Loader2, BarChart2, ChevronDown } from "lucide-react";
-import { createChart, CandlestickSeries, IChartApi, SeriesMarker, Time, createSeriesMarkers, LineSeries, ISeriesApi, ISeriesMarkersPluginApi } from "lightweight-charts";
+import { createChart, CandlestickSeries, IChartApi, SeriesMarker, Time, createSeriesMarkers, LineSeries, HistogramSeries, ISeriesApi, ISeriesMarkersPluginApi, IPaneApi } from "lightweight-charts";
 import { useTradeStore } from "../store/TradeStore";
 import {
   fetchSymbolCandles,
   CandleData,
   SymbolCandles,
   calculateEMA,
+  calculateMACD,
   shortMaSeries,
   SHORT_MA_TYPES,
   ShortMaType,
@@ -159,7 +160,8 @@ export default function ChartDesktop() {
   const [spinning, setSpinning] = useState(false);
   const chartRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const chartInstances = useRef<Record<string, IChartApi>>({});
-  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time>; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive }>>({});
+  type MacdRefs = { pane: IPaneApi<Time>; hist: ISeriesApi<"Histogram">; macd: ISeriesApi<"Line">; signal: ISeriesApi<"Line"> } | null;
+  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time>; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive; macd: MacdRefs }>>({});
   const observers = useRef<Record<string, ResizeObserver>>({});
 
   // Nifty50 live chart state
@@ -167,7 +169,7 @@ export default function ChartDesktop() {
   const [nifty50Connected, setNifty50Connected] = useState(false);
   const nifty50ChartRef = useRef<HTMLDivElement | null>(null);
   const nifty50ChartInstance = useRef<IChartApi | null>(null);
-  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive } | null>(null);
+  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive; macd: MacdRefs } | null>(null);
   const nifty50Observer = useRef<ResizeObserver | null>(null);
 
   // Indicators state
@@ -406,6 +408,35 @@ export default function ChartDesktop() {
       return localStorage.getItem("nifty_se2_color") || "#db2777";
     }
     return "#db2777";
+  });
+
+  const [macdEnabled, setMacdEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_macd_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [macdFast, setMacdFast] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_macd_fast");
+      return saved !== null ? parseInt(saved, 10) : 12;
+    }
+    return 12;
+  });
+  const [macdSlow, setMacdSlow] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_macd_slow");
+      return saved !== null ? parseInt(saved, 10) : 26;
+    }
+    return 26;
+  });
+  const [macdSignal, setMacdSignal] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_macd_signal");
+      return saved !== null ? parseInt(saved, 10) : 9;
+    }
+    return 9;
   });
 
   const [heikenAshi, setHeikenAshi] = useState(() => {
@@ -653,6 +684,35 @@ export default function ChartDesktop() {
     return "#db2777";
   });
 
+  const [sMacdEnabled, setSMacdEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_macd_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sMacdFast, setSMacdFast] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_macd_fast");
+      return saved !== null ? parseInt(saved, 10) : 12;
+    }
+    return 12;
+  });
+  const [sMacdSlow, setSMacdSlow] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_macd_slow");
+      return saved !== null ? parseInt(saved, 10) : 26;
+    }
+    return 26;
+  });
+  const [sMacdSignal, setSMacdSignal] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_macd_signal");
+      return saved !== null ? parseInt(saved, 10) : 9;
+    }
+    return 9;
+  });
+
   // Save indicator settings
   useEffect(() => {
     localStorage.setItem("nifty_ema1_enabled", String(ema1Enabled));
@@ -731,6 +791,11 @@ export default function ChartDesktop() {
     localStorage.setItem("nifty_se1_color", se1Color);
     localStorage.setItem("nifty_se2_color", se2Color);
 
+    localStorage.setItem("nifty_macd_enabled", String(macdEnabled));
+    localStorage.setItem("nifty_macd_fast", String(macdFast));
+    localStorage.setItem("nifty_macd_slow", String(macdSlow));
+    localStorage.setItem("nifty_macd_signal", String(macdSignal));
+
     localStorage.setItem("strategy_se_enabled", String(sSeEnabled));
     localStorage.setItem("strategy_se1_period", String(sSe1Period));
     localStorage.setItem("strategy_se2_period", String(sSe2Period));
@@ -739,6 +804,11 @@ export default function ChartDesktop() {
     localStorage.setItem("strategy_se_matype", sSeMaType);
     localStorage.setItem("strategy_se1_color", sSe1Color);
     localStorage.setItem("strategy_se2_color", sSe2Color);
+
+    localStorage.setItem("strategy_macd_enabled", String(sMacdEnabled));
+    localStorage.setItem("strategy_macd_fast", String(sMacdFast));
+    localStorage.setItem("strategy_macd_slow", String(sMacdSlow));
+    localStorage.setItem("strategy_macd_signal", String(sMacdSignal));
   }, [
     ema1Enabled, ema1Period, ema2Enabled, ema2Period,
     utbot1Enabled, utbot1Key, utbot1Atr,
@@ -758,7 +828,9 @@ export default function ChartDesktop() {
     sSt1Enabled, sSt1Period, sSt1Mult,
     sSt2Enabled, sSt2Period, sSt2Mult,
     seEnabled, se1Period, se2Period, seTime, seCount, seMaType, se1Color, se2Color,
-    sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color
+    sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color,
+    macdEnabled, macdFast, macdSlow, macdSignal,
+    sMacdEnabled, sMacdFast, sMacdSlow, sMacdSignal
   ]);
 
   const activeSymbolsKey = useMemo(() => {
@@ -915,7 +987,7 @@ export default function ChartDesktop() {
       series.attachPrimitive(st2Plugin);
 
       nifty50ChartInstance.current = chart;
-      nifty50SeriesInstance.current = { main: series, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, labelPlugin, st1Plugin, st2Plugin };
+      nifty50SeriesInstance.current = { main: series, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, labelPlugin, st1Plugin, st2Plugin, macd: null };
 
       const ro = new ResizeObserver(() => {
         if (!nifty50ChartInstance.current) return;
@@ -1020,6 +1092,30 @@ export default function ChartDesktop() {
       se2Line?.setData(seEnabled ? shortMaSeries(displayCandles, se2Period, seTime, seCount, seMaType) : []);
       se1Line?.applyOptions({ color: se1Color });
       se2Line?.applyOptions({ color: se2Color });
+
+      const inst = nifty50SeriesInstance.current;
+      const chart = nifty50ChartInstance.current;
+      if (chart && inst) {
+        if (macdEnabled) {
+          if (!inst.macd) {
+            const pane = chart.addPane();
+            const paneIdx = pane.paneIndex();
+            inst.macd = {
+              pane,
+              hist: chart.addSeries(HistogramSeries, { color: "#26a69a", priceLineVisible: false, lastValueVisible: false }, paneIdx),
+              macd: chart.addSeries(LineSeries, { color: "#2962ff", lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, paneIdx),
+              signal: chart.addSeries(LineSeries, { color: "#ff6d00", lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, paneIdx),
+            };
+          }
+          const m = calculateMACD(displayCandles, macdFast, macdSlow, macdSignal);
+          inst.macd.hist.setData(m.hist);
+          inst.macd.macd.setData(m.macd);
+          inst.macd.signal.setData(m.signal);
+        } else if (inst.macd) {
+          chart.removePane(inst.macd.pane.paneIndex());
+          inst.macd = null;
+        }
+      }
     }
   }, [nifty50Data, ema1Enabled, ema1Period, ema2Enabled, ema2Period,
       utbot1Enabled, utbot1Key, utbot1Atr,
@@ -1029,7 +1125,8 @@ export default function ChartDesktop() {
       utbot5Enabled, utbot5Key, utbot5Atr,
       st1Enabled, st1Period, st1Mult,
       st2Enabled, st2Period, st2Mult,
-      seEnabled, se1Period, se2Period, seTime, seCount, seMaType, se1Color, se2Color, niftyHeikenAshi]);
+      seEnabled, se1Period, se2Period, seTime, seCount, seMaType, se1Color, se2Color,
+      macdEnabled, macdFast, macdSlow, macdSignal, niftyHeikenAshi]);
 
   useEffect(() => {
     return () => {
@@ -1152,7 +1249,7 @@ export default function ChartDesktop() {
         main.attachPrimitive(st2Plugin);
 
         chartInstances.current[symbol] = chart;
-        seriesInstances.current[symbol] = { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, markerPlugin: createSeriesMarkers(main), labelPlugin, st1Plugin, st2Plugin };
+        seriesInstances.current[symbol] = { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, markerPlugin: createSeriesMarkers(main), labelPlugin, st1Plugin, st2Plugin, macd: null };
 
         const ro = new ResizeObserver(() => {
           if (!chartInstances.current[symbol]) return;
@@ -1252,6 +1349,30 @@ export default function ChartDesktop() {
         se2Line?.setData(sSeEnabled ? shortMaSeries(displayCandles, sSe2Period, sSeTime, sSeCount, sSeMaType) : []);
         se1Line?.applyOptions({ color: sSe1Color });
         se2Line?.applyOptions({ color: sSe2Color });
+
+        const inst = seriesInstances.current[symbol];
+        const chart = chartInstances.current[symbol];
+        if (chart && inst) {
+          if (sMacdEnabled) {
+            if (!inst.macd) {
+              const pane = chart.addPane();
+              const paneIdx = pane.paneIndex();
+              inst.macd = {
+                pane,
+                hist: chart.addSeries(HistogramSeries, { color: "#26a69a", priceLineVisible: false, lastValueVisible: false }, paneIdx),
+                macd: chart.addSeries(LineSeries, { color: "#2962ff", lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, paneIdx),
+                signal: chart.addSeries(LineSeries, { color: "#ff6d00", lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, paneIdx),
+              };
+            }
+            const m = calculateMACD(displayCandles, sMacdFast, sMacdSlow, sMacdSignal);
+            inst.macd.hist.setData(m.hist);
+            inst.macd.macd.setData(m.macd);
+            inst.macd.signal.setData(m.signal);
+          } else if (inst.macd) {
+            chart.removePane(inst.macd.pane.paneIndex());
+            inst.macd = null;
+          }
+        }
       }
     });
   }, [symbolCandles, activeSymbols, heikenAshi, niftySignalBindings,
@@ -1263,7 +1384,8 @@ export default function ChartDesktop() {
       sUtbot5Enabled, sUtbot5Key, sUtbot5Atr,
       sSt1Enabled, sSt1Period, sSt1Mult,
       sSt2Enabled, sSt2Period, sSt2Mult,
-      sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color]);
+      sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color,
+      sMacdEnabled, sMacdFast, sMacdSlow, sMacdSignal]);
 
 
 
@@ -1418,6 +1540,23 @@ export default function ChartDesktop() {
               </select>
             </label>
           </IndicatorMenu>
+          <IndicatorMenu label="MACD" enabledCount={Number(macdEnabled)}>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={macdEnabled} onChange={(e) => setMacdEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>FAST</span>
+              <NumericField value={macdFast} onChange={setMacdFast} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="12" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>SLOW</span>
+              <NumericField value={macdSlow} onChange={setMacdSlow} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="26" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>SIG</span>
+              <NumericField value={macdSignal} onChange={setMacdSignal} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="9" />
+            </label>
+          </IndicatorMenu>
           <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">
             <span className="text-[9px] font-bold opacity-50" style={{ color: "var(--theme-popup-text)" }}>HEIKEN ASHI</span>
             <button type="button" onClick={() => setNiftyHeikenAshi(!niftyHeikenAshi)} style={{
@@ -1563,6 +1702,23 @@ export default function ChartDesktop() {
                 >
                   {SHORT_MA_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
+              </label>
+            </IndicatorMenu>
+            <IndicatorMenu label="MACD" enabledCount={Number(sMacdEnabled)}>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={sMacdEnabled} onChange={(e) => setSMacdEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>FAST</span>
+                <NumericField value={sMacdFast} onChange={setSMacdFast} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="12" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>SLOW</span>
+                <NumericField value={sMacdSlow} onChange={setSMacdSlow} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="26" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>SIG</span>
+                <NumericField value={sMacdSignal} onChange={setSMacdSignal} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="9" />
               </label>
             </IndicatorMenu>
             <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">

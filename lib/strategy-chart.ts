@@ -186,6 +186,57 @@ export function calculateHMA(prices: number[], period: number): number[] {
   return calculateWMAValues(diffVals, sqrtP);
 }
 
+// Calculate MACD (12/26/9 by default): MACD = EMA(fast) − EMA(slow),
+// signal = EMA(signalPeriod) of MACD, histogram = MACD − signal.
+// Returns chart-ready series data aligned to candle times.
+export function calculateMACD(
+  candles: { time: number; close: number }[],
+  fast = 12,
+  slow = 26,
+  signalPeriod = 9
+): {
+  macd: { time: UTCTimestamp; value: number }[];
+  signal: { time: UTCTimestamp; value: number }[];
+  hist: { time: UTCTimestamp; value: number; color: string }[];
+} {
+  const empty = { macd: [], signal: [], hist: [] };
+  if (fast <= 0 || slow <= 0 || signalPeriod <= 0 || candles.length === 0) return empty;
+
+  const closes = candles.map((c) => c.close);
+  const eFast = calculateEMA(closes, fast);
+  const eSlow = calculateEMA(closes, slow);
+  const fastOff = fast - 1;
+  const slowOff = slow - 1;
+  if (closes.length <= slowOff) return empty;
+
+  const macdVals: number[] = [];
+  for (let i = slowOff; i < closes.length; i++) {
+    macdVals.push(eFast[i - fastOff] - eSlow[i - slowOff]);
+  }
+
+  const sigVals = calculateEMA(macdVals, signalPeriod);
+  const sigOff = signalPeriod - 1;
+
+  const macd = macdVals.map((v, j) => ({
+    time: candles[slowOff + j].time as UTCTimestamp,
+    value: v,
+  }));
+  const signal = sigVals.map((v, j) => ({
+    time: candles[slowOff + sigOff + j].time as UTCTimestamp,
+    value: v,
+  }));
+  const hist: { time: UTCTimestamp; value: number; color: string }[] = [];
+  for (let j = sigOff; j < macdVals.length; j++) {
+    const h = macdVals[j] - sigVals[j - sigOff];
+    hist.push({
+      time: candles[slowOff + j].time as UTCTimestamp,
+      value: h,
+      color: h >= 0 ? "rgba(38, 166, 154, 0.5)" : "rgba(239, 83, 80, 0.5)",
+    });
+  }
+  return { macd, signal, hist };
+}
+
 function calculateWMAValues(prices: number[], period: number): number[] {
   if (period <= 0 || prices.length < period) return [];
   const out: number[] = [];
