@@ -509,6 +509,17 @@ export function calculateSuperTrend(
   return points;
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = (hex || "").replace("#", "");
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const num = parseInt(full, 16);
+  if (isNaN(num)) return `rgba(22,163,74,${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 // SuperTrend overlay — TradingView-style: colored line plus a translucent
 // band filled between the supertrend value and the candle mid-price (hl2).
 // Attached to the candlestick series like UTBotLabelsPrimitive.
@@ -517,10 +528,18 @@ export class SuperTrendPrimitive implements ISeriesPrimitive<Time> {
   private _series: ISeriesApi<"Candlestick"> | null = null;
   private _requestUpdate: (() => void) | null = null;
   private _points: SuperTrendPoint[] = [];
+  private _upColor: string = "#16a34a";
+  private _downColor: string = "#dc2626";
   private _paneViews: IPrimitivePaneView[];
 
   constructor() {
     this._paneViews = [new SuperTrendPaneView(this)];
+  }
+
+  setColors(upColor: string, downColor: string) {
+    if (upColor) this._upColor = upColor;
+    if (downColor) this._downColor = downColor;
+    this._requestUpdate?.();
   }
 
   attached(param: SeriesAttachedParameter<Time>) {
@@ -559,11 +578,13 @@ export class SuperTrendPrimitive implements ISeriesPrimitive<Time> {
     if (coords.length < 2) return;
 
     // Pass 1: translucent band between supertrend line and hl2
+    const upBand = hexToRgba(this._upColor, 0.18);
+    const downBand = hexToRgba(this._downColor, 0.18);
     for (let i = 0; i < coords.length - 1; i++) {
       const a = coords[i];
       const b = coords[i + 1];
       if (b.x <= a.x) continue;
-      ctx.fillStyle = a.up ? "rgba(22,163,74,0.18)" : "rgba(220,38,38,0.18)";
+      ctx.fillStyle = a.up ? upBand : downBand;
       ctx.beginPath();
       ctx.moveTo(a.x, a.ySt);
       ctx.lineTo(b.x, b.ySt);
@@ -580,7 +601,7 @@ export class SuperTrendPrimitive implements ISeriesPrimitive<Time> {
       const a = coords[i];
       const b = coords[i + 1];
       if (b.x <= a.x) continue;
-      ctx.strokeStyle = a.up ? "#16a34a" : "#dc2626";
+      ctx.strokeStyle = a.up ? this._upColor : this._downColor;
       ctx.beginPath();
       ctx.moveTo(a.x, a.ySt);
       ctx.lineTo(b.x, b.ySt);

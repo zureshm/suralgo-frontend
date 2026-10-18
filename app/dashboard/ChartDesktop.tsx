@@ -89,8 +89,8 @@ function IndicatorMenu({ label, enabledCount, children }: { label: string; enabl
       </button>
       {open && (
         <div
-          className="absolute left-0 top-full mt-1 z-50 rounded-md p-2 flex flex-col gap-2"
-          style={{ background: "var(--theme-popup-bg, #1e1e2e)", border: "1px solid var(--theme-popup-field-border)", boxShadow: "0 4px 14px rgba(0,0,0,0.35)", minWidth: 185 }}
+          className="absolute left-0 top-full mt-1 z-50 rounded-md p-2 flex flex-col gap-1.5 w-max whitespace-nowrap"
+          style={{ background: "var(--theme-popup-bg, #1e1e2e)", border: "1px solid var(--theme-popup-field-border)", boxShadow: "0 4px 14px rgba(0,0,0,0.35)" }}
         >
           {children}
         </div>
@@ -201,6 +201,8 @@ export default function ChartDesktop() {
     }
     return 30;
   });
+  const [ema1Color, setEma1Color] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_ema1_color")) || "#2563eb");
+  const [ema2Color, setEma2Color] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_ema2_color")) || "#f97316");
 
   // UTBot states
   const [utbot1Enabled, setUtbot1Enabled] = useState(() => {
@@ -313,6 +315,17 @@ export default function ChartDesktop() {
     return 10;
   });
 
+  const [utbot1BuyColor, setUtbot1BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot1_buy_color")) || "#a855f7");
+  const [utbot1SellColor, setUtbot1SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot1_sell_color")) || "#fbbf24");
+  const [utbot2BuyColor, setUtbot2BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot2_buy_color")) || "#06b6d4");
+  const [utbot2SellColor, setUtbot2SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot2_sell_color")) || "#f472b6");
+  const [utbot3BuyColor, setUtbot3BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot3_buy_color")) || "#16a34a");
+  const [utbot3SellColor, setUtbot3SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot3_sell_color")) || "#dc2626");
+  const [utbot4BuyColor, setUtbot4BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot4_buy_color")) || "#2563eb");
+  const [utbot4SellColor, setUtbot4SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot4_sell_color")) || "#daa520");
+  const [utbot5BuyColor, setUtbot5BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot5_buy_color")) || "#005050");
+  const [utbot5SellColor, setUtbot5SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_utbot5_sell_color")) || "#8b0000");
+
   const [st1Enabled, setSt1Enabled] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("nifty_st1_enabled");
@@ -355,6 +368,11 @@ export default function ChartDesktop() {
     }
     return 3;
   });
+
+  const [st1UpColor, setSt1UpColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_st1_up_color")) || "#16a34a");
+  const [st1DownColor, setSt1DownColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_st1_down_color")) || "#dc2626");
+  const [st2UpColor, setSt2UpColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_st2_up_color")) || "#059669");
+  const [st2DownColor, setSt2DownColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_st2_down_color")) || "#e11d48");
 
   const [seEnabled, setSeEnabled] = useState(() => {
     if (typeof window !== "undefined") {
@@ -481,6 +499,8 @@ export default function ChartDesktop() {
     }
     return 20;
   });
+  const [sEma1Color, setSEma1Color] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_ema1_color")) || "#5488fa");
+  const [sEma2Color, setSEma2Color] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_ema2_color")) || "#ffd932");
   const [sUtbot1Enabled, setSUtbot1Enabled] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("strategy_utbot1_enabled");
@@ -587,6 +607,17 @@ export default function ChartDesktop() {
     return 10;
   });
 
+  const [sUtbot1BuyColor, setSUtbot1BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot1_buy_color")) || "#a855f7");
+  const [sUtbot1SellColor, setSUtbot1SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot1_sell_color")) || "#fbbf24");
+  const [sUtbot2BuyColor, setSUtbot2BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot2_buy_color")) || "#06b6d4");
+  const [sUtbot2SellColor, setSUtbot2SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot2_sell_color")) || "#f472b6");
+  const [sUtbot3BuyColor, setSUtbot3BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot3_buy_color")) || "#16a34a");
+  const [sUtbot3SellColor, setSUtbot3SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot3_sell_color")) || "#dc2626");
+  const [sUtbot4BuyColor, setSUtbot4BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot4_buy_color")) || "#2563eb");
+  const [sUtbot4SellColor, setSUtbot4SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot4_sell_color")) || "#daa520");
+  const [sUtbot5BuyColor, setSUtbot5BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot5_buy_color")) || "#005050");
+  const [sUtbot5SellColor, setSUtbot5SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_utbot5_sell_color")) || "#8b0000");
+
   const [sSt1Enabled, setSSt1Enabled] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("strategy_st1_enabled");
@@ -629,6 +660,11 @@ export default function ChartDesktop() {
     }
     return 3;
   });
+
+  const [sSt1UpColor, setSSt1UpColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_st1_up_color")) || "#16a34a");
+  const [sSt1DownColor, setSSt1DownColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_st1_down_color")) || "#dc2626");
+  const [sSt2UpColor, setSSt2UpColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_st2_up_color")) || "#059669");
+  const [sSt2DownColor, setSSt2DownColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_st2_down_color")) || "#e11d48");
 
   const [sSeEnabled, setSSeEnabled] = useState(() => {
     if (typeof window !== "undefined") {
@@ -717,70 +753,102 @@ export default function ChartDesktop() {
   useEffect(() => {
     localStorage.setItem("nifty_ema1_enabled", String(ema1Enabled));
     localStorage.setItem("nifty_ema1_period", String(ema1Period));
+    localStorage.setItem("nifty_ema1_color", ema1Color);
     localStorage.setItem("nifty_ema2_enabled", String(ema2Enabled));
     localStorage.setItem("nifty_ema2_period", String(ema2Period));
+    localStorage.setItem("nifty_ema2_color", ema2Color);
 
     localStorage.setItem("nifty_utbot1_enabled", String(utbot1Enabled));
     localStorage.setItem("nifty_utbot1_key", String(utbot1Key));
     localStorage.setItem("nifty_utbot1_atr", String(utbot1Atr));
+    localStorage.setItem("nifty_utbot1_buy_color", utbot1BuyColor);
+    localStorage.setItem("nifty_utbot1_sell_color", utbot1SellColor);
 
     localStorage.setItem("nifty_utbot2_enabled", String(utbot2Enabled));
     localStorage.setItem("nifty_utbot2_key", String(utbot2Key));
     localStorage.setItem("nifty_utbot2_atr", String(utbot2Atr));
+    localStorage.setItem("nifty_utbot2_buy_color", utbot2BuyColor);
+    localStorage.setItem("nifty_utbot2_sell_color", utbot2SellColor);
 
     localStorage.setItem("nifty_utbot3_enabled", String(utbot3Enabled));
     localStorage.setItem("nifty_utbot3_key", String(utbot3Key));
     localStorage.setItem("nifty_utbot3_atr", String(utbot3Atr));
+    localStorage.setItem("nifty_utbot3_buy_color", utbot3BuyColor);
+    localStorage.setItem("nifty_utbot3_sell_color", utbot3SellColor);
 
     localStorage.setItem("nifty_utbot4_enabled", String(utbot4Enabled));
     localStorage.setItem("nifty_utbot4_key", String(utbot4Key));
     localStorage.setItem("nifty_utbot4_atr", String(utbot4Atr));
+    localStorage.setItem("nifty_utbot4_buy_color", utbot4BuyColor);
+    localStorage.setItem("nifty_utbot4_sell_color", utbot4SellColor);
 
     localStorage.setItem("nifty_utbot5_enabled", String(utbot5Enabled));
     localStorage.setItem("nifty_utbot5_key", String(utbot5Key));
     localStorage.setItem("nifty_utbot5_atr", String(utbot5Atr));
+    localStorage.setItem("nifty_utbot5_buy_color", utbot5BuyColor);
+    localStorage.setItem("nifty_utbot5_sell_color", utbot5SellColor);
 
     localStorage.setItem("strategy_heiken_ashi", String(heikenAshi));
     localStorage.setItem("nifty_heiken_ashi", String(niftyHeikenAshi));
 
     localStorage.setItem("strategy_ema1_enabled", String(sEma1Enabled));
     localStorage.setItem("strategy_ema1_period", String(sEma1Period));
+    localStorage.setItem("strategy_ema1_color", sEma1Color);
     localStorage.setItem("strategy_ema2_enabled", String(sEma2Enabled));
     localStorage.setItem("strategy_ema2_period", String(sEma2Period));
+    localStorage.setItem("strategy_ema2_color", sEma2Color);
 
     localStorage.setItem("strategy_utbot1_enabled", String(sUtbot1Enabled));
     localStorage.setItem("strategy_utbot1_key", String(sUtbot1Key));
     localStorage.setItem("strategy_utbot1_atr", String(sUtbot1Atr));
+    localStorage.setItem("strategy_utbot1_buy_color", sUtbot1BuyColor);
+    localStorage.setItem("strategy_utbot1_sell_color", sUtbot1SellColor);
 
     localStorage.setItem("strategy_utbot2_enabled", String(sUtbot2Enabled));
     localStorage.setItem("strategy_utbot2_key", String(sUtbot2Key));
     localStorage.setItem("strategy_utbot2_atr", String(sUtbot2Atr));
+    localStorage.setItem("strategy_utbot2_buy_color", sUtbot2BuyColor);
+    localStorage.setItem("strategy_utbot2_sell_color", sUtbot2SellColor);
 
     localStorage.setItem("strategy_utbot3_enabled", String(sUtbot3Enabled));
     localStorage.setItem("strategy_utbot3_key", String(sUtbot3Key));
     localStorage.setItem("strategy_utbot3_atr", String(sUtbot3Atr));
+    localStorage.setItem("strategy_utbot3_buy_color", sUtbot3BuyColor);
+    localStorage.setItem("strategy_utbot3_sell_color", sUtbot3SellColor);
 
     localStorage.setItem("strategy_utbot4_enabled", String(sUtbot4Enabled));
     localStorage.setItem("strategy_utbot4_key", String(sUtbot4Key));
     localStorage.setItem("strategy_utbot4_atr", String(sUtbot4Atr));
+    localStorage.setItem("strategy_utbot4_buy_color", sUtbot4BuyColor);
+    localStorage.setItem("strategy_utbot4_sell_color", sUtbot4SellColor);
 
     localStorage.setItem("strategy_utbot5_enabled", String(sUtbot5Enabled));
     localStorage.setItem("strategy_utbot5_key", String(sUtbot5Key));
     localStorage.setItem("strategy_utbot5_atr", String(sUtbot5Atr));
+    localStorage.setItem("strategy_utbot5_buy_color", sUtbot5BuyColor);
+    localStorage.setItem("strategy_utbot5_sell_color", sUtbot5SellColor);
 
     localStorage.setItem("nifty_st1_enabled", String(st1Enabled));
     localStorage.setItem("nifty_st1_period", String(st1Period));
     localStorage.setItem("nifty_st1_mult", String(st1Mult));
+    localStorage.setItem("nifty_st1_up_color", st1UpColor);
+    localStorage.setItem("nifty_st1_down_color", st1DownColor);
     localStorage.setItem("nifty_st2_enabled", String(st2Enabled));
     localStorage.setItem("nifty_st2_period", String(st2Period));
     localStorage.setItem("nifty_st2_mult", String(st2Mult));
+    localStorage.setItem("nifty_st2_up_color", st2UpColor);
+    localStorage.setItem("nifty_st2_down_color", st2DownColor);
 
     localStorage.setItem("strategy_st1_enabled", String(sSt1Enabled));
     localStorage.setItem("strategy_st1_period", String(sSt1Period));
     localStorage.setItem("strategy_st1_mult", String(sSt1Mult));
+    localStorage.setItem("strategy_st1_up_color", sSt1UpColor);
+    localStorage.setItem("strategy_st1_down_color", sSt1DownColor);
     localStorage.setItem("strategy_st2_enabled", String(sSt2Enabled));
     localStorage.setItem("strategy_st2_period", String(sSt2Period));
     localStorage.setItem("strategy_st2_mult", String(sSt2Mult));
+    localStorage.setItem("strategy_st2_up_color", sSt2UpColor);
+    localStorage.setItem("strategy_st2_down_color", sSt2DownColor);
 
     localStorage.setItem("nifty_se_enabled", String(seEnabled));
     localStorage.setItem("nifty_se1_period", String(se1Period));
@@ -810,23 +878,23 @@ export default function ChartDesktop() {
     localStorage.setItem("strategy_macd_slow", String(sMacdSlow));
     localStorage.setItem("strategy_macd_signal", String(sMacdSignal));
   }, [
-    ema1Enabled, ema1Period, ema2Enabled, ema2Period,
-    utbot1Enabled, utbot1Key, utbot1Atr,
-    utbot2Enabled, utbot2Key, utbot2Atr,
-    utbot3Enabled, utbot3Key, utbot3Atr,
-    utbot4Enabled, utbot4Key, utbot4Atr,
-    utbot5Enabled, utbot5Key, utbot5Atr,
-    st1Enabled, st1Period, st1Mult,
-    st2Enabled, st2Period, st2Mult,
+    ema1Enabled, ema1Period, ema1Color, ema2Enabled, ema2Period, ema2Color,
+    utbot1Enabled, utbot1Key, utbot1Atr, utbot1BuyColor, utbot1SellColor,
+    utbot2Enabled, utbot2Key, utbot2Atr, utbot2BuyColor, utbot2SellColor,
+    utbot3Enabled, utbot3Key, utbot3Atr, utbot3BuyColor, utbot3SellColor,
+    utbot4Enabled, utbot4Key, utbot4Atr, utbot4BuyColor, utbot4SellColor,
+    utbot5Enabled, utbot5Key, utbot5Atr, utbot5BuyColor, utbot5SellColor,
+    st1Enabled, st1Period, st1Mult, st1UpColor, st1DownColor,
+    st2Enabled, st2Period, st2Mult, st2UpColor, st2DownColor,
     heikenAshi, niftyHeikenAshi,
-    sEma1Enabled, sEma1Period, sEma2Enabled, sEma2Period,
-    sUtbot1Enabled, sUtbot1Key, sUtbot1Atr,
-    sUtbot2Enabled, sUtbot2Key, sUtbot2Atr,
-    sUtbot3Enabled, sUtbot3Key, sUtbot3Atr,
-    sUtbot4Enabled, sUtbot4Key, sUtbot4Atr,
-    sUtbot5Enabled, sUtbot5Key, sUtbot5Atr,
-    sSt1Enabled, sSt1Period, sSt1Mult,
-    sSt2Enabled, sSt2Period, sSt2Mult,
+    sEma1Enabled, sEma1Period, sEma1Color, sEma2Enabled, sEma2Period, sEma2Color,
+    sUtbot1Enabled, sUtbot1Key, sUtbot1Atr, sUtbot1BuyColor, sUtbot1SellColor,
+    sUtbot2Enabled, sUtbot2Key, sUtbot2Atr, sUtbot2BuyColor, sUtbot2SellColor,
+    sUtbot3Enabled, sUtbot3Key, sUtbot3Atr, sUtbot3BuyColor, sUtbot3SellColor,
+    sUtbot4Enabled, sUtbot4Key, sUtbot4Atr, sUtbot4BuyColor, sUtbot4SellColor,
+    sUtbot5Enabled, sUtbot5Key, sUtbot5Atr, sUtbot5BuyColor, sUtbot5SellColor,
+    sSt1Enabled, sSt1Period, sSt1Mult, sSt1UpColor, sSt1DownColor,
+    sSt2Enabled, sSt2Period, sSt2Mult, sSt2UpColor, sSt2DownColor,
     seEnabled, se1Period, se2Period, seTime, seCount, seMaType, se1Color, se2Color,
     sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color,
     macdEnabled, macdFast, macdSlow, macdSignal,
@@ -973,8 +1041,8 @@ export default function ChartDesktop() {
 
       series.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.08 } });
 
-      const ema1Line = chart.addSeries(LineSeries, { color: "#2563eb", lineWidth: 1 });
-      const ema2Line = chart.addSeries(LineSeries, { color: "#f97316", lineWidth: 1 });
+      const ema1Line = chart.addSeries(LineSeries, { color: ema1Color, lineWidth: 1 });
+      const ema2Line = chart.addSeries(LineSeries, { color: ema2Color, lineWidth: 1 });
       const se1Line = chart.addSeries(LineSeries, { color: "#1d4ed8", lineWidth: 2 });
       const se2Line = chart.addSeries(LineSeries, { color: "#db2777", lineWidth: 2 });
 
@@ -1051,32 +1119,35 @@ export default function ChartDesktop() {
         ema2Line.setData([]);
       }
 
+      ema1Line?.applyOptions({ color: ema1Color });
+      ema2Line?.applyOptions({ color: ema2Color });
+
       const utbotCandles = niftyHeikenAshi ? toHeikenAshi(allCandles) : allCandles;
       const utbotLabels: UTBotLabel[] = [];
 
       if (utbot1Enabled) {
         calculateUTBot(utbotCandles, utbot1Key, utbot1Atr).forEach(s =>
-          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#a855f7" : "#fbbf24" })
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? utbot1BuyColor : utbot1SellColor })
         );
       }
       if (utbot2Enabled) {
         calculateUTBot(utbotCandles, utbot2Key, utbot2Atr).forEach(s =>
-          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#06b6d4" : "#f472b6" })
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? utbot2BuyColor : utbot2SellColor })
         );
       }
       if (utbot3Enabled) {
         calculateUTBot(utbotCandles, utbot3Key, utbot3Atr).forEach(s =>
-          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#16a34a" : "#dc2626" })
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? utbot3BuyColor : utbot3SellColor })
         );
       }
       if (utbot4Enabled) {
         calculateUTBot(utbotCandles, utbot4Key, utbot4Atr).forEach(s =>
-          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#2563eb" : "#daa520" })
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? utbot4BuyColor : utbot4SellColor })
         );
       }
       if (utbot5Enabled) {
         calculateUTBot(utbotCandles, utbot5Key, utbot5Atr).forEach(s =>
-          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#005050" : "#8b0000" })
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? utbot5BuyColor : utbot5SellColor })
         );
       }
 
@@ -1085,6 +1156,8 @@ export default function ChartDesktop() {
         utbotLabels
       );
 
+      st1Plugin.setColors(st1UpColor, st1DownColor);
+      st2Plugin.setColors(st2UpColor, st2DownColor);
       st1Plugin.setData(st1Enabled ? calculateSuperTrend(displayCandles, st1Period, st1Mult) : []);
       st2Plugin.setData(st2Enabled ? calculateSuperTrend(displayCandles, st2Period, st2Mult) : []);
 
@@ -1117,14 +1190,14 @@ export default function ChartDesktop() {
         }
       }
     }
-  }, [nifty50Data, ema1Enabled, ema1Period, ema2Enabled, ema2Period,
-      utbot1Enabled, utbot1Key, utbot1Atr,
-      utbot2Enabled, utbot2Key, utbot2Atr,
-      utbot3Enabled, utbot3Key, utbot3Atr,
-      utbot4Enabled, utbot4Key, utbot4Atr,
-      utbot5Enabled, utbot5Key, utbot5Atr,
-      st1Enabled, st1Period, st1Mult,
-      st2Enabled, st2Period, st2Mult,
+  }, [nifty50Data, ema1Enabled, ema1Period, ema1Color, ema2Enabled, ema2Period, ema2Color,
+      utbot1Enabled, utbot1Key, utbot1Atr, utbot1BuyColor, utbot1SellColor,
+      utbot2Enabled, utbot2Key, utbot2Atr, utbot2BuyColor, utbot2SellColor,
+      utbot3Enabled, utbot3Key, utbot3Atr, utbot3BuyColor, utbot3SellColor,
+      utbot4Enabled, utbot4Key, utbot4Atr, utbot4BuyColor, utbot4SellColor,
+      utbot5Enabled, utbot5Key, utbot5Atr, utbot5BuyColor, utbot5SellColor,
+      st1Enabled, st1Period, st1Mult, st1UpColor, st1DownColor,
+      st2Enabled, st2Period, st2Mult, st2UpColor, st2DownColor,
       seEnabled, se1Period, se2Period, seTime, seCount, seMaType, se1Color, se2Color,
       macdEnabled, macdFast, macdSlow, macdSignal, niftyHeikenAshi]);
 
@@ -1235,8 +1308,8 @@ export default function ChartDesktop() {
 
         main.priceScale().applyOptions({ scaleMargins: { top: 0.05, bottom: 0.08 } });
 
-        const ema1Line = chart.addSeries(LineSeries, { color: "#5488fa", lineWidth: 1 });
-        const ema2Line = chart.addSeries(LineSeries, { color: "#ffd932", lineWidth: 1 });
+        const ema1Line = chart.addSeries(LineSeries, { color: sEma1Color, lineWidth: 1 });
+        const ema2Line = chart.addSeries(LineSeries, { color: sEma2Color, lineWidth: 1 });
         const se1Line = chart.addSeries(LineSeries, { color: "#1d4ed8", lineWidth: 2 });
         const se2Line = chart.addSeries(LineSeries, { color: "#db2777", lineWidth: 2 });
 
@@ -1297,6 +1370,9 @@ export default function ChartDesktop() {
           value: val,
         })));
 
+        ema1Line?.applyOptions({ color: sEma1Color });
+        ema2Line?.applyOptions({ color: sEma2Color });
+
         const markers: SeriesMarker<Time>[] = candles
           .filter((c) => c.signal === "BUY" || c.signal === "SELL" || c.signal === "BOOMBUY")
           .map((c) => ({
@@ -1313,27 +1389,27 @@ export default function ChartDesktop() {
 
         if (sUtbot1Enabled) {
           calculateUTBot(displayCandles, sUtbot1Key, sUtbot1Atr).forEach(s =>
-            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#a855f7" : "#fbbf24" })
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? sUtbot1BuyColor : sUtbot1SellColor })
           );
         }
         if (sUtbot2Enabled) {
           calculateUTBot(displayCandles, sUtbot2Key, sUtbot2Atr).forEach(s =>
-            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#06b6d4" : "#f472b6" })
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? sUtbot2BuyColor : sUtbot2SellColor })
           );
         }
         if (sUtbot3Enabled) {
           calculateUTBot(displayCandles, sUtbot3Key, sUtbot3Atr).forEach(s =>
-            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#16a34a" : "#dc2626" })
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? sUtbot3BuyColor : sUtbot3SellColor })
           );
         }
         if (sUtbot4Enabled) {
           calculateUTBot(displayCandles, sUtbot4Key, sUtbot4Atr).forEach(s =>
-            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#2563eb" : "#daa520" })
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? sUtbot4BuyColor : sUtbot4SellColor })
           );
         }
         if (sUtbot5Enabled) {
           calculateUTBot(displayCandles, sUtbot5Key, sUtbot5Atr).forEach(s =>
-            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? "#005050" : "#8b0000" })
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? sUtbot5BuyColor : sUtbot5SellColor })
           );
         }
 
@@ -1342,6 +1418,8 @@ export default function ChartDesktop() {
           utbotLabels
         );
 
+        st1Plugin.setColors(sSt1UpColor, sSt1DownColor);
+        st2Plugin.setColors(sSt2UpColor, sSt2DownColor);
         st1Plugin.setData(sSt1Enabled ? calculateSuperTrend(displayCandles, sSt1Period, sSt1Mult) : []);
         st2Plugin.setData(sSt2Enabled ? calculateSuperTrend(displayCandles, sSt2Period, sSt2Mult) : []);
 
@@ -1376,14 +1454,14 @@ export default function ChartDesktop() {
       }
     });
   }, [symbolCandles, activeSymbols, heikenAshi, niftySignalBindings,
-      sEma1Enabled, sEma1Period, sEma2Enabled, sEma2Period,
-      sUtbot1Enabled, sUtbot1Key, sUtbot1Atr,
-      sUtbot2Enabled, sUtbot2Key, sUtbot2Atr,
-      sUtbot3Enabled, sUtbot3Key, sUtbot3Atr,
-      sUtbot4Enabled, sUtbot4Key, sUtbot4Atr,
-      sUtbot5Enabled, sUtbot5Key, sUtbot5Atr,
-      sSt1Enabled, sSt1Period, sSt1Mult,
-      sSt2Enabled, sSt2Period, sSt2Mult,
+      sEma1Enabled, sEma1Period, sEma1Color, sEma2Enabled, sEma2Period, sEma2Color,
+      sUtbot1Enabled, sUtbot1Key, sUtbot1Atr, sUtbot1BuyColor, sUtbot1SellColor,
+      sUtbot2Enabled, sUtbot2Key, sUtbot2Atr, sUtbot2BuyColor, sUtbot2SellColor,
+      sUtbot3Enabled, sUtbot3Key, sUtbot3Atr, sUtbot3BuyColor, sUtbot3SellColor,
+      sUtbot4Enabled, sUtbot4Key, sUtbot4Atr, sUtbot4BuyColor, sUtbot4SellColor,
+      sUtbot5Enabled, sUtbot5Key, sUtbot5Atr, sUtbot5BuyColor, sUtbot5SellColor,
+      sSt1Enabled, sSt1Period, sSt1Mult, sSt1UpColor, sSt1DownColor,
+      sSt2Enabled, sSt2Period, sSt2Mult, sSt2UpColor, sSt2DownColor,
       sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color,
       sMacdEnabled, sMacdFast, sMacdSlow, sMacdSignal]);
 
@@ -1428,91 +1506,123 @@ export default function ChartDesktop() {
           style={{ background: "rgba(0,0,0,0.05)", border: "1px solid var(--theme-popup-field-border)", borderBottom: "none" }}
         >
           <IndicatorMenu label="EMA" enabledCount={Number(ema1Enabled) + Number(ema2Enabled)}>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={ema1Enabled} onChange={(e) => setEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 1</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={ema1Enabled} onChange={(e) => setEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500 cursor-pointer" />
+              <span style={{ color: ema1Color }} className="w-11 text-[10px] font-bold">EMA 1</span>
               <NumericField
                 value={ema1Period}
                 onChange={setEma1Period}
-                className="w-10 h-6 rounded text-center text-[10px] font-bold"
+                className="w-9 h-6 rounded text-center text-[10px] font-bold"
                 style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
                 fallback="10"
               />
+              <input type="color" value={ema1Color} onChange={(e) => setEma1Color(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="EMA 1 color" />
             </label>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={ema2Enabled} onChange={(e) => setEma2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-yellow-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 2</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={ema2Enabled} onChange={(e) => setEma2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-yellow-500 cursor-pointer" />
+              <span style={{ color: ema2Color }} className="w-11 text-[10px] font-bold">EMA 2</span>
               <NumericField
                 value={ema2Period}
                 onChange={setEma2Period}
-                className="w-10 h-6 rounded text-center text-[10px] font-bold"
+                className="w-9 h-6 rounded text-center text-[10px] font-bold"
                 style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
                 fallback="30"
               />
+              <input type="color" value={ema2Color} onChange={(e) => setEma2Color(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="EMA 2 color" />
             </label>
           </IndicatorMenu>
           <IndicatorMenu label="UTBOT" enabledCount={Number(utbot1Enabled) + Number(utbot2Enabled) + Number(utbot3Enabled) + Number(utbot4Enabled) + Number(utbot5Enabled)}>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={utbot1Enabled} onChange={(e) => setUtbot1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 1</span>
+            <div className="flex items-center gap-1.5 px-0.5 text-[8px] font-bold opacity-60">
+              <span className="w-3.5" />
+              <span className="w-14">NAME</span>
+              <span className="w-8 text-center">KEY</span>
+              <span className="w-8 text-center">ATR</span>
+              <span className="w-5 text-center">BUY</span>
+              <span className="w-5 text-center">SELL</span>
+            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={utbot1Enabled} onChange={(e) => setUtbot1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500 cursor-pointer" />
+              <span className="w-14 text-[10px] font-bold" style={{ color: utbot1BuyColor }}>UTBOT 1</span>
               <NumericField value={utbot1Key} onChange={setUtbot1Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="2" />
               <NumericField value={utbot1Atr} onChange={setUtbot1Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              <input type="color" value={utbot1BuyColor} onChange={(e) => setUtbot1BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 1 BUY color" />
+              <input type="color" value={utbot1SellColor} onChange={(e) => setUtbot1SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 1 SELL color" />
             </label>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={utbot2Enabled} onChange={(e) => setUtbot2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-cyan-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 2</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={utbot2Enabled} onChange={(e) => setUtbot2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-cyan-500 cursor-pointer" />
+              <span className="w-14 text-[10px] font-bold" style={{ color: utbot2BuyColor }}>UTBOT 2</span>
               <NumericField value={utbot2Key} onChange={setUtbot2Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
               <NumericField value={utbot2Atr} onChange={setUtbot2Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              <input type="color" value={utbot2BuyColor} onChange={(e) => setUtbot2BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 2 BUY color" />
+              <input type="color" value={utbot2SellColor} onChange={(e) => setUtbot2SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 2 SELL color" />
             </label>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={utbot3Enabled} onChange={(e) => setUtbot3Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 3</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={utbot3Enabled} onChange={(e) => setUtbot3Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-500 cursor-pointer" />
+              <span className="w-14 text-[10px] font-bold" style={{ color: utbot3BuyColor }}>UTBOT 3</span>
               <NumericField value={utbot3Key} onChange={setUtbot3Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
               <NumericField value={utbot3Atr} onChange={setUtbot3Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              <input type="color" value={utbot3BuyColor} onChange={(e) => setUtbot3BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 3 BUY color" />
+              <input type="color" value={utbot3SellColor} onChange={(e) => setUtbot3SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 3 SELL color" />
             </label>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={utbot4Enabled} onChange={(e) => setUtbot4Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-600" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 4</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={utbot4Enabled} onChange={(e) => setUtbot4Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-600 cursor-pointer" />
+              <span className="w-14 text-[10px] font-bold" style={{ color: utbot4BuyColor }}>UTBOT 4</span>
               <NumericField value={utbot4Key} onChange={setUtbot4Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
               <NumericField value={utbot4Atr} onChange={setUtbot4Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
+              <input type="color" value={utbot4BuyColor} onChange={(e) => setUtbot4BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 4 BUY color" />
+              <input type="color" value={utbot4SellColor} onChange={(e) => setUtbot4SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 4 SELL color" />
             </label>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={utbot5Enabled} onChange={(e) => setUtbot5Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-[#005050]" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 5</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={utbot5Enabled} onChange={(e) => setUtbot5Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-[#005050] cursor-pointer" />
+              <span className="w-14 text-[10px] font-bold" style={{ color: utbot5BuyColor }}>UTBOT 5</span>
               <NumericField value={utbot5Key} onChange={setUtbot5Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="1" />
               <NumericField value={utbot5Atr} onChange={setUtbot5Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
+              <input type="color" value={utbot5BuyColor} onChange={(e) => setUtbot5BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 5 BUY color" />
+              <input type="color" value={utbot5SellColor} onChange={(e) => setUtbot5SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 5 SELL color" />
             </label>
           </IndicatorMenu>
           <IndicatorMenu label="SUPERTREND" enabledCount={Number(st1Enabled) + Number(st2Enabled)}>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={st1Enabled} onChange={(e) => setSt1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-600" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>ST 1</span>
+            <div className="flex items-center gap-1.5 px-0.5 text-[8px] font-bold opacity-60">
+              <span className="w-3.5" />
+              <span className="w-8">NAME</span>
+              <span className="w-8 text-center">ATR</span>
+              <span className="w-8 text-center">MULT</span>
+              <span className="w-5 text-center">UP</span>
+              <span className="w-5 text-center">DOWN</span>
+            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={st1Enabled} onChange={(e) => setSt1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-600 cursor-pointer" />
+              <span className="w-8 text-[10px] font-bold" style={{ color: st1UpColor }}>ST 1</span>
               <NumericField value={st1Period} onChange={setSt1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
               <NumericField value={st1Mult} onChange={setSt1Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+              <input type="color" value={st1UpColor} onChange={(e) => setSt1UpColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="ST 1 Up trend color" />
+              <input type="color" value={st1DownColor} onChange={(e) => setSt1DownColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="ST 1 Down trend color" />
             </label>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={st2Enabled} onChange={(e) => setSt2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>ST 2</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={st2Enabled} onChange={(e) => setSt2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500 cursor-pointer" />
+              <span className="w-8 text-[10px] font-bold" style={{ color: st2UpColor }}>ST 2</span>
               <NumericField value={st2Period} onChange={setSt2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
               <NumericField value={st2Mult} onChange={setSt2Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+              <input type="color" value={st2UpColor} onChange={(e) => setSt2UpColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="ST 2 Up trend color" />
+              <input type="color" value={st2DownColor} onChange={(e) => setSt2DownColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="ST 2 Down trend color" />
             </label>
           </IndicatorMenu>
           <IndicatorMenu label={`SHORT ${seMaType.toUpperCase()}`} enabledCount={Number(seEnabled)}>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={seEnabled} onChange={(e) => setSeEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
-              <span style={{ color: se1Color, fontSize: "10px", fontWeight: "bold" }}>MA 1</span>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={seEnabled} onChange={(e) => setSeEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500 cursor-pointer" />
+              <span style={{ color: se1Color }} className="w-9 text-[10px] font-bold">MA 1</span>
               <NumericField value={se1Period} onChange={setSe1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
               <input type="color" value={se1Color} onChange={(e) => setSe1Color(e.target.value)} className="w-6 h-6 cursor-pointer" style={{ border: "none", background: "none", padding: 0 }} title="MA 1 color" />
             </label>
-            <label className="flex items-center gap-1.5">
+            <label className="flex items-center gap-1.5 cursor-pointer">
               <span className="w-3.5" />
-              <span style={{ color: se2Color, fontSize: "10px", fontWeight: "bold" }}>MA 2</span>
+              <span style={{ color: se2Color }} className="w-9 text-[10px] font-bold">MA 2</span>
               <NumericField value={se2Period} onChange={setSe2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="8" />
               <input type="color" value={se2Color} onChange={(e) => setSe2Color(e.target.value)} className="w-6 h-6 cursor-pointer" style={{ border: "none", background: "none", padding: 0 }} title="MA 2 color" />
             </label>
             <label className="flex items-center gap-1.5">
               <span className="w-3.5" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>AT</span>
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">AT</span>
               <input
                 value={seTime}
                 onChange={(e) => setSeTime(e.target.value)}
@@ -1523,13 +1633,13 @@ export default function ChartDesktop() {
             </label>
             <label className="flex items-center gap-1.5">
               <span className="w-3.5" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>LAST</span>
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">LAST</span>
               <NumericField value={seCount} onChange={setSeCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
               <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
             </label>
             <label className="flex items-center gap-1.5">
               <span className="w-3.5" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>TYPE</span>
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">TYPE</span>
               <select
                 value={seMaType}
                 onChange={(e) => setSeMaType(e.target.value as ShortMaType)}
@@ -1541,20 +1651,20 @@ export default function ChartDesktop() {
             </label>
           </IndicatorMenu>
           <IndicatorMenu label="MACD" enabledCount={Number(macdEnabled)}>
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={macdEnabled} onChange={(e) => setMacdEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>FAST</span>
-              <NumericField value={macdFast} onChange={setMacdFast} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="12" />
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={macdEnabled} onChange={(e) => setMacdEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500 cursor-pointer" />
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-11 text-[10px] font-bold">FAST</span>
+              <NumericField value={macdFast} onChange={setMacdFast} className="w-9 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="12" />
             </label>
-            <label className="flex items-center gap-1.5">
+            <label className="flex items-center gap-1.5 cursor-pointer">
               <span className="w-3.5" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>SLOW</span>
-              <NumericField value={macdSlow} onChange={setMacdSlow} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="26" />
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-11 text-[10px] font-bold">SLOW</span>
+              <NumericField value={macdSlow} onChange={setMacdSlow} className="w-9 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="26" />
             </label>
-            <label className="flex items-center gap-1.5">
+            <label className="flex items-center gap-1.5 cursor-pointer">
               <span className="w-3.5" />
-              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>SIG</span>
-              <NumericField value={macdSignal} onChange={setMacdSignal} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="9" />
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-11 text-[10px] font-bold">SIG</span>
+              <NumericField value={macdSignal} onChange={setMacdSignal} className="w-9 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="9" />
             </label>
           </IndicatorMenu>
           <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">
@@ -1604,79 +1714,111 @@ export default function ChartDesktop() {
             style={{ background: "rgba(0,0,0,0.05)", border: "1px solid var(--theme-popup-field-border)", borderBottom: "none" }}
           >
             <IndicatorMenu label="EMA" enabledCount={Number(sEma1Enabled) + Number(sEma2Enabled)}>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sEma1Enabled} onChange={(e) => setSEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 1</span>
-                <NumericField value={sEma1Period} onChange={setSEma1Period} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sEma1Enabled} onChange={(e) => setSEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500 cursor-pointer" />
+                <span style={{ color: sEma1Color }} className="w-11 text-[10px] font-bold">EMA 1</span>
+                <NumericField value={sEma1Period} onChange={setSEma1Period} className="w-9 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+                <input type="color" value={sEma1Color} onChange={(e) => setSEma1Color(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="EMA 1 color" />
               </label>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sEma2Enabled} onChange={(e) => setSEma2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-yellow-500" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>EMA 2</span>
-                <NumericField value={sEma2Period} onChange={setSEma2Period} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="20" />
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sEma2Enabled} onChange={(e) => setSEma2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-yellow-500 cursor-pointer" />
+                <span style={{ color: sEma2Color }} className="w-11 text-[10px] font-bold">EMA 2</span>
+                <NumericField value={sEma2Period} onChange={setSEma2Period} className="w-9 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="20" />
+                <input type="color" value={sEma2Color} onChange={(e) => setSEma2Color(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="EMA 2 color" />
               </label>
             </IndicatorMenu>
             <IndicatorMenu label="UTBOT" enabledCount={Number(sUtbot1Enabled) + Number(sUtbot2Enabled) + Number(sUtbot3Enabled) + Number(sUtbot4Enabled) + Number(sUtbot5Enabled)}>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sUtbot1Enabled} onChange={(e) => setSUtbot1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 1</span>
+              <div className="flex items-center gap-1.5 px-0.5 text-[8px] font-bold opacity-60">
+                <span className="w-3.5" />
+                <span className="w-14">NAME</span>
+                <span className="w-8 text-center">KEY</span>
+                <span className="w-8 text-center">ATR</span>
+                <span className="w-5 text-center">BUY</span>
+                <span className="w-5 text-center">SELL</span>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sUtbot1Enabled} onChange={(e) => setSUtbot1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500 cursor-pointer" />
+                <span className="w-14 text-[10px] font-bold" style={{ color: sUtbot1BuyColor }}>UTBOT 1</span>
                 <NumericField value={sUtbot1Key} onChange={setSUtbot1Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="2" />
                 <NumericField value={sUtbot1Atr} onChange={setSUtbot1Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+                <input type="color" value={sUtbot1BuyColor} onChange={(e) => setSUtbot1BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 1 BUY color" />
+                <input type="color" value={sUtbot1SellColor} onChange={(e) => setSUtbot1SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 1 SELL color" />
               </label>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sUtbot2Enabled} onChange={(e) => setSUtbot2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-cyan-500" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 2</span>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sUtbot2Enabled} onChange={(e) => setSUtbot2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-cyan-500 cursor-pointer" />
+                <span className="w-14 text-[10px] font-bold" style={{ color: sUtbot2BuyColor }}>UTBOT 2</span>
                 <NumericField value={sUtbot2Key} onChange={setSUtbot2Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
                 <NumericField value={sUtbot2Atr} onChange={setSUtbot2Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+                <input type="color" value={sUtbot2BuyColor} onChange={(e) => setSUtbot2BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 2 BUY color" />
+                <input type="color" value={sUtbot2SellColor} onChange={(e) => setSUtbot2SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 2 SELL color" />
               </label>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sUtbot3Enabled} onChange={(e) => setSUtbot3Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-500" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 3</span>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sUtbot3Enabled} onChange={(e) => setSUtbot3Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-500 cursor-pointer" />
+                <span className="w-14 text-[10px] font-bold" style={{ color: sUtbot3BuyColor }}>UTBOT 3</span>
                 <NumericField value={sUtbot3Key} onChange={setSUtbot3Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
                 <NumericField value={sUtbot3Atr} onChange={setSUtbot3Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+                <input type="color" value={sUtbot3BuyColor} onChange={(e) => setSUtbot3BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 3 BUY color" />
+                <input type="color" value={sUtbot3SellColor} onChange={(e) => setSUtbot3SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 3 SELL color" />
               </label>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sUtbot4Enabled} onChange={(e) => setSUtbot4Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-600" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 4</span>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sUtbot4Enabled} onChange={(e) => setSUtbot4Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-600 cursor-pointer" />
+                <span className="w-14 text-[10px] font-bold" style={{ color: sUtbot4BuyColor }}>UTBOT 4</span>
                 <NumericField value={sUtbot4Key} onChange={setSUtbot4Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
                 <NumericField value={sUtbot4Atr} onChange={setSUtbot4Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
+                <input type="color" value={sUtbot4BuyColor} onChange={(e) => setSUtbot4BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 4 BUY color" />
+                <input type="color" value={sUtbot4SellColor} onChange={(e) => setSUtbot4SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 4 SELL color" />
               </label>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sUtbot5Enabled} onChange={(e) => setSUtbot5Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-[#005050]" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>UTBOT 5</span>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sUtbot5Enabled} onChange={(e) => setSUtbot5Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-[#005050] cursor-pointer" />
+                <span className="w-14 text-[10px] font-bold" style={{ color: sUtbot5BuyColor }}>UTBOT 5</span>
                 <NumericField value={sUtbot5Key} onChange={setSUtbot5Key} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="1" />
                 <NumericField value={sUtbot5Atr} onChange={setSUtbot5Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="300" />
+                <input type="color" value={sUtbot5BuyColor} onChange={(e) => setSUtbot5BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 5 BUY color" />
+                <input type="color" value={sUtbot5SellColor} onChange={(e) => setSUtbot5SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTBOT 5 SELL color" />
               </label>
             </IndicatorMenu>
             <IndicatorMenu label="SUPERTREND" enabledCount={Number(sSt1Enabled) + Number(sSt2Enabled)}>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sSt1Enabled} onChange={(e) => setSSt1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-600" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>ST 1</span>
+              <div className="flex items-center gap-1.5 px-0.5 text-[8px] font-bold opacity-60">
+                <span className="w-3.5" />
+                <span className="w-8">NAME</span>
+                <span className="w-8 text-center">ATR</span>
+                <span className="w-8 text-center">MULT</span>
+                <span className="w-5 text-center">UP</span>
+                <span className="w-5 text-center">DOWN</span>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sSt1Enabled} onChange={(e) => setSSt1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-green-600 cursor-pointer" />
+                <span className="w-8 text-[10px] font-bold" style={{ color: sSt1UpColor }}>ST 1</span>
                 <NumericField value={sSt1Period} onChange={setSSt1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
                 <NumericField value={sSt1Mult} onChange={setSSt1Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+                <input type="color" value={sSt1UpColor} onChange={(e) => setSSt1UpColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="ST 1 Up trend color" />
+                <input type="color" value={sSt1DownColor} onChange={(e) => setSSt1DownColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="ST 1 Down trend color" />
               </label>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sSt2Enabled} onChange={(e) => setSSt2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>ST 2</span>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sSt2Enabled} onChange={(e) => setSSt2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500 cursor-pointer" />
+                <span className="w-8 text-[10px] font-bold" style={{ color: sSt2UpColor }}>ST 2</span>
                 <NumericField value={sSt2Period} onChange={setSSt2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
                 <NumericField value={sSt2Mult} onChange={setSSt2Mult} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="3" />
+                <input type="color" value={sSt2UpColor} onChange={(e) => setSSt2UpColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="ST 2 Up trend color" />
+                <input type="color" value={sSt2DownColor} onChange={(e) => setSSt2DownColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="ST 2 Down trend color" />
               </label>
             </IndicatorMenu>
             <IndicatorMenu label={`SHORT ${sSeMaType.toUpperCase()}`} enabledCount={Number(sSeEnabled)}>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sSeEnabled} onChange={(e) => setSSeEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500" />
-                <span style={{ color: sSe1Color, fontSize: "10px", fontWeight: "bold" }}>MA 1</span>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sSeEnabled} onChange={(e) => setSSeEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-purple-500 cursor-pointer" />
+                <span style={{ color: sSe1Color }} className="w-9 text-[10px] font-bold">MA 1</span>
                 <NumericField value={sSe1Period} onChange={setSSe1Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
                 <input type="color" value={sSe1Color} onChange={(e) => setSSe1Color(e.target.value)} className="w-6 h-6 cursor-pointer" style={{ border: "none", background: "none", padding: 0 }} title="MA 1 color" />
               </label>
-              <label className="flex items-center gap-1.5">
+              <label className="flex items-center gap-1.5 cursor-pointer">
                 <span className="w-3.5" />
-                <span style={{ color: sSe2Color, fontSize: "10px", fontWeight: "bold" }}>MA 2</span>
+                <span style={{ color: sSe2Color }} className="w-9 text-[10px] font-bold">MA 2</span>
                 <NumericField value={sSe2Period} onChange={setSSe2Period} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="8" />
                 <input type="color" value={sSe2Color} onChange={(e) => setSSe2Color(e.target.value)} className="w-6 h-6 cursor-pointer" style={{ border: "none", background: "none", padding: 0 }} title="MA 2 color" />
               </label>
               <label className="flex items-center gap-1.5">
                 <span className="w-3.5" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>AT</span>
+                <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">AT</span>
                 <input
                   value={sSeTime}
                   onChange={(e) => setSSeTime(e.target.value)}
@@ -1687,13 +1829,13 @@ export default function ChartDesktop() {
               </label>
               <label className="flex items-center gap-1.5">
                 <span className="w-3.5" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>LAST</span>
+                <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">LAST</span>
                 <NumericField value={sSeCount} onChange={setSSeCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
                 <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
               </label>
               <label className="flex items-center gap-1.5">
                 <span className="w-3.5" />
-                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>TYPE</span>
+                <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">TYPE</span>
                 <select
                   value={sSeMaType}
                   onChange={(e) => setSSeMaType(e.target.value as ShortMaType)}
@@ -1705,20 +1847,20 @@ export default function ChartDesktop() {
               </label>
             </IndicatorMenu>
             <IndicatorMenu label="MACD" enabledCount={Number(sMacdEnabled)}>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={sMacdEnabled} onChange={(e) => setSMacdEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500" />
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sMacdEnabled} onChange={(e) => setSMacdEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500 cursor-pointer" />
                 <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>FAST</span>
-                <NumericField value={sMacdFast} onChange={setSMacdFast} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="12" />
+                <NumericField value={sMacdFast} onChange={setSMacdFast} className="w-9 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="12" />
               </label>
-              <label className="flex items-center gap-1.5">
+              <label className="flex items-center gap-1.5 cursor-pointer">
                 <span className="w-3.5" />
                 <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>SLOW</span>
-                <NumericField value={sMacdSlow} onChange={setSMacdSlow} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="26" />
+                <NumericField value={sMacdSlow} onChange={setSMacdSlow} className="w-9 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="26" />
               </label>
-              <label className="flex items-center gap-1.5">
+              <label className="flex items-center gap-1.5 cursor-pointer">
                 <span className="w-3.5" />
                 <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>SIG</span>
-                <NumericField value={sMacdSignal} onChange={setSMacdSignal} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="9" />
+                <NumericField value={sMacdSignal} onChange={setSMacdSignal} className="w-9 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="9" />
               </label>
             </IndicatorMenu>
             <div className="flex items-center gap-1.5 ml-auto border-l border-black/10 pl-4">
