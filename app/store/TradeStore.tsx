@@ -1,6 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useCallback, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+// Deep content compare — lets syncFromServer keep stable references so
+// unchanged server state doesn't re-render consumers every 1s poll.
+const sameContent = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 type TradeSelection = {
   symbol: string;
@@ -228,6 +232,8 @@ type TradeStoreValue = {
   setSelection: (s: TradeSelection) => void;
   forceBuyEnabled: boolean;
   setForceBuyEnabled: (v: boolean) => void;
+  desktopViewEnabled: boolean;
+  setDesktopViewEnabled: (v: boolean) => void;
 
   waitingTrades: WaitingTrade[];
   addWaitingTradeFromSelection: () => void;
@@ -250,8 +256,6 @@ type TradeStoreValue = {
   logManualExit: (symbol: string, exitPrice: string, pnl: number, lastCandleTime: string) => void;
   // remove trade and free symbol
   removeTradeAndFreeSymbol: (symbol: string) => void;
-  // override config of a running (active) trade
-  updateActiveTradeConfig: (symbol: string, config: Partial<ActiveTrade>) => void;
   // append a log line to a waiting trade
   addLogToWaitingTrade: (symbol: string, log: string) => void;
   // append a log line to an active trade
@@ -283,6 +287,7 @@ type TradeStoreValue = {
     aiGuardActive?: boolean;
     aiSymbolEnabled?: Record<string, boolean>;
     aiRegime?: Record<string, { regime: string; confidence: number }>;
+    niftySignalBinding?: Record<string, string>;
   }) => void;
 
   // AI Guard
@@ -290,6 +295,9 @@ type TradeStoreValue = {
   aiGuardActive: boolean;
   aiSymbolEnabled: Record<string, boolean>;
   aiRegime: Record<string, { regime: string; confidence: number }>;
+
+  // "Use Nifty" bindings — symbol → FAKE_CE | FAKE_PE
+  niftySignalBindings: Record<string, string>;
 
   // symbols that have received at least one valid signal (loader tracking)
   initializedSymbols: Set<string>;
@@ -332,6 +340,22 @@ export function TradeStoreProvider({
 }) {
   const [selection, setSelection] = useState<TradeSelection>(null);
   const [forceBuyEnabled, setForceBuyEnabled] = useState(false);
+  const [desktopViewEnabled, setDesktopViewEnabledState] = useState(false);
+
+  // Hydrate desktop view preference from localStorage (client-only)
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDesktopViewEnabledState(localStorage.getItem("dummy_desktopView") === "1");
+    } catch {}
+  }, []);
+
+  const setDesktopViewEnabled = useCallback((v: boolean) => {
+    setDesktopViewEnabledState(v);
+    try {
+      localStorage.setItem("dummy_desktopView", v ? "1" : "0");
+    } catch {}
+  }, []);
 
   // Server JSON file is the single source of truth — start empty, syncFromServer fills it
   const [waitingTrades, setWaitingTrades] = useState<WaitingTrade[]>([]);
@@ -342,6 +366,7 @@ export function TradeStoreProvider({
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
   const [aiGuardActive, setAiGuardActive] = useState(false);
   const [aiSymbolEnabled, setAiSymbolEnabled] = useState<Record<string, boolean>>({});
+  const [niftySignalBindings, setNiftySignalBindings] = useState<Record<string, string>>({});
   const [aiRegime, setAiRegime] = useState<Record<string, { regime: string; confidence: number }>>({});
 
   // Track whether we've done the initial sync from server
@@ -888,17 +913,19 @@ export function TradeStoreProvider({
     aiGuardActive?: boolean;
     aiSymbolEnabled?: Record<string, boolean>;
     aiRegime?: Record<string, { regime: string; confidence: number }>;
+    niftySignalBinding?: Record<string, string>;
   }) => {
     // On first sync (page load/refresh), populate waitingTrades from server.
     // After that, waitingTrades is frontend-owned — only remove trades that
     // the server has activated.
     if (!initialSyncDone.current) {
       initialSyncDone.current = true;
-      setWaitingTrades(state.waitingTrades);
+      setWaitingTrades((prev) => sameContent(prev, state.waitingTrades) ? prev : state.waitingTrades);
     } else {
-      setWaitingTrades((prev) =>
-        prev.filter((w) => !state.activeTrades.some((a) => a.symbol === w.symbol))
-      );
+      setWaitingTrades((prev) => {
+        const next = prev.filter((w) => !state.activeTrades.some((a) => a.symbol === w.symbol));
+        return next.length === prev.length ? prev : next;
+      });
     }
     // Merge: use server trades as base, but keep frontend-only trades that server
     // doesn't know about yet (e.g. just activated, POST hasn't reached server)
@@ -912,16 +939,19 @@ export function TradeStoreProvider({
           merged.push(local);
         }
       }
-      return merged;
+      return sameContent(prev, merged) ? prev : merged;
     });
     if (pendingClearAll.current) {
       // Don't overwrite — user just cleared all history
     } else if (pendingHistoryDeletes.current.size > 0) {
-      setTradeHistory(state.tradeHistory.filter(
-        (item) => !pendingHistoryDeletes.current.has(item.id)
-      ));
+      setTradeHistory((prev) => {
+        const next = state.tradeHistory.filter(
+          (item) => !pendingHistoryDeletes.current.has(item.id)
+        );
+        return sameContent(prev, next) ? prev : next;
+      });
     } else {
-      setTradeHistory(state.tradeHistory);
+      setTradeHistory((prev) => sameContent(prev, state.tradeHistory) ? prev : state.tradeHistory);
     }
     if (state.lastStrategyCandleTime) {
       lastStrategyCandleTimeRef.current = state.lastStrategyCandleTime;
@@ -930,30 +960,27 @@ export function TradeStoreProvider({
       setInitializedSymbols((prev) => {
         const next = new Set(prev);
         for (const sym of state.symbolsWithFirstSignal!) next.add(sym);
-        return next;
+        return next.size === prev.size ? prev : next;
       });
     }
     if (state.symbolHistoryStatus) {
-      setSymbolHistoryStatus(state.symbolHistoryStatus);
+      setSymbolHistoryStatus((prev) => sameContent(prev, state.symbolHistoryStatus) ? prev : state.symbolHistoryStatus!);
     }
     if (Array.isArray(state.aiSuggestions)) {
-      setAiSuggestions(state.aiSuggestions);
+      setAiSuggestions((prev) => sameContent(prev, state.aiSuggestions) ? prev : state.aiSuggestions!);
     }
     if (typeof state.aiGuardActive === "boolean") {
       setAiGuardActive(state.aiGuardActive);
     }
     if (state.aiSymbolEnabled) {
-      setAiSymbolEnabled(state.aiSymbolEnabled);
+      setAiSymbolEnabled((prev) => sameContent(prev, state.aiSymbolEnabled) ? prev : state.aiSymbolEnabled!);
     }
     if (state.aiRegime) {
-      setAiRegime(state.aiRegime);
+      setAiRegime((prev) => sameContent(prev, state.aiRegime) ? prev : state.aiRegime!);
     }
-  }, []);
-
-  const updateActiveTradeConfig = useCallback((symbol: string, config: Partial<ActiveTrade>) => {
-    setActiveTrades((prev) =>
-      prev.map((t) => t.symbol === symbol && t.status === "ACTIVE" ? { ...t, ...config } as ActiveTrade : t)
-    );
+    if (state.niftySignalBinding) {
+      setNiftySignalBindings((prev) => sameContent(prev, state.niftySignalBinding) ? prev : state.niftySignalBinding!);
+    }
   }, []);
 
   const value = useMemo(
@@ -964,6 +991,8 @@ export function TradeStoreProvider({
       setSelection,
       forceBuyEnabled,
       setForceBuyEnabled,
+      desktopViewEnabled,
+      setDesktopViewEnabled,
       waitingTrades,
       addWaitingTradeFromSelection,
       removeWaitingTrade,
@@ -976,7 +1005,6 @@ export function TradeStoreProvider({
       removeActiveTrade,
       logManualExit,
       removeTradeAndFreeSymbol,
-      updateActiveTradeConfig,
       addLogToActiveTrade,
       activateTrailingAfterTarget,
       updateTrailingHighWatermark,
@@ -992,17 +1020,18 @@ export function TradeStoreProvider({
       aiGuardActive,
       aiSymbolEnabled,
       aiRegime,
+      niftySignalBindings,
     }),
     [
-      selection, forceBuyEnabled, waitingTrades, activeTrades, tradeHistory, 
-      syncFromServer, initializedSymbols, symbolHistoryStatus, aiSuggestions, 
-      aiGuardActive, aiSymbolEnabled, aiRegime,
+      selection, forceBuyEnabled, desktopViewEnabled, waitingTrades, activeTrades, tradeHistory,
+      syncFromServer, initializedSymbols, symbolHistoryStatus, aiSuggestions,
+      aiGuardActive, aiSymbolEnabled, aiRegime, niftySignalBindings,
       activateWaitingTrade, addTradeHistoryEntry, addWaitingTradeFromSelection,
       completeActiveTrade, completeCycleWithoutExit, getLastStrategyCandleTime,
       logManualExit, removeTradeAndFreeSymbol, removeWaitingTrade,
       setLastStrategyCandleTime, addLogToWaitingTrade, updateActiveTradeBuy,
       removeActiveTrade, addLogToActiveTrade, activateTrailingAfterTarget,
-      updateTrailingHighWatermark, updateLastSellCandleTime, updateActiveTradeConfig,
+      updateTrailingHighWatermark, updateLastSellCandleTime,
       clearTradeHistory, removeTradeHistoryEntry
     ]
   );

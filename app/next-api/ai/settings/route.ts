@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAiGuardSettings, setAiGuardSettings } from "@/lib/ai-guard";
+import { clearAiResults } from "@/lib/trade-engine";
 
 // GET /next-api/ai/settings — return current AI guard settings (real apiKey for cross-device visibility)
 export async function GET() {
@@ -13,20 +14,26 @@ export async function POST(request: Request) {
     const body = await request.json();
     const rawKeys = String(body.apiKeys || body.apiKey || "");
     const apiKeys = rawKeys.split("\n").map((k: string) => k.trim()).filter(Boolean);
+    const wasEnabled = getAiGuardSettings().enabled;
     setAiGuardSettings({
       enabled: Boolean(body.enabled),
       entryGuardEnabled: Boolean(body.entryGuardEnabled),
+      reEntryGuardEnabled: Boolean(body.reEntryGuardEnabled),
       autoExitEnabled: Boolean(body.autoExitEnabled),
       confidenceThreshold: Number(body.confidenceThreshold) || 70,
       candlesCount: Number(body.candlesCount) || 120,
       recentCandlesCount: Number(body.recentCandlesCount) || 30,
-      entryBufferMaxCandles: Number(body.entryBufferMaxCandles) || 1,
+      entryBufferMaxCandles: Number.isFinite(Number(body.entryBufferMaxCandles)) ? Number(body.entryBufferMaxCandles) : 1,
+      exitBufferCandles: Number.isFinite(Number(body.exitBufferCandles)) ? Number(body.exitBufferCandles) : 3,
       considerVolume: Boolean(body.considerVolume),
       useHeikinAshi: body.useHeikinAshi !== false,
       provider: String(body.provider || "groq"),
       model: String(body.model || "openai/gpt-oss-20b"),
       apiKeys,
     });
+    if (wasEnabled && !Boolean(body.enabled)) {
+      clearAiResults();
+    }
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

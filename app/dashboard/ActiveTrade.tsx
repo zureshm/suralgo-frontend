@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play } from "lucide-react";
+import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play, TrendingUp } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
+import { sortSymbolsByPairs } from "@/lib/symbol-sort";
 
 function TradeLogsConsole({ logs }: { logs: string[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -71,8 +71,7 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, setSelection } = useTradeStore();
-  const router = useRouter();
+  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, niftySignalBindings } = useTradeStore();
 
   // Track pending force-buy / end-cycle requests per symbol
   const [pendingAction, setPendingAction] = useState<Record<string, "force-buy" | "end-cycle">>({});
@@ -110,7 +109,7 @@ export default function ActiveTrade({
   }, []);
 
   const safeActiveTrades = mounted ? activeTrades : [];
-  const safeWaitingTrades = mounted ? waitingTrades : [];
+  const safeWaitingTrades = sortSymbolsByPairs(mounted ? waitingTrades : [], (t) => t.symbol);
 
   // AI regime badge — shared by waiting and active trades (only when symbol AI is enabled)
   const renderAiRegimeBadge = (symbol: string, marginLeft = 6) => {
@@ -125,6 +124,36 @@ export default function ActiveTrade({
     else if (ru === "CHOPPY" || ru === "CHOP") { label = "CHOPPY"; color = "#ec4899"; }
     else if (ru === "TRADEABLE") { label = "TRADEABLE"; color = "#06b6d4"; }
     return <span style={{ marginLeft, background: color, color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4 }}>{label}</span>;
+  };
+
+  // Signal-source badge — click toggles between the symbol's own candles
+  // (REAL) and the Nifty50 index stream (N50). Reverting to REAL with no
+  // real history leaves the chart blank and signals WAIT — harmless.
+  const renderSignalIcon = (symbol: string) => {
+    const bound = niftySignalBindings[symbol];
+    return (
+      <button
+        type="button"
+        title={bound
+          ? `Running on ${bound} (Nifty50 stream) — click to switch back to real candles`
+          : "Signal source: symbol's own candles — click to switch to Nifty50"}
+        onClick={() => {
+          fetch(`/next-api/trades/${encodeURIComponent(symbol)}/use-nifty`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: !bound }),
+          }).catch(() => {});
+        }}
+        style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          marginLeft: 4, height: 15, padding: "0 3px", fontSize: 9, fontWeight: 800,
+          letterSpacing: 0.4, lineHeight: 1, borderRadius: 3, cursor: "pointer",
+          color: bound ? "#0891b2" : "#64748b",
+          border: bound ? "1.5px solid #0891b2" : "1.5px solid #94a3b8",
+          background: "transparent",
+        }}
+      >{bound ? "N50" : "REAL"}</button>
+    );
   };
 
   // AI toggle switch — small inline toggle for per-symbol AI Guard
@@ -182,15 +211,7 @@ export default function ActiveTrade({
             <div key={t.symbol} className={styles.trade}>
               <div className={styles.tradeRow}>
                 <div className={styles.tradeSymbol}>
-                  <span
-                    style={{ cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: "2px" }}
-                    onClick={() => {
-                      setSelection({ symbol: t.symbol, price: t.entryPrice });
-                      router.push("/trade");
-                    }}
-                  >
-                    {t.symbol}
-                  </span>
+                  {t.symbol}
                   {t.symbol.endsWith("CE") && (
                     <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
                       <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
@@ -201,6 +222,7 @@ export default function ActiveTrade({
                       <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
                     </span>
                   )}
+                  {renderSignalIcon(t.symbol)}
                   {renderAiRegimeBadge(t.symbol)}
                 </div>
               </div>
@@ -523,7 +545,7 @@ export default function ActiveTrade({
                             fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/force-init`, { method: "POST" }).catch(() => {});
                           }}
                         >
-                          <span>Keep anyway</span>
+                          <span>Keep</span>
                         </button>
                       )}
                       <button
@@ -537,6 +559,18 @@ export default function ActiveTrade({
                       >
                         <Play className="w-3 h-3" />
                         <span>Force&nbsp;Init</span>
+                      </button>
+                      <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        title="Use Nifty — take BUY/SELL signals from the Nifty50 index candle stream (mirrored for PE)"
+                        style={{ padding: "2px 6px", fontSize: "11px", background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/use-nifty`, { method: "POST" }).catch(() => {});
+                        }}
+                      >
+                        <TrendingUp className="w-3 h-3" />
+                        <span>Use&nbsp;Nifty</span>
                       </button>
                     </div>
                   </div>
@@ -585,6 +619,18 @@ export default function ActiveTrade({
                         <span>Force&nbsp;Init</span>
                       </button>
                       <button
+                        className={`${styles.waitingBtn} ${styles.dark}`}
+                        type="button"
+                        title="Use Nifty — take BUY/SELL signals from the Nifty50 index candle stream (mirrored for PE)"
+                        style={{ padding: "2px 6px", fontSize: "11px", background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}
+                        onClick={() => {
+                          fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/use-nifty`, { method: "POST" }).catch(() => {});
+                        }}
+                      >
+                        <TrendingUp className="w-3 h-3" />
+                        <span>Use&nbsp;Nifty</span>
+                      </button>
+                      <button
                         className={`${styles.waitingBtn} ${styles.danger}`}
                         type="button"
                         style={{ padding: "2px 8px", fontSize: "11px" }}
@@ -623,6 +669,7 @@ export default function ActiveTrade({
                         <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
                       </span>
                     )}
+                    {renderSignalIcon(t.symbol)}
                     {renderAiRegimeBadge(t.symbol)}
                     {(() => {
                       const histStatus = symbolHistoryStatus[t.symbol];
