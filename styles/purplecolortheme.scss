@@ -291,6 +291,19 @@
   opacity: 1;
 }
 
+/* Desktop view top bar menu items */
+[data-theme="purple"] [class*="topMenuItem"] {
+  color: #c4b5fd;
+}
+
+[data-theme="purple"] [class*="topMenuItem"] svg {
+  color: #a855f7;
+}
+
+[data-theme="purple"] [class*="topMenuItem"]:hover {
+  color: #ffffff;
+}
+
 /* Inputs & Selects */
 [data-theme="purple"] input,
 [data-theme="purple"] select,

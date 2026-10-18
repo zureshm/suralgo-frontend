@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { FocusEvent, InputHTMLAttributes } from "react";
-import { X, Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock } from "lucide-react";
+import { X, Settings, Play, Palette, Shield, HelpCircle, Loader2, FlaskConical, Volume2, Zap, GitBranch, Clock, Monitor, Dog } from "lucide-react";
 import { playSound, setVolume } from "@/lib/sounds";
 import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
+import { useSharedAiSettings } from "@/lib/useSharedAiSettings";
 
 interface ClampedNumericFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> {
   value: number;
@@ -91,7 +92,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [volume, setVolumeState] = useState(0.5);
   const { theme, setTheme } = useTheme();
-  const { forceBuyEnabled, setForceBuyEnabled } = useTradeStore();
+  const { forceBuyEnabled, setForceBuyEnabled, desktopViewEnabled, setDesktopViewEnabled } = useTradeStore();
 
   // Auto Cutoff settings
   const [autoCutoffEnabled, setAutoCutoffEnabled] = useState(false);
@@ -101,18 +102,40 @@ export default function SettingsPopup({ open, onClose }: Props) {
   const autoCutoffLoadedRef = useRef(false);
   const autoCutoffDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // AI Guard settings
-  const [aiGuardEnabled, setAiGuardEnabled] = useState(false);
-  const [aiEntryGuardEnabled, setAiEntryGuardEnabled] = useState(false);
-  const [aiAutoExitEnabled, setAiAutoExitEnabled] = useState(false);
-  const [aiCandlesCount, setAiCandlesCount] = useState(120);
-  const [aiRecentCandlesCount, setAiRecentCandlesCount] = useState(30);
-  const [aiEntryBufferMaxCandles, setAiEntryBufferMaxCandles] = useState(1);
-  const [aiConsiderVolume, setAiConsiderVolume] = useState(false);
-  const [aiUseHeikinAshi, setAiUseHeikinAshi] = useState(true);
-  const [aiProvider, setAiProvider] = useState("local");
-  const [aiModel, setAiModel] = useState("openai/gpt-oss-120b");
-  const [aiApiKey, setAiApiKey] = useState("");
+  // Watchdog settings
+  const [watchdogEnabled, setWatchdogEnabled] = useState(false);
+  const [watchdogCheckpoints, setWatchdogCheckpoints] = useState([
+    { points: 16, breakBelow: 10 },
+    { points: 25, breakBelow: 15 },
+    { points: 40, breakBelow: 25 },
+    { points: 60, breakBelow: 40 },
+    { points: 100, breakBelow: 80 },
+    { points: 130, breakBelow: 105 },
+    { points: 150, breakBelow: 125 },
+    { points: 170, breakBelow: 145 },
+    { points: 190, breakBelow: 160 },
+    { points: 210, breakBelow: 180 },
+  ]);
+  const watchdogLoadedRef = useRef(false);
+  const watchdogDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Use shared AI settings across all components
+  const { settings: aiSettings, updateSettings: updateAiSettings } = useSharedAiSettings();
+  
+  // Convenience getters
+  const aiGuardEnabled = aiSettings.enabled;
+  const aiEntryGuardEnabled = aiSettings.entryGuardEnabled;
+  const aiReEntryGuardEnabled = aiSettings.reEntryGuardEnabled;
+  const aiAutoExitEnabled = aiSettings.autoExitEnabled;
+  const aiCandlesCount = aiSettings.candlesCount;
+  const aiRecentCandlesCount = aiSettings.recentCandlesCount;
+  const aiEntryBufferMaxCandles = aiSettings.entryBufferMaxCandles;
+  const aiExitBufferCandles = aiSettings.exitBufferCandles;
+  const aiConsiderVolume = aiSettings.considerVolume;
+  const aiUseHeikinAshi = aiSettings.useHeikinAshi;
+  const aiProvider = aiSettings.provider;
+  const aiModel = aiSettings.model;
+  const aiApiKey = aiSettings.apiKey;
 
   // AI Guard info tooltips
   const [isEntryGuardInfoOpen, setIsEntryGuardInfoOpen] = useState(false);
@@ -172,30 +195,51 @@ export default function SettingsPopup({ open, onClose }: Props) {
         autoCutoffLoadedRef.current = true;
       });
 
+    // Fetch Watchdog settings from server
+    fetch("/next-api/settings/watchdog")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && typeof data === "object") {
+          if (typeof data.watchdogEnabled === "boolean") setWatchdogEnabled(data.watchdogEnabled);
+          if (Array.isArray(data.watchdogCheckpoints)) {
+            setWatchdogCheckpoints(data.watchdogCheckpoints);
+          }
+          watchdogLoadedRef.current = true;
+        }
+      })
+      .catch(() => {
+        watchdogLoadedRef.current = true;
+      });
+
     // Fetch AI Guard settings from server first (source of truth for cross-device)
     fetch("/next-api/ai/settings")
       .then((r) => r.json())
       .then((data) => {
         if (data && typeof data === "object") {
-          setAiGuardEnabled(Boolean(data.enabled));
-          setAiEntryGuardEnabled(Boolean(data.entryGuardEnabled));
-          setAiAutoExitEnabled(Boolean(data.autoExitEnabled));
-          if (typeof data.candlesCount === "number") setAiCandlesCount(data.candlesCount);
-          if (typeof data.recentCandlesCount === "number") setAiRecentCandlesCount(data.recentCandlesCount);
-          if (typeof data.entryBufferMaxCandles === "number") setAiEntryBufferMaxCandles(data.entryBufferMaxCandles);
-          if (typeof data.considerVolume === "boolean") setAiConsiderVolume(data.considerVolume);
-          if (typeof data.useHeikinAshi === "boolean") setAiUseHeikinAshi(data.useHeikinAshi);
-          if (typeof data.provider === "string") setAiProvider(data.provider);
-          if (typeof data.model === "string") setAiModel(data.model);
-          if (Array.isArray(data.apiKeys)) setAiApiKey(data.apiKeys.join("\n"));
-          else if (typeof data.apiKey === "string") setAiApiKey(data.apiKey);
+          updateAiSettings({
+            enabled: Boolean(data.enabled),
+            entryGuardEnabled: Boolean(data.entryGuardEnabled),
+            reEntryGuardEnabled: Boolean(data.reEntryGuardEnabled),
+            autoExitEnabled: Boolean(data.autoExitEnabled),
+            candlesCount: typeof data.candlesCount === "number" ? data.candlesCount : 120,
+            recentCandlesCount: typeof data.recentCandlesCount === "number" ? data.recentCandlesCount : 30,
+            entryBufferMaxCandles: typeof data.entryBufferMaxCandles === "number" ? data.entryBufferMaxCandles : 1,
+            exitBufferCandles: typeof data.exitBufferCandles === "number" ? data.exitBufferCandles : 3,
+            considerVolume: typeof data.considerVolume === "boolean" ? data.considerVolume : false,
+            useHeikinAshi: typeof data.useHeikinAshi === "boolean" ? data.useHeikinAshi : true,
+            provider: typeof data.provider === "string" ? data.provider : "local",
+            model: typeof data.model === "string" ? data.model : "openai/gpt-oss-120b",
+            apiKey: Array.isArray(data.apiKeys) ? data.apiKeys.join("\n") : (typeof data.apiKey === "string" ? data.apiKey : ""),
+          });
           // Sync to localStorage as cache
           localStorage.setItem("aiGuardEnabled", String(data.enabled));
           localStorage.setItem("aiEntryGuardEnabled", String(data.entryGuardEnabled));
+          localStorage.setItem("aiReEntryGuardEnabled", String(data.reEntryGuardEnabled));
           localStorage.setItem("aiAutoExitEnabled", String(data.autoExitEnabled));
           localStorage.setItem("aiCandlesCount", String(data.candlesCount));
           localStorage.setItem("aiRecentCandlesCount", String(data.recentCandlesCount));
           localStorage.setItem("aiEntryBufferMaxCandles", String(data.entryBufferMaxCandles || 1));
+          localStorage.setItem("aiExitBufferCandles", String(data.exitBufferCandles || 3));
           localStorage.setItem("aiConsiderVolume", String(data.considerVolume || false));
           localStorage.setItem("aiUseHeikinAshi", String(data.useHeikinAshi !== false));
           localStorage.setItem("aiProvider", data.provider);
@@ -205,28 +249,34 @@ export default function SettingsPopup({ open, onClose }: Props) {
       })
       .catch(() => {
         // Server unreachable — fall back to localStorage
+        const updates: any = {};
         const aiGuard = localStorage.getItem("aiGuardEnabled");
-        if (aiGuard) setAiGuardEnabled(aiGuard === "true");
+        if (aiGuard) updates.enabled = aiGuard === "true";
         const aiEntry = localStorage.getItem("aiEntryGuardEnabled");
-        if (aiEntry) setAiEntryGuardEnabled(aiEntry === "true");
+        if (aiEntry) updates.entryGuardEnabled = aiEntry === "true";
+        const aiReEntry = localStorage.getItem("aiReEntryGuardEnabled");
+        if (aiReEntry) updates.reEntryGuardEnabled = aiReEntry === "true";
         const aiAutoExit = localStorage.getItem("aiAutoExitEnabled");
-        if (aiAutoExit) setAiAutoExitEnabled(aiAutoExit === "true");
+        if (aiAutoExit) updates.autoExitEnabled = aiAutoExit === "true";
         const aiCandles = localStorage.getItem("aiCandlesCount");
-        if (aiCandles) setAiCandlesCount(parseInt(aiCandles, 10));
+        if (aiCandles) updates.candlesCount = parseInt(aiCandles, 10);
         const aiRecentCandles = localStorage.getItem("aiRecentCandlesCount");
-        if (aiRecentCandles) setAiRecentCandlesCount(parseInt(aiRecentCandles, 10));
+        if (aiRecentCandles) updates.recentCandlesCount = parseInt(aiRecentCandles, 10);
         const aiEntryBuffer = localStorage.getItem("aiEntryBufferMaxCandles");
-        if (aiEntryBuffer) setAiEntryBufferMaxCandles(parseInt(aiEntryBuffer, 10));
+        if (aiEntryBuffer) updates.entryBufferMaxCandles = parseInt(aiEntryBuffer, 10);
+        const aiExitBuffer = localStorage.getItem("aiExitBufferCandles");
+        if (aiExitBuffer) updates.exitBufferCandles = parseInt(aiExitBuffer, 10);
         const aiVol = localStorage.getItem("aiConsiderVolume");
-        if (aiVol) setAiConsiderVolume(aiVol === "true");
+        if (aiVol) updates.considerVolume = aiVol === "true";
         const aiHA = localStorage.getItem("aiUseHeikinAshi");
-        if (aiHA) setAiUseHeikinAshi(aiHA === "true");
+        if (aiHA) updates.useHeikinAshi = aiHA === "true";
         const aiProv = localStorage.getItem("aiProvider");
-        if (aiProv) setAiProvider(aiProv);
+        if (aiProv) updates.provider = aiProv;
         const aiMdl = localStorage.getItem("aiModel");
-        if (aiMdl) setAiModel(aiMdl);
+        if (aiMdl) updates.model = aiMdl;
         const aiKey = localStorage.getItem("aiApiKey");
-        if (aiKey) setAiApiKey(aiKey);
+        if (aiKey) updates.apiKey = aiKey;
+        if (Object.keys(updates).length > 0) updateAiSettings(updates);
       })
       .finally(() => {
         aiSettingsLoadedRef.current = true;
@@ -237,16 +287,18 @@ export default function SettingsPopup({ open, onClose }: Props) {
   useEffect(() => {
     localStorage.setItem("aiGuardEnabled", String(aiGuardEnabled));
     localStorage.setItem("aiEntryGuardEnabled", String(aiEntryGuardEnabled));
+    localStorage.setItem("aiReEntryGuardEnabled", String(aiReEntryGuardEnabled));
     localStorage.setItem("aiAutoExitEnabled", String(aiAutoExitEnabled));
     localStorage.setItem("aiCandlesCount", String(aiCandlesCount));
     localStorage.setItem("aiRecentCandlesCount", String(aiRecentCandlesCount));
     localStorage.setItem("aiEntryBufferMaxCandles", String(aiEntryBufferMaxCandles));
+    localStorage.setItem("aiExitBufferCandles", String(aiExitBufferCandles));
     localStorage.setItem("aiConsiderVolume", String(aiConsiderVolume));
     localStorage.setItem("aiUseHeikinAshi", String(aiUseHeikinAshi));
     localStorage.setItem("aiProvider", aiProvider);
     localStorage.setItem("aiModel", aiModel);
     localStorage.setItem("aiApiKey", aiApiKey);
-  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
+  }, [aiGuardEnabled, aiEntryGuardEnabled, aiReEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiExitBufferCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
 
   // POST AI Guard settings to backend (debounced, only after initial server load)
   const postAiSettings = useCallback(() => {
@@ -259,10 +311,12 @@ export default function SettingsPopup({ open, onClose }: Props) {
         body: JSON.stringify({
           enabled: aiGuardEnabled,
           entryGuardEnabled: aiEntryGuardEnabled,
+          reEntryGuardEnabled: aiReEntryGuardEnabled,
           autoExitEnabled: aiAutoExitEnabled,
           candlesCount: aiCandlesCount,
           recentCandlesCount: aiRecentCandlesCount,
           entryBufferMaxCandles: aiEntryBufferMaxCandles,
+          exitBufferCandles: aiExitBufferCandles,
           considerVolume: aiConsiderVolume,
           useHeikinAshi: aiUseHeikinAshi,
           provider: aiProvider,
@@ -271,7 +325,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
         }),
       }).catch(() => {});
     }, 500);
-  }, [aiGuardEnabled, aiEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
+  }, [aiGuardEnabled, aiEntryGuardEnabled, aiReEntryGuardEnabled, aiAutoExitEnabled, aiCandlesCount, aiRecentCandlesCount, aiEntryBufferMaxCandles, aiExitBufferCandles, aiConsiderVolume, aiUseHeikinAshi, aiProvider, aiModel, aiApiKey]);
 
   useEffect(() => { postAiSettings(); }, [postAiSettings]);
 
@@ -295,6 +349,25 @@ export default function SettingsPopup({ open, onClose }: Props) {
       if (autoCutoffDebounceRef.current) clearTimeout(autoCutoffDebounceRef.current);
     };
   }, [autoCutoffEnabled, autoCutoffHours, autoCutoffMinutes, autoCutoffAmpm]);
+
+  // Auto-save Watchdog settings to server when changed
+  useEffect(() => {
+    if (!watchdogLoadedRef.current) return;
+    if (watchdogDebounceRef.current) clearTimeout(watchdogDebounceRef.current);
+    watchdogDebounceRef.current = setTimeout(() => {
+      fetch("/next-api/settings/watchdog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          watchdogEnabled,
+          watchdogCheckpoints,
+        }),
+      }).catch((err) => console.error("Failed to save watchdog settings:", err));
+    }, 300);
+    return () => {
+      if (watchdogDebounceRef.current) clearTimeout(watchdogDebounceRef.current);
+    };
+  }, [watchdogEnabled, watchdogCheckpoints]);
 
   // Test API key when it changes (or provider changes)
   const testAiConnection = useCallback(async () => {
@@ -703,6 +776,132 @@ export default function SettingsPopup({ open, onClose }: Props) {
             {/* Separator */}
             <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
 
+            {/* Watchdog section */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Dog size={18} style={{ color: "var(--theme-popup-border)" }} />
+                  <h3 className="text-sm font-bold" style={{ color: "var(--theme-popup-text)" }}>Watchdog</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWatchdogEnabled(!watchdogEnabled)}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    background: watchdogEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                    boxShadow: watchdogEnabled ? "0 0 10px rgba(251, 191, 36, 0.45)" : "none",
+                    position: "relative",
+                    transition: "background 0.2s, box-shadow 0.2s",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 3,
+                      left: watchdogEnabled ? 23 : 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                    }}
+                  />
+                </button>
+              </div>
+
+              {watchdogEnabled && (
+              <>
+              <div className="flex items-baseline gap-2 mt-1 mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--theme-popup-text)" }}>Checkpoints</span>
+                <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>Based on current trade points achieved</span>
+              </div>
+
+              <div className="space-y-2">
+                {watchdogCheckpoints.map((cp, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-lg border flex flex-col gap-2"
+                    style={{
+                      background: "var(--theme-popup-field-bg)",
+                      borderColor: "var(--theme-popup-field-border)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>
+                        CP {idx + 1} Points
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-emerald-400">+</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={999}
+                          value={cp.points}
+                          disabled={!watchdogEnabled}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            setWatchdogCheckpoints((prev) => {
+                              const updated = [...prev];
+                              updated[idx] = { ...updated[idx], points: val };
+                              return updated;
+                            });
+                          }}
+                          className="w-16 h-7 px-1 border rounded text-center text-xs font-semibold focus:outline-none"
+                          style={{
+                            background: "var(--theme-popup-bg)",
+                            color: "var(--theme-popup-text)",
+                            borderColor: "var(--theme-popup-field-border)",
+                          }}
+                        />
+                        <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                      <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>
+                        Break when reach below
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-amber-400">+</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={999}
+                          value={cp.breakBelow}
+                          disabled={!watchdogEnabled}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            setWatchdogCheckpoints((prev) => {
+                              const updated = [...prev];
+                              updated[idx] = { ...updated[idx], breakBelow: val };
+                              return updated;
+                            });
+                          }}
+                          className="w-16 h-7 px-1 border rounded text-center text-xs font-semibold focus:outline-none"
+                          style={{
+                            background: "var(--theme-popup-bg)",
+                            color: "var(--theme-popup-text)",
+                            borderColor: "var(--theme-popup-field-border)",
+                          }}
+                        />
+                        <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              </>
+              )}
+            </div>
+
+            {/* Separator */}
+            <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
+
             {/* Force Buy toggle */}
             <div className="mb-5">
               <div className="flex items-center justify-between">
@@ -748,6 +947,51 @@ export default function SettingsPopup({ open, onClose }: Props) {
             {/* Separator */}
             <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
 
+            {/* Desktop View toggle */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Monitor size={18} style={{ color: "var(--theme-popup-border)" }} />
+                  <h3 className="text-sm font-bold" style={{ color: "var(--theme-popup-text)" }}>Switch to Desktop View</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDesktopViewEnabled(!desktopViewEnabled)}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    background: desktopViewEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                    boxShadow: desktopViewEnabled ? "0 0 10px rgba(251, 191, 36, 0.45)" : "none",
+                    position: "relative",
+                    transition: "background 0.2s, box-shadow 0.2s",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 3,
+                      left: desktopViewEnabled ? 23 : 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    }}
+                  />
+                </button>
+              </div>
+              <div className="text-xs mt-1 font-medium" style={{ color: desktopViewEnabled ? "var(--theme-status-success)" : "var(--theme-status-loss)" }}>
+                {desktopViewEnabled ? "Enabled" : "Disabled"}
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="my-6" style={{ borderTop: "1px solid var(--theme-popup-field-border)" }}></div>
+
             {/* AI Guard section */}
             <div className="mb-5">
               {/* Section header with master toggle */}
@@ -758,7 +1002,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setAiGuardEnabled(!aiGuardEnabled)}
+                  onClick={() => updateAiSettings({ enabled: !aiGuardEnabled })}
                   style={{
                     width: 44,
                     height: 24,
@@ -819,7 +1063,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setAiEntryGuardEnabled(!aiEntryGuardEnabled)}
+                        onClick={() => updateAiSettings({ entryGuardEnabled: !aiEntryGuardEnabled })}
                         style={{
                           width: 36,
                           height: 20,
@@ -837,6 +1081,44 @@ export default function SettingsPopup({ open, onClose }: Props) {
                             position: "absolute",
                             top: 2,
                             left: aiEntryGuardEnabled ? 19 : 2,
+                            width: 16,
+                            height: 16,
+                            borderRadius: "50%",
+                            background: "#fff",
+                            transition: "left 0.2s",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                          }}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Re-Entry Guard toggle */}
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="relative flex items-center gap-1.5">
+                        <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Enable Re-Entry Guard</label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateAiSettings({ reEntryGuardEnabled: !aiReEntryGuardEnabled })}
+                        style={{
+                          width: 36,
+                          height: 20,
+                          borderRadius: 10,
+                          background: aiReEntryGuardEnabled ? "var(--theme-toggle-on, var(--theme-popup-border))" : "var(--theme-toggle-off, var(--theme-popup-field-border))",
+                          boxShadow: aiReEntryGuardEnabled ? "0 0 8px rgba(251, 191, 36, 0.4)" : "none",
+                          position: "relative",
+                          transition: "background 0.2s, box-shadow 0.2s",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: 2,
+                            left: aiReEntryGuardEnabled ? 19 : 2,
                             width: 16,
                             height: 16,
                             borderRadius: "50%",
@@ -875,7 +1157,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setAiAutoExitEnabled(!aiAutoExitEnabled)}
+                        onClick={() => updateAiSettings({ autoExitEnabled: !aiAutoExitEnabled })}
                         style={{
                           width: 36,
                           height: 20,
@@ -905,6 +1187,33 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     </div>
                   </div>
 
+                  {/* Exit buffer (sideways confirmation candles) */}
+                  {aiAutoExitEnabled && (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="relative flex items-center gap-1.5">
+                          <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Exit buffer (sideways)</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <ClampedNumericField
+                            value={aiExitBufferCandles}
+                            onChange={(val) => updateAiSettings({ exitBufferCandles: val })}
+                            min={1}
+                            max={30}
+                            className="w-16 h-7 px-2 rounded-lg text-xs text-center"
+                            style={{
+                              background: "var(--theme-popup-field-bg)",
+                              color: "var(--theme-accent-gold, var(--theme-popup-text))",
+                              border: "1px solid var(--theme-popup-field-border)",
+                              fontWeight: 700,
+                            }}
+                          />
+                          <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>candles</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Candles count input */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1">
@@ -931,7 +1240,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </div>
                       <ClampedNumericField
                         value={aiCandlesCount}
-                        onChange={setAiCandlesCount}
+                        onChange={(val) => updateAiSettings({ candlesCount: val })}
                         min={60}
                         max={240}
                         className="w-16 h-7 px-2 rounded-lg text-xs text-center"
@@ -953,7 +1262,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </div>
                       <ClampedNumericField
                         value={aiRecentCandlesCount}
-                        onChange={setAiRecentCandlesCount}
+                        onChange={(val) => updateAiSettings({ recentCandlesCount: val })}
                         min={10}
                         max={60}
                         className="w-16 h-7 px-2 rounded-lg text-xs text-center"
@@ -976,9 +1285,9 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       <div className="flex items-center gap-2">
                         <ClampedNumericField
                           value={aiEntryBufferMaxCandles}
-                          onChange={setAiEntryBufferMaxCandles}
-                          min={1}
-                          max={10}
+                          onChange={(val) => updateAiSettings({ entryBufferMaxCandles: val })}
+                          min={0}
+                          max={100}
                           className="w-16 h-7 px-2 rounded-lg text-xs text-center"
                           style={{
                             background: "var(--theme-popup-field-bg)",
@@ -998,7 +1307,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Consider Volume</label>
                       <button
                         type="button"
-                        onClick={() => setAiConsiderVolume(!aiConsiderVolume)}
+                        onClick={() => updateAiSettings({ considerVolume: !aiConsiderVolume })}
                         style={{
                           width: 36,
                           height: 20,
@@ -1037,7 +1346,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Heikin-Ashi Smoothing</label>
                       <button
                         type="button"
-                        onClick={() => setAiUseHeikinAshi(!aiUseHeikinAshi)}
+                        onClick={() => updateAiSettings({ useHeikinAshi: !aiUseHeikinAshi })}
                         style={{
                           width: 36,
                           height: 20,
@@ -1109,7 +1418,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     </div>
                     <select
                       value={aiProvider}
-                      onChange={(e) => setAiProvider(e.target.value)}
+                      onChange={(e) => updateAiSettings({ provider: e.target.value })}
                       className="w-full h-9 px-3 rounded-lg text-xs"
                       style={{
                         background: "var(--theme-popup-field-bg)",
@@ -1135,7 +1444,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     </div>
                     <select
                       value={aiModel}
-                      onChange={(e) => setAiModel(e.target.value)}
+                      onChange={(e) => updateAiSettings({ model: e.target.value })}
                       className="w-full h-9 px-3 rounded-lg text-xs"
                       style={{
                         background: "var(--theme-popup-field-bg)",
@@ -1177,7 +1486,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     </div>
                     <textarea
                       value={aiApiKey}
-                      onChange={(e) => setAiApiKey(e.target.value)}
+                      onChange={(e) => updateAiSettings({ apiKey: e.target.value })}
                       placeholder={`Paste your ${aiProvider === "claude" ? "Claude" : "Groq"} API key(s) here — one per line`}
                       rows={3}
                       className="w-full px-3 py-2 rounded-lg text-xs resize-vertical"
