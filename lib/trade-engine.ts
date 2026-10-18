@@ -922,6 +922,11 @@ function loadState() {
           if (typeof v === "string") lastCandleTimeMap[k] = v;
         }
       }
+      if (data.tradeAddedCandleTime && typeof data.tradeAddedCandleTime === "object") {
+        for (const [k, v] of Object.entries(data.tradeAddedCandleTime)) {
+          if (typeof v === "string") tradeAddedCandleTime[k] = v;
+        }
+      }
 
       if (typeof data.autoCutoffEnabled === "boolean") autoCutoffEnabled = data.autoCutoffEnabled;
       if (typeof data.autoCutoffHours === "string") autoCutoffHours = data.autoCutoffHours;
@@ -1019,6 +1024,7 @@ function persistState() {
       symbolHistoryStatus,
       lastBuyCandleTime,
       lastCandleTimeMap,
+      tradeAddedCandleTime,
 
     }, null, 2);
 
@@ -1582,7 +1588,7 @@ function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, log
 
     const finalLogs = [
       ...trade.logs,
-      ...(sellLog ? [sellLog] : []),
+      ...(sellLog && sellLog !== logLine ? [sellLog] : []),
       ...(trade.inPosition ? [`Trade P/L: ${cyclePnl.toFixed(2)}`, `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`] : []),
       logLine,
       `Total P/L: ${totalPnl.toFixed(2)}`,
@@ -1651,7 +1657,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
       const finalLogs = [
 
-        ...trade.logs, sellLog, logLine,
+        ...trade.logs, ...(sellLog === logLine ? [logLine] : [sellLog, logLine]),
 
         `Trade P/L: ${cyclePnl.toFixed(2)}`,
 
@@ -1681,7 +1687,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
       if (trade.maxLoss > 0 && totalPnl <= -trade.maxLoss) {
         queueSound("exit");
         const finalLogs = [
-          ...trade.logs, sellLog, logLine,
+          ...trade.logs, ...(sellLog === logLine ? [logLine] : [sellLog, logLine]),
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
           `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
           `MAX LOSS ₹${trade.maxLoss} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
@@ -1697,7 +1703,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
       if (trade.maxProfit > 0 && totalPnl >= trade.maxProfit) {
         queueSound("exit");
         const finalLogs = [
-          ...trade.logs, sellLog, logLine,
+          ...trade.logs, ...(sellLog === logLine ? [logLine] : [sellLog, logLine]),
           `Trade P/L: ${cyclePnl.toFixed(2)}`,
           `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed`,
           `MAX PROFIT ₹${trade.maxProfit} reached (P/L: ₹${totalPnl.toFixed(2)}) - Auto-exiting`,
@@ -1738,7 +1744,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
       ...trade, pnl: totalPnl, inPosition: false, completedCycles: newCompletedCycles,
 
-      logs: [...trade.logs, sellLog, logLine, `Trade P/L: ${cyclePnl.toFixed(2)}`, reEntryMsg],
+      logs: [...trade.logs, ...(sellLog === logLine ? [logLine] : [sellLog, logLine]), `Trade P/L: ${cyclePnl.toFixed(2)}`, reEntryMsg],
 
       trailingTrailActive: false, trailingHighWatermark: undefined,
         watchdogMaxGain: 0, watchdogArmedCheckpoint: undefined,
@@ -1843,6 +1849,15 @@ function setPendingSkippedBuy(symbol: string, value: boolean) {
   );
   activeTrades = activeTrades.map((t) =>
     t.symbol === symbol && t.status === "ACTIVE" ? { ...t, pendingSkippedBuy: value } : t
+  );
+}
+
+let lastLoggedStrategyName = "";
+
+function addLogToAllSymbols(log: string) {
+  waitingTrades = waitingTrades.map((t) => ({ ...t, logs: [...t.logs, log] }));
+  activeTrades = activeTrades.map((t) =>
+    t.status === "ACTIVE" ? { ...t, logs: [...t.logs, log] } : t
   );
 }
 
@@ -2439,10 +2454,18 @@ function handleStrategySignal(signal: any) {
 
     const matchingTrade = waitingTrades.find((t) => t.symbol === signal.symbol);
 
-    // If this waiting trade was added on this exact candle, wait for the next new candle before entering
-    if (matchingTrade && tradeAddedCandleTime[signalSymbol] && signal.lastCandleTime === tradeAddedCandleTime[signalSymbol]) {
-      lastHandledSignalKey[signalSymbol] = signalKey;
-      return;
+    // A waiting trade must never enter on the candle recorded when it was
+    // created. If no baseline exists (restored trade, or symbol never polled
+    // before the trade was added), the first observed signal only records the
+    // baseline — entry requires a newer candle. This also blocks stale signals
+    // the strategy server keeps serving after the candle feed has stopped.
+    if (matchingTrade) {
+      const baseline = tradeAddedCandleTime[signalSymbol];
+      if (baseline == null || signal.lastCandleTime === baseline) {
+        if (baseline == null && signal.lastCandleTime) tradeAddedCandleTime[signalSymbol] = signal.lastCandleTime;
+        lastHandledSignalKey[signalSymbol] = signalKey;
+        return;
+      }
     }
 
     // Candle size check for Wait Strategy (buyOverride)
@@ -2601,6 +2624,17 @@ function handleStrategySignal(signal: any) {
       ?? (activeForSymbol && !activeForSymbol.inPosition ? activeForSymbol : null);
 
     if (!reenterTrade) return;
+
+    // Same baseline rule as BUY for waiting trades — a cached REENTER must not
+    // fire on the trade's birth/first-observed candle.
+    if (waitingTrades.some((t) => t.symbol === signalSymbol)) {
+      const baseline = tradeAddedCandleTime[signalSymbol];
+      if (baseline == null || signal.lastCandleTime === baseline) {
+        if (baseline == null && signal.lastCandleTime) tradeAddedCandleTime[signalSymbol] = signal.lastCandleTime;
+        lastHandledSignalKey[signalSymbol] = signalKey;
+        return;
+      }
+    }
 
     const hasPendingSkip = reenterTrade.pendingSkippedBuy === true;
     const hasSignalReEntry = ("signalReEntryArmed" in reenterTrade) && (reenterTrade as ActiveTrade).signalReEntryArmed === true && (reenterTrade as ActiveTrade).signalReEntryEnabled;
@@ -3134,6 +3168,19 @@ async function tick() {
         }
       } catch { /* market data not running */ }
     }
+
+    // Track the active strategy name — logged on first sight and on switch.
+    try {
+      const stratRes = await fetch(`${STRATEGY_URL}/strategy`);
+      const stratData = await stratRes.json();
+      const name = String(stratData?.activeStrategy || "");
+      if (name) {
+        if (name !== lastLoggedStrategyName) {
+          addLogToAllSymbols(lastLoggedStrategyName ? `Strategy switched → ${name}` : `Strategy: ${name}`);
+          lastLoggedStrategyName = name;
+        }
+      }
+    } catch { /* strategy server not running */ }
 
     for (const sym of symbolsToQuery) {
       try {
