@@ -1695,24 +1695,29 @@ export default function ChartDesktop() {
       {/* Strategy Charts Section */}
       {activeSymbols.size > 0 && (
         <div className="flex flex-col mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold" style={{ color: "var(--theme-popup-text)" }}>Strategy Chart Status</h3>
-            <button
-              onClick={() => setRefreshKey(k => k + 1)}
-              className="p-1.5 rounded-full transition hover:opacity-80"
-              style={{ background: "var(--theme-popup-border)", color: "#fff" }}
-              title="Refresh charts"
-              disabled={spinning}
-            >
-              <RefreshCw size={14} className={spinning ? "animate-spin" : ""} />
-            </button>
-          </div>
-
-          {/* Strategy Indicators Bar (Always Visible) */}
+          {/* Sticky Toolbar Header: Strategy Chart Status + Indicator Bar */}
           <div
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 shrink-0 text-xs mb-1 rounded-t-lg"
-            style={{ background: "rgba(0,0,0,0.05)", border: "1px solid var(--theme-popup-field-border)", borderBottom: "none" }}
+            className="sticky top-0 z-20 pb-2"
+            style={{ background: "var(--theme-card-white)" }}
           >
+            <div className="flex items-center justify-between mb-2 pt-1">
+              <h3 className="text-sm font-semibold" style={{ color: "var(--theme-popup-text)" }}>Strategy Chart Status</h3>
+              <button
+                onClick={() => setRefreshKey(k => k + 1)}
+                className="p-1.5 rounded-full transition hover:opacity-80"
+                style={{ background: "var(--theme-popup-border)", color: "#fff" }}
+                title="Refresh charts"
+                disabled={spinning}
+              >
+                <RefreshCw size={14} className={spinning ? "animate-spin" : ""} />
+              </button>
+            </div>
+
+            {/* Strategy Indicators Bar (Always Visible) */}
+            <div
+              className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 shrink-0 text-xs mb-1 rounded-t-lg"
+              style={{ background: "rgba(0,0,0,0.05)", border: "1px solid var(--theme-popup-field-border)", borderBottom: "none" }}
+            >
             <IndicatorMenu label="EMA" enabledCount={Number(sEma1Enabled) + Number(sEma2Enabled)}>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input type="checkbox" checked={sEma1Enabled} onChange={(e) => setSEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500 cursor-pointer" />
@@ -1873,6 +1878,7 @@ export default function ChartDesktop() {
                 <span style={{ position: "absolute", top: 2, left: heikenAshi ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
               </button>
             </div>
+          </div>
           </div>
 
           {error ? (
