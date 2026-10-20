@@ -3612,6 +3612,12 @@ export function addWaitingTrade(trade: WaitingTrade) {
   // Clean up stale state before adding new trade
   cleanupStaleState();
 
+  // Stamp the known strategy name so it shows at initialization, not only
+  // on a later switch.
+  if (lastLoggedStrategyName && !trade.logs?.some((l) => l.startsWith("Strategy:"))) {
+    trade.logs = [...(trade.logs || []), `Strategy: ${lastLoggedStrategyName}`];
+  }
+
   waitingTrades = [trade, ...waitingTrades];
 
   persistState();
