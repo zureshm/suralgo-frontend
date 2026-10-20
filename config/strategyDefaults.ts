@@ -46,7 +46,8 @@ export const STRATEGY_DEFAULTS = {
     reEntryAfterTargetEnabled: false,
     reEntryStartCandle: 1,
     reEntryCandles: 10,
-    reEntryPoints: 4
+    reEntryPoints: 4,
+    reEntryPeakCandles: 30
   },
   sensex_default: {
     numberOfTrades: 10,
@@ -95,7 +96,8 @@ export const STRATEGY_DEFAULTS = {
     reEntryAfterTargetEnabled: false,
     reEntryStartCandle: 1,
     reEntryCandles: 10,
-    reEntryPoints: 10
+    reEntryPoints: 10,
+    reEntryPeakCandles: 30
   },
   autotrigger_nifty: {
     numberOfTrades: 5,
@@ -144,7 +146,8 @@ export const STRATEGY_DEFAULTS = {
     reEntryAfterTargetEnabled: true,
     reEntryStartCandle: 0,
     reEntryCandles: 2,
-    reEntryPoints: 4
+    reEntryPoints: 4,
+    reEntryPeakCandles: 30
   },
   autotrigger_sensex: {
     numberOfTrades: 5,
@@ -193,7 +196,8 @@ export const STRATEGY_DEFAULTS = {
     reEntryAfterTargetEnabled: true,
     reEntryStartCandle: 0,
     reEntryCandles: 2,
-    reEntryPoints: 10
+    reEntryPoints: 10,
+    reEntryPeakCandles: 30
   },
   nifty_low: {
     numberOfTrades: 10,
@@ -242,7 +246,8 @@ export const STRATEGY_DEFAULTS = {
     reEntryAfterTargetEnabled: false,
     reEntryStartCandle: 0,
     reEntryCandles: 8,
-    reEntryPoints: 2
+    reEntryPoints: 2,
+    reEntryPeakCandles: 30
   },
   sensex_low: {
     numberOfTrades: 10,
@@ -291,7 +296,8 @@ export const STRATEGY_DEFAULTS = {
     reEntryAfterTargetEnabled: false,
     reEntryStartCandle: 0,
     reEntryCandles: 8,
-    reEntryPoints: 5
+    reEntryPoints: 5,
+    reEntryPeakCandles: 30
   },
   high: {
     numberOfTrades: 10,
@@ -340,7 +346,8 @@ export const STRATEGY_DEFAULTS = {
     reEntryAfterTargetEnabled: false,
     reEntryStartCandle: 0,
     reEntryCandles: 8,
-    reEntryPoints: 2
+    reEntryPoints: 2,
+    reEntryPeakCandles: 30
   },
   allclear: {
     numberOfTrades: 10,
@@ -389,6 +396,7 @@ export const STRATEGY_DEFAULTS = {
     reEntryAfterTargetEnabled: true,
     reEntryStartCandle: 0,
     reEntryCandles: 10,
-    reEntryPoints: 10
+    reEntryPoints: 10,
+    reEntryPeakCandles: 30
   }
 };

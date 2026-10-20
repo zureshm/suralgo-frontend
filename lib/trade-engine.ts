@@ -265,6 +265,7 @@ type WaitingTrade = {
   reEntryStartCandle: number;
   reEntryCandles: number;
   reEntryPoints: number;
+  reEntryPeakCandles?: number;
 
   reEntryStopLossEnabled: boolean;
   reEntryStopLoss: number;
@@ -395,6 +396,7 @@ type ActiveTrade = {
   reEntryStartCandle: number;
   reEntryCandles: number;
   reEntryPoints: number;
+  reEntryPeakCandles?: number;
 
   reEntryStopLossEnabled: boolean;
   reEntryStopLoss: number;
@@ -1414,6 +1416,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     reEntryStartCandle: trade.reEntryStartCandle ?? 1,
     reEntryCandles: trade.reEntryCandles,
     reEntryPoints: trade.reEntryPoints,
+    reEntryPeakCandles: trade.reEntryPeakCandles ?? 30,
 
     reEntryStopLossEnabled: trade.reEntryStopLossEnabled,
     reEntryStopLoss: trade.reEntryStopLoss,
@@ -1760,7 +1763,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
     let reEntryMsg = `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`;
     if (trade.reEntryAfterTargetEnabled && cyclePnl > 0) {
-      reEntryMsg = `Auto Re-entry armed: watching for price > ${RE_ENTRY_PEAK_CANDLES}-candle peak +${trade.reEntryPoints || 5} pts between ${trade.reEntryStartCandle ?? 1} & ${trade.reEntryCandles} candles`;
+      reEntryMsg = `Auto Re-entry armed: watching for price > ${trade.reEntryPeakCandles ?? RE_ENTRY_PEAK_CANDLES}-candle peak +${trade.reEntryPoints || 5} pts between ${trade.reEntryStartCandle ?? 1} & ${trade.reEntryCandles} candles`;
     } else if (trade.reEntryAfterTargetEnabled) {
       reEntryMsg += ` [Auto Re-entry skipped — exit not profitable]`;
     } else {
@@ -2886,6 +2889,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
               const srcCandleTime = lastCandleTimeMap[wallSrc] || lastStrategyCandleTime;
               const emaCache = reEntryEmaCache[wallSrc];
               if ((!emaCache || emaCache.candleTime !== srcCandleTime) && !reEntryEmaFetchPending.has(wallSrc)) {
+                const peakN = trade.reEntryPeakCandles ?? RE_ENTRY_PEAK_CANDLES;
                 reEntryEmaFetchPending.add(wallSrc);
                 fetch(`${STRATEGY_URL}/chart-history`)
                   .then((r) => r.json())
@@ -2894,7 +2898,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
                     const cands = arr
                       .map((c: { high?: unknown; close?: unknown }) => ({ high: Number(c?.high), close: Number(c?.close) }))
                       .filter((c) => Number.isFinite(c.high) && Number.isFinite(c.close))
-                      .slice(-RE_ENTRY_EMA_HISTORY);
+                      .slice(-Math.max(RE_ENTRY_EMA_HISTORY, peakN + 1));
                     reEntryEmaCache[wallSrc] = {
                       candleTime: srcCandleTime,
                       closes: cands.map((c) => c.close),
@@ -2910,36 +2914,31 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
                   });
               }
               const emaCloses = reEntryEmaCache[wallSrc]?.closes ?? [];
-              const emaHighs = reEntryEmaCache[wallSrc]?.highs ?? [];
-              const minEmaLen = RE_ENTRY_EMA_SLOW + RE_ENTRY_EMA_GAP_LOOKBACK;
-              if (emaCloses.length < minEmaLen) {
+              const peakN = trade.reEntryPeakCandles ?? RE_ENTRY_PEAK_CANDLES;
+              const needed = Math.max(RE_ENTRY_EMA_SLOW + RE_ENTRY_EMA_GAP_LOOKBACK, peakN + 1);
+              if (emaCloses.length < needed) {
                 if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
                   lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
-                  addLogToActive(trade.symbol, `RE-ENTRY blocked — insufficient candle history for EMA (${emaCloses.length}/${minEmaLen}) at ${currentTime}`);
+                  addLogToActive(trade.symbol, `RE-ENTRY blocked — insufficient candle history for EMA (${emaCloses.length}/${needed}) at ${currentTime}`);
                 }
                 continue;
               }
 
-              // Price must clear the peak of the previous 30 candles by the
-              // configured points — exit price alone is no longer the bar.
-              const peak = Math.max(...emaHighs.slice(-(RE_ENTRY_PEAK_CANDLES + 1), -1));
+              // Price must clear the highest close of the previous N candles
+              // by the configured points. For bound symbols the comparison
+              // runs in the source stream's own scale (latest fake close),
+              // never mixing the option's LTP with index candles.
+              const peak = Math.max(...emaCloses.slice(-(peakN + 1), -1));
               const reEntryThreshold = peak + (trade.reEntryPoints || 5);
-              if (!(ltp > reEntryThreshold)) continue;
-
-              // High-close wall — price must beat the highest close of the
-              // previous 10 candles from this trade's signal source (its own
-              // stream, or the bound FAKE_CE/PE index stream).
-              if (closes.length >= 2) {
-                const wall = Math.max(...closes.slice(0, -1));
-                const cur = niftySignalBinding[trade.symbol] ? closes[closes.length - 1] : ltp;
-                if (!(cur > wall)) {
-                  if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
-                    lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
-                    addLogToActive(trade.symbol, `RE-ENTRY blocked — price below highest close of last 10 candles (₹${wall.toFixed(2)}) at ${currentTime}`);
-                  }
-                  continue;
+              const srcCur = niftySignalBinding[trade.symbol] ? closes[closes.length - 1] : ltp;
+              if (!(Number.isFinite(srcCur) && srcCur > reEntryThreshold)) {
+                if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
+                  lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
+                  addLogToActive(trade.symbol, `RE-ENTRY watching — ₹${Number.isFinite(srcCur) ? srcCur.toFixed(2) : "—"} vs ${peakN}-candle peak ₹${peak.toFixed(2)} +${trade.reEntryPoints || 5} (thr ₹${reEntryThreshold.toFixed(2)}) at ${currentTime}`);
                 }
+                continue;
               }
+
               // EMA trend gates — EMA10 must sit above EMA30, and the gap
               // between them must be wider than it was 8 candles ago, so
               // sideways chop (parallel EMAs) can't trigger re-entry.
@@ -2979,7 +2978,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
                   continue;
                 }
               }
-              const reEntryLog = `RE-ENTRY triggered at ₹${ltp.toFixed(2)} (price crossed ${RE_ENTRY_PEAK_CANDLES}-candle peak ₹${peak.toFixed(2)} +${trade.reEntryPoints || 5} pts between candle ${startCandle} & ${trade.reEntryCandles}, current: ${candlesSinceSell}) at ${currentTime}`;
+              const reEntryLog = `RE-ENTRY triggered at ₹${ltp.toFixed(2)} (₹${srcCur.toFixed(2)} crossed ${peakN}-candle peak ₹${peak.toFixed(2)} +${trade.reEntryPoints || 5} pts between candle ${startCandle} & ${trade.reEntryCandles}, current: ${candlesSinceSell}) at ${currentTime}`;
               updateActiveTradeBuy(trade.symbol, String(ltp), reEntryLog);
               continue;
             }
