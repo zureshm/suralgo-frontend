@@ -1194,7 +1194,7 @@ export default function TradePage() {
                         lineHeight: "18px",
                       }}
                     >
-                      After a profitable exit (target, trailing SL, or minimum target), re-entry arms for the specified candle window. A new buy fires only when the price crosses the highest close of the last N candles + Plus points, and the 10-EMA sits above the 30-EMA with a widening gap. Stop-loss or losing exits do not arm it.
+                      After a profitable exit (target, trailing SL, or minimum target), re-entry arms for the specified candle window. A new buy fires only when the price crosses the highest close of the last N candles + Plus points, and the 10-EMA sits above the 30-EMA while itself rising vs 5 candles ago. Stop-loss or losing exits do not arm it.
                     </div>
                   )}
                 </div>

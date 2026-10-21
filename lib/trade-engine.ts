@@ -657,7 +657,7 @@ const recentCloses: Record<string, number[]> = {};
 // Cache refreshes once per new candle per signal source.
 const RE_ENTRY_EMA_FAST = 10;
 const RE_ENTRY_EMA_SLOW = 30;
-const RE_ENTRY_EMA_GAP_LOOKBACK = 8;
+const RE_ENTRY_EMA_SLOPE_LOOKBACK = 5;
 const RE_ENTRY_EMA_HISTORY = 80;
 const RE_ENTRY_PEAK_CANDLES = 30;
 const reEntryEmaCache: Record<string, { candleTime: string; closes: number[]; highs: number[] }> = {};
@@ -2915,7 +2915,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
               }
               const emaCloses = reEntryEmaCache[wallSrc]?.closes ?? [];
               const peakN = trade.reEntryPeakCandles ?? RE_ENTRY_PEAK_CANDLES;
-              const needed = Math.max(RE_ENTRY_EMA_SLOW + RE_ENTRY_EMA_GAP_LOOKBACK, peakN + 1);
+              const needed = Math.max(RE_ENTRY_EMA_SLOW + RE_ENTRY_EMA_SLOPE_LOOKBACK, peakN + 1);
               if (emaCloses.length < needed) {
                 if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
                   lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
@@ -2939,16 +2939,15 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
                 continue;
               }
 
-              // EMA trend gates — EMA10 must sit above EMA30, and the gap
-              // between them must be wider than it was 8 candles ago, so
-              // sideways chop (parallel EMAs) can't trigger re-entry.
+              // EMA trend gates — EMA10 must sit above EMA30, and EMA10
+              // itself must be rising vs N candles ago (slope check — the
+              // fast line's own angle, not the gap between the two lines).
               const emaFast = calculateEMA(emaCloses, RE_ENTRY_EMA_FAST);
               const emaSlow = calculateEMA(emaCloses, RE_ENTRY_EMA_SLOW);
-              const prevIdx = -(RE_ENTRY_EMA_GAP_LOOKBACK + 1);
+              const prevIdx = -(RE_ENTRY_EMA_SLOPE_LOOKBACK + 1);
               const fNow = emaFast[emaFast.length - 1];
               const sNow = emaSlow[emaSlow.length - 1];
               const fPrev = emaFast[emaFast.length + prevIdx];
-              const sPrev = emaSlow[emaSlow.length + prevIdx];
               if (!(fNow > sNow)) {
                 if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
                   lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
@@ -2956,12 +2955,10 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
                 }
                 continue;
               }
-              const gapNow = fNow - sNow;
-              const gapPrev = fPrev - sPrev;
-              if (!(gapNow > gapPrev)) {
+              if (!(fNow > fPrev)) {
                 if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
                   lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
-                  addLogToActive(trade.symbol, `RE-ENTRY blocked — EMA gap not widening (₹${gapPrev.toFixed(2)} → ₹${gapNow.toFixed(2)}) at ${currentTime}`);
+                  addLogToActive(trade.symbol, `RE-ENTRY blocked — EMA${RE_ENTRY_EMA_FAST} flat/falling (₹${fPrev.toFixed(2)} → ₹${fNow.toFixed(2)} over ${RE_ENTRY_EMA_SLOPE_LOOKBACK} candles) at ${currentTime}`);
                 }
                 continue;
               }
