@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef, type CSSProperties } from "react";
-import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play, TrendingUp } from "lucide-react";
+import { Activity, Zap, XCircle, Loader2, AlertTriangle, SkipForward, RefreshCw, Play, TrendingUp, CheckCircle2 } from "lucide-react";
 import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
+import { useWatchlist } from "../store/WatchlistContext";
 import { sortSymbolsByPairs } from "@/lib/symbol-sort";
 
 function TradeLogsConsole({ logs }: { logs: string[] }) {
@@ -50,6 +51,129 @@ function TradeLogsConsole({ logs }: { logs: string[] }) {
           }}
         />
       ))}
+    </div>
+  );
+}
+
+function AutoTriggerRow({ symbol, activeLtps }: { symbol: string; activeLtps?: Record<string, number> }) {
+  const { watchlist } = useWatchlist();
+  const watchLtp = watchlist.find((item) => item.symbol === symbol)?.ltp;
+  const liveLtp = activeLtps?.[symbol] ?? watchLtp ?? null;
+
+  const [isVirgin, setIsVirgin] = useState(true);
+  const [value, setValue] = useState(() => (liveLtp != null && Number.isFinite(liveLtp) ? String(liveLtp) : "120"));
+  const [isSet, setIsSet] = useState(false);
+
+  // While virgin, automatically follow the live price from watchlist/activeLtps
+  useEffect(() => {
+    if (isVirgin && liveLtp != null && Number.isFinite(liveLtp)) {
+      setValue(String(liveLtp));
+    }
+  }, [isVirgin, liveLtp]);
+
+  const handleSelectAll = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    setIsVirgin(false);
+    (e.target as HTMLInputElement).select();
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 30, marginTop: 10, borderTop: "1px solid var(--theme-border-light)", paddingTop: 10 }}>
+      <span className="text-xs" style={{ color: "var(--theme-text-gray-500)", whiteSpace: "nowrap", fontWeight: 500 }}>Set Auto Trigger Buy On</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        pattern="[0-9.]*"
+        value={value}
+        onFocus={handleSelectAll}
+        onClick={handleSelectAll}
+        onChange={(e) => {
+          let cleaned = e.target.value.replace(/[^\d.]/g, "");
+          cleaned = cleaned.replace(/(\..*)\./g, "$1");
+          setValue(cleaned);
+          setIsVirgin(false);
+          setIsSet(false);
+        }}
+        onBlur={() => {
+          if (!value) {
+            setValue(liveLtp != null && Number.isFinite(liveLtp) ? String(liveLtp) : "120");
+          }
+        }}
+        style={{
+          width: 74,
+          height: 32,
+          padding: "0 6px",
+          textAlign: "center",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontSize: 14,
+          fontWeight: 700,
+          letterSpacing: "0.5px",
+          borderRadius: 6,
+          border: "2px solid #6366f1",
+          background: "var(--theme-card-white)",
+          color: "inherit",
+          outline: "none",
+        }}
+      />
+      <button
+        type="button"
+        style={{
+          minWidth: 78,
+          height: 32,
+          padding: "0 8px 0 10px",
+          fontSize: 12,
+          fontWeight: 700,
+          borderRadius: 6,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 6,
+          cursor: "pointer",
+          background: isSet ? "#e2e8f0" : "var(--theme-btn-dark, #1e293b)",
+          color: isSet ? "#0f172a" : "#ffffff",
+          border: isSet ? "1px solid #cbd5e1" : "1px solid rgba(99, 102, 241, 0.45)",
+          boxShadow: isSet ? "0 1px 3px rgba(0, 0, 0, 0.12)" : "0 1px 3px rgba(0, 0, 0, 0.25)",
+          transition: "all 0.2s ease",
+        }}
+        onClick={() => {
+          setIsVirgin(false);
+          setIsSet(true);
+          fetch(`/next-api/trades/${encodeURIComponent(symbol)}/auto-trigger-buy`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ triggerPrice: Number(value || "0") }),
+          }).catch(() => {});
+        }}
+      >
+        <span style={{ color: isSet ? "#0f172a" : "#ffffff", fontWeight: 700 }}>SET</span>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, transition: "all 0.2s ease" }}>
+          <circle cx="8" cy="8" r="7" fill={isSet ? "#16a34a" : "rgba(255, 255, 255, 0.2)"} />
+          <path d="M4.8 8.2L6.8 10.2L11.2 5.8" stroke={isSet ? "#ffffff" : "rgba(255, 255, 255, 0.75)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        className={`${styles.waitingBtn} ${styles.danger}`}
+        type="button"
+        style={{
+          minWidth: 70,
+          height: 32,
+          padding: "0 10px",
+          fontSize: 12,
+          fontWeight: 600,
+          justifyContent: "center",
+        }}
+        onClick={() => {
+          setIsSet(false);
+          setIsVirgin(true);
+          if (liveLtp != null && Number.isFinite(liveLtp)) {
+            setValue(String(liveLtp));
+          } else {
+            setValue("120");
+          }
+          fetch(`/next-api/trades/${encodeURIComponent(symbol)}/auto-trigger-buy/reset`, { method: "POST" }).catch(() => {});
+        }}
+      >
+        <span>Reset</span>
+      </button>
     </div>
   );
 }
@@ -219,7 +343,7 @@ export default function ActiveTradesDesktop({
         <div
           className={styles.activeTrades}
           style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(460px, 1fr))",
+            gridTemplateColumns: "1fr",
             gap: 14,
             alignItems: "start",
           }}
@@ -480,6 +604,8 @@ export default function ActiveTradesDesktop({
                   })()}
                 </div>
               )}
+
+              <AutoTriggerRow symbol={t.symbol} activeLtps={activeLtps} />
 
               {/* Trade Configuration */}
               <div className={styles.tradeConfig}>
@@ -809,6 +935,8 @@ export default function ActiveTradesDesktop({
                     </div>
                   );
                 })()}
+
+                <AutoTriggerRow symbol={t.symbol} activeLtps={activeLtps} />
 
                 {/* Trade Configuration for Waiting Trades */}
                 <div className={styles.tradeConfig}>
