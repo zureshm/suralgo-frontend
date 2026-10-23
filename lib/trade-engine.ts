@@ -2658,6 +2658,14 @@ function handleStrategySignal(signal: any) {
 
     if (!reenterTrade) return;
 
+    // Silently drop REENTER if neither signal re-entry nor pendingSkippedBuy is relevant
+    const reHasPendingSkip = reenterTrade.pendingSkippedBuy === true;
+    const reHasSignalReEntry = ("signalReEntryArmed" in reenterTrade) && (reenterTrade as ActiveTrade).signalReEntryArmed === true && (reenterTrade as ActiveTrade).signalReEntryEnabled;
+    if (!reHasPendingSkip && !reHasSignalReEntry) {
+      lastHandledSignalKey[signalSymbol] = signal.signal + "-" + signal.lastCandleTime;
+      return;
+    }
+
     // Same baseline rule as BUY for waiting trades — a cached REENTER must not
     // fire on the trade's birth/first-observed candle.
     if (waitingTrades.some((t) => t.symbol === signalSymbol)) {
@@ -2671,17 +2679,6 @@ function handleStrategySignal(signal: any) {
 
     const hasPendingSkip = reenterTrade.pendingSkippedBuy === true;
     const hasSignalReEntry = ("signalReEntryArmed" in reenterTrade) && (reenterTrade as ActiveTrade).signalReEntryArmed === true && (reenterTrade as ActiveTrade).signalReEntryEnabled;
-
-    if (!hasPendingSkip && !hasSignalReEntry) {
-      const ignoreLog = `REENTER ignored â€“ no pending skipped BUY or signal re-entry at ${fmtTime(signal.lastCandleTime)}`;
-      if (waitingTrades.find((t) => t.symbol === signalSymbol)) {
-        addLogToWaiting(signalSymbol, ignoreLog);
-      } else {
-        addLogToActive(signalSymbol, ignoreLog);
-      }
-      lastHandledSignalKey[signalSymbol] = signalKey;
-      return;
-    }
 
     // Apply guards if they are enabled on the trade
     const reCandles = signal.candles;
