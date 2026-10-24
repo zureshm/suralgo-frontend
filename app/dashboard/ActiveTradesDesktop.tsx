@@ -55,14 +55,40 @@ function TradeLogsConsole({ logs }: { logs: string[] }) {
   );
 }
 
-function AutoTriggerRow({ symbol, activeLtps }: { symbol: string; activeLtps?: Record<string, number> }) {
+function AutoTriggerRow({
+  symbol,
+  activeLtps,
+  inPosition,
+  autoTriggerBuyPrice,
+}: {
+  symbol: string;
+  activeLtps?: Record<string, number>;
+  inPosition?: boolean;
+  autoTriggerBuyPrice?: number;
+}) {
   const { watchlist } = useWatchlist();
   const watchLtp = watchlist.find((item) => item.symbol === symbol)?.ltp;
   const liveLtp = activeLtps?.[symbol] ?? watchLtp ?? null;
 
-  const [isVirgin, setIsVirgin] = useState(true);
-  const [value, setValue] = useState(() => (liveLtp != null && Number.isFinite(liveLtp) ? String(liveLtp) : "120"));
-  const [isSet, setIsSet] = useState(false);
+  const serverSet = autoTriggerBuyPrice != null && Number.isFinite(autoTriggerBuyPrice);
+  const [isVirgin, setIsVirgin] = useState(!serverSet);
+  const [value, setValue] = useState(() => {
+    if (serverSet) return String(autoTriggerBuyPrice);
+    if (liveLtp != null && Number.isFinite(liveLtp)) return String(liveLtp);
+    return "120";
+  });
+  const [isSet, setIsSet] = useState(serverSet);
+
+  // Sync if server state changes (e.g. set/reset on another device, or cleared after trigger firing)
+  useEffect(() => {
+    if (autoTriggerBuyPrice != null && Number.isFinite(autoTriggerBuyPrice)) {
+      setValue(String(autoTriggerBuyPrice));
+      setIsSet(true);
+      setIsVirgin(false);
+    } else if (autoTriggerBuyPrice === undefined) {
+      setIsSet(false);
+    }
+  }, [autoTriggerBuyPrice]);
 
   // While virgin, automatically follow the live price from watchlist/activeLtps
   useEffect(() => {
@@ -71,22 +97,27 @@ function AutoTriggerRow({ symbol, activeLtps }: { symbol: string; activeLtps?: R
     }
   }, [isVirgin, liveLtp]);
 
+  const disabled = inPosition === true;
+
   const handleSelectAll = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    if (disabled) return;
     setIsVirgin(false);
     (e.target as HTMLInputElement).select();
   };
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 30, marginTop: 10, borderTop: "1px solid var(--theme-border-light)", paddingTop: 10 }}>
-      <span className="text-xs" style={{ color: "var(--theme-text-gray-500)", whiteSpace: "nowrap", fontWeight: 500 }}>Set Auto Trigger Buy On</span>
+      <span className="text-xs" style={{ color: "var(--theme-text-gray-500)", whiteSpace: "nowrap", fontWeight: 500, opacity: disabled ? 0.5 : 1 }}>Set Auto Trigger Buy On</span>
       <input
         type="text"
         inputMode="decimal"
         pattern="[0-9.]*"
+        disabled={disabled}
         value={value}
         onFocus={handleSelectAll}
         onClick={handleSelectAll}
         onChange={(e) => {
+          if (disabled) return;
           let cleaned = e.target.value.replace(/[^\d.]/g, "");
           cleaned = cleaned.replace(/(\..*)\./g, "$1");
           setValue(cleaned);
@@ -112,10 +143,13 @@ function AutoTriggerRow({ symbol, activeLtps }: { symbol: string; activeLtps?: R
           background: "var(--theme-card-white)",
           color: "inherit",
           outline: "none",
+          opacity: disabled ? 0.45 : 1,
+          cursor: disabled ? "not-allowed" : "text",
         }}
       />
       <button
         type="button"
+        disabled={disabled}
         style={{
           minWidth: 78,
           height: 32,
@@ -127,7 +161,9 @@ function AutoTriggerRow({ symbol, activeLtps }: { symbol: string; activeLtps?: R
           alignItems: "center",
           justifyContent: "space-between",
           gap: 6,
-          cursor: "pointer",
+          cursor: disabled ? "not-allowed" : "pointer",
+          pointerEvents: disabled ? "none" : "auto",
+          opacity: disabled ? 0.45 : 1,
           background: isSet ? "#e2e8f0" : "var(--theme-btn-dark, #1e293b)",
           color: isSet ? "#0f172a" : "#ffffff",
           border: isSet ? "1px solid #cbd5e1" : "1px solid rgba(99, 102, 241, 0.45)",
@@ -135,6 +171,7 @@ function AutoTriggerRow({ symbol, activeLtps }: { symbol: string; activeLtps?: R
           transition: "all 0.2s ease",
         }}
         onClick={() => {
+          if (disabled) return;
           setIsVirgin(false);
           setIsSet(true);
           fetch(`/next-api/trades/${encodeURIComponent(symbol)}/auto-trigger-buy`, {
@@ -153,6 +190,7 @@ function AutoTriggerRow({ symbol, activeLtps }: { symbol: string; activeLtps?: R
       <button
         className={`${styles.waitingBtn} ${styles.danger}`}
         type="button"
+        disabled={disabled}
         style={{
           minWidth: 70,
           height: 32,
@@ -160,8 +198,12 @@ function AutoTriggerRow({ symbol, activeLtps }: { symbol: string; activeLtps?: R
           fontSize: 12,
           fontWeight: 600,
           justifyContent: "center",
+          cursor: disabled ? "not-allowed" : "pointer",
+          pointerEvents: disabled ? "none" : "auto",
+          opacity: disabled ? 0.45 : 1,
         }}
         onClick={() => {
+          if (disabled) return;
           setIsSet(false);
           setIsVirgin(true);
           if (liveLtp != null && Number.isFinite(liveLtp)) {
@@ -605,7 +647,7 @@ export default function ActiveTradesDesktop({
                 </div>
               )}
 
-              <AutoTriggerRow symbol={t.symbol} activeLtps={activeLtps} />
+              {forceBuyEnabled && <AutoTriggerRow symbol={t.symbol} activeLtps={activeLtps} inPosition={t.inPosition} autoTriggerBuyPrice={t.autoTriggerBuyPrice} />}
 
               {/* Trade Configuration */}
               <div className={styles.tradeConfig}>
@@ -936,7 +978,7 @@ export default function ActiveTradesDesktop({
                   );
                 })()}
 
-                <AutoTriggerRow symbol={t.symbol} activeLtps={activeLtps} />
+                {forceBuyEnabled && <AutoTriggerRow symbol={t.symbol} activeLtps={activeLtps} inPosition={false} autoTriggerBuyPrice={t.autoTriggerBuyPrice} />}
 
                 {/* Trade Configuration for Waiting Trades */}
                 <div className={styles.tradeConfig}>

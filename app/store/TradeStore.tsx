@@ -71,6 +71,7 @@ export type WaitingTrade = {
   triggerSeconds?: number;
   triggerMinPrice?: number;
   triggerMaxPrice?: number;
+  autoTriggerBuyPrice?: number;
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -151,6 +152,7 @@ export type ActiveTrade = {
   triggerSeconds?: number;
   triggerMinPrice?: number;
   triggerMaxPrice?: number;
+  autoTriggerBuyPrice?: number;
 };
 
 export type AiSuggestion = {
