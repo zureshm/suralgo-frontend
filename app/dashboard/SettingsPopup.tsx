@@ -426,6 +426,40 @@ export default function SettingsPopup({ open, onClose }: Props) {
         setMessage({ text: "Failed to fetch strategy info", type: "error" });
       })
       .finally(() => setLoading(false));
+
+    const handleStrategyChanged = (e: Event) => {
+      const s = (e as CustomEvent)?.detail?.activeStrategy;
+      if (s) {
+        setActiveStrategy(s);
+        setSelectedStrategy(s);
+      }
+    };
+    window.addEventListener("strategy-changed", handleStrategyChanged);
+
+    const strategyPoll = setInterval(() => {
+      fetch(`${STRATEGY_URL}/strategy`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.activeStrategy) {
+            setActiveStrategy((prev) => {
+              if (prev !== data.activeStrategy) {
+                setSelectedStrategy(data.activeStrategy);
+                return data.activeStrategy;
+              }
+              return prev;
+            });
+            if (Array.isArray(data.availableStrategies) && data.availableStrategies.length > 0) {
+              setAvailableStrategies(data.availableStrategies);
+            }
+          }
+        })
+        .catch(() => {});
+    }, 2000);
+
+    return () => {
+      window.removeEventListener("strategy-changed", handleStrategyChanged);
+      clearInterval(strategyPoll);
+    };
   }, [open]);
 
   const handleSave = async () => {
@@ -441,6 +475,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
       const data = await res.json();
       if (res.ok) {
         setActiveStrategy(data.activeStrategy);
+        setSelectedStrategy(data.activeStrategy);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("strategy-changed", { detail: { activeStrategy: data.activeStrategy } }));
+        }
         setMessage({ text: `Switched to ${getDisplayName(data.activeStrategy)}`, type: "success" });
       } else {
         setMessage({ text: data.message || "Failed to switch", type: "error" });

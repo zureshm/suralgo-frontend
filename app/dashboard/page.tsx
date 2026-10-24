@@ -1,8 +1,10 @@
 "use client";
 
 import styles from "./page.module.scss";
-import { useEffect, useState, Suspense } from "react";
-import { Settings, BarChart2, Grid2X2, LogOut, History, User, Activity } from "lucide-react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { Settings, BarChart2, Grid2X2, LogOut, History, User, Activity, Pause, Play } from "lucide-react";
+
+const STRATEGY_URL = process.env.NEXT_PUBLIC_STRATEGY_API_URL || "http://localhost:4000";
 
 import { useTradeStore } from "../store/TradeStore";
 import { getPrices } from "@/lib/getPrices";
@@ -33,6 +35,14 @@ export default function DashboardPage() {
   const [optionChainOpen, setOptionChainOpen] = useState(false);
   const [totalExitOpen, setTotalExitOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<RightPanelTab>("chart");
+  const [activeStrategy, setActiveStrategy] = useState<string>("");
+  const [previousStrategy, setPreviousStrategy] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("suralgo_previous_strategy") || "";
+    }
+    return "";
+  });
+  const [strategyLoading, setStrategyLoading] = useState(false);
   const {
     waitingTrades,
     removeWaitingTrade,
@@ -40,6 +50,83 @@ export default function DashboardPage() {
     logManualExit,
     desktopViewEnabled,
   } = useTradeStore();
+
+  const fetchStrategyStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${STRATEGY_URL}/strategy`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.activeStrategy) {
+        setActiveStrategy(data.activeStrategy);
+        if (!data.activeStrategy.toLowerCase().includes("nothing")) {
+          setPreviousStrategy(data.activeStrategy);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("suralgo_previous_strategy", data.activeStrategy);
+          }
+        }
+      }
+    } catch {
+      // strategy server unreachable
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStrategyStatus();
+    const interval = setInterval(fetchStrategyStatus, 3000);
+    const handleStrategyEvent = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail?.activeStrategy) {
+        setActiveStrategy(detail.activeStrategy);
+        if (!detail.activeStrategy.toLowerCase().includes("nothing")) {
+          setPreviousStrategy(detail.activeStrategy);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("suralgo_previous_strategy", detail.activeStrategy);
+          }
+        }
+      }
+    };
+    window.addEventListener("strategy-changed", handleStrategyEvent);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("strategy-changed", handleStrategyEvent);
+    };
+  }, [fetchStrategyStatus]);
+
+  const handleToggleStrategyPause = async () => {
+    if (strategyLoading) return;
+    setStrategyLoading(true);
+    try {
+      const isPaused = activeStrategy.toLowerCase().includes("nothing");
+      let targetStrategy = "";
+      if (isPaused) {
+        targetStrategy = previousStrategy || "HEIKIN_DINKAN_BUGGY";
+      } else {
+        if (activeStrategy) {
+          setPreviousStrategy(activeStrategy);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("suralgo_previous_strategy", activeStrategy);
+          }
+        }
+        targetStrategy = "NothingStrategy";
+      }
+
+      const res = await fetch(`${STRATEGY_URL}/strategy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ strategy: targetStrategy }),
+      });
+      const data = await res.json();
+      const nextStrat = data?.activeStrategy || targetStrategy;
+      setActiveStrategy(nextStrat);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("strategy-changed", { detail: { activeStrategy: nextStrat } }));
+      }
+    } catch {
+      // error
+    } finally {
+      setStrategyLoading(false);
+    }
+  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -119,10 +206,34 @@ export default function DashboardPage() {
             <Grid2X2 size={20} />
             <span>Options</span>
           </div>
-          <div className={styles.menuItem} onClick={() => setTotalExitOpen(true)}>
-            <LogOut size={20} />
-            <span>Exit</span>
-          </div>
+          {desktopViewEnabled ? (
+            activeStrategy.toLowerCase().includes("nothing") ? (
+              <div
+                className={styles.menuItem}
+                style={{ cursor: strategyLoading ? "wait" : "pointer", color: "var(--theme-tailwind-green-500, #22c55e)" }}
+                onClick={handleToggleStrategyPause}
+                title={`Strategy Paused — Click to Resume (${previousStrategy || "active strategy"})`}
+              >
+                <Play size={20} />
+                <span>Resume</span>
+              </div>
+            ) : (
+              <div
+                className={styles.menuItem}
+                style={{ cursor: strategyLoading ? "wait" : "pointer" }}
+                onClick={handleToggleStrategyPause}
+                title="Click to Pause strategy (switches to Nothing Strategy)"
+              >
+                <Pause size={20} />
+                <span>Pause</span>
+              </div>
+            )
+          ) : (
+            <div className={styles.menuItem} onClick={() => setTotalExitOpen(true)}>
+              <LogOut size={20} />
+              <span>Exit</span>
+            </div>
+          )}
         </div>
 
         <SettingsPopup open={settingsOpen} onClose={() => setSettingsOpen(false)} />
