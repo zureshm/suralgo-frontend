@@ -650,6 +650,11 @@ const symbolHistoryStatus: Record<string, { status: string; candleCount: number 
 // Bound symbols get strategy signals from the Nifty50 stream (mirrored for PE)
 // instead of their own candles; real LTP still drives entry/exit pricing.
 const niftySignalBinding: Record<string, "FAKE_CE" | "FAKE_PE"> = {};
+// Bound-symbol candle-close emulation: the option's "close" is frozen to the
+// last LTP tick of each completed FAKE candle minute, so candle-close exit
+// modes compare a real candle close instead of a live tick.
+const boundLastSeenCandle: Record<string, string> = {};
+const boundLastTickLtp: Record<string, number> = {};
 
 // Rolling last-11 candle closes per signal source (real symbol or FAKE_CE/PE).
 // Auto Re-entry uses these for its "beat the highest close of the previous
@@ -2093,7 +2098,10 @@ function handleStrategySignal(signal: any) {
   const lastCandle = signal.candles?.[signal.candles.length - 1];
 
   if (signalSymbol) {
-    if (Number.isFinite(Number(latestClose))) lastCandleCloseMap[signalSymbol] = Number(latestClose);
+    // Bound symbols skip this — their stamped close is live LTP, not a candle
+    // close. Their lastCandleCloseMap is frozen once per FAKE candle minute in
+    // the tick loop so candle-close exit modes see a true close.
+    if (!niftySignalBinding[signalSymbol] && Number.isFinite(Number(latestClose))) lastCandleCloseMap[signalSymbol] = Number(latestClose);
     const h = Number(signal.high ?? lastCandle?.high);
     const l = Number(signal.low ?? lastCandle?.low);
     if (Number.isFinite(h)) lastCandleHigh[signalSymbol] = h;
@@ -3337,7 +3345,21 @@ async function tick() {
             for (const real of Object.keys(niftySignalBinding)) {
               if (niftySignalBinding[real] !== src) continue;
               const stamped = { ...signal, symbol: real };
-              if (Number.isFinite(boundLtp[real])) stamped.close = boundLtp[real];
+              if (Number.isFinite(boundLtp[real])) {
+                stamped.close = boundLtp[real];
+                // Freeze the option's "candle close" to its last tick of the
+                // minute that just ended — only when the FAKE candle rolls.
+                const srcCt = signal.lastCandleTime || signal.candles?.[signal.candles.length - 1]?.time;
+                if (srcCt) {
+                  if (boundLastSeenCandle[real] === undefined) {
+                    lastCandleCloseMap[real] = boundLtp[real];
+                  } else if (boundLastSeenCandle[real] !== srcCt && Number.isFinite(boundLastTickLtp[real])) {
+                    lastCandleCloseMap[real] = boundLastTickLtp[real];
+                  }
+                  boundLastSeenCandle[real] = srcCt;
+                  boundLastTickLtp[real] = boundLtp[real];
+                }
+              }
               handleStrategySignal(stamped);
             }
           } else {
