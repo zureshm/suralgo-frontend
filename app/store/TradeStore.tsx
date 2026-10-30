@@ -346,14 +346,16 @@ export function TradeStoreProvider({
   children: React.ReactNode;
 }) {
   const [selection, setSelection] = useState<TradeSelection>(null);
-  const [forceBuyEnabled, setForceBuyEnabled] = useState(false);
+  const [forceBuyEnabled, setForceBuyEnabledState] = useState(false);
   const [desktopViewEnabled, setDesktopViewEnabledState] = useState(false);
 
-  // Hydrate desktop view preference from localStorage (client-only)
+  // Hydrate desktop view + force buy preferences from localStorage (client-only)
   useEffect(() => {
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDesktopViewEnabledState(localStorage.getItem("dummy_desktopView") === "1");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setForceBuyEnabledState(localStorage.getItem("dummy_forceBuy") === "1");
     } catch {}
   }, []);
 
@@ -361,6 +363,13 @@ export function TradeStoreProvider({
     setDesktopViewEnabledState(v);
     try {
       localStorage.setItem("dummy_desktopView", v ? "1" : "0");
+    } catch {}
+  }, []);
+
+  const setForceBuyEnabled = useCallback((v: boolean) => {
+    setForceBuyEnabledState(v);
+    try {
+      localStorage.setItem("dummy_forceBuy", v ? "1" : "0");
     } catch {}
   }, []);
 
