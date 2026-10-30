@@ -755,7 +755,7 @@ export default function ActiveTradesDesktop({
                   </button>
                   )}
                   <button
-                    className={`${styles.waitingBtn} ${styles.danger}`}
+                    className={`${styles.waitingBtn} ${styles.cancel}`}
                     type="button"
                     onClick={() => {
                       fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
