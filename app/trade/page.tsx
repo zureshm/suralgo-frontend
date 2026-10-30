@@ -141,6 +141,7 @@ export default function TradePage() {
     setTrailingStopLossSteps(defaults.trailingStopLossSteps);
     setStopLossPercentageEnabled(defaults.stopLossPercentageEnabled);
     setStopLossPercentage(defaults.stopLossPercentage);
+    setSlMode((defaults.slMode as "live" | "candleClose") || "live");
     setTargetPointsEnabled(defaults.targetPointsEnabled);
     setTargetPoints(defaults.targetPoints);
     setWaitStrategyEnabled(defaults.waitStrategyEnabled);
@@ -199,6 +200,7 @@ export default function TradePage() {
   const [trailingStopLossSteps, setTrailingStopLossSteps] = useState(5);
   const [stopLossPercentageEnabled, setStopLossPercentageEnabled] = useState(false);
   const [stopLossPercentage, setStopLossPercentage] = useState(10);
+  const [slMode, setSlMode] = useState<"live" | "candleClose">("live");
   const [targetPointsEnabled, setTargetPointsEnabled] = useState(true);
   const [targetPoints, setTargetPoints] = useState(20);
   const [waitStrategyEnabled, setWaitStrategyEnabled] = useState(false);
@@ -335,6 +337,7 @@ export default function TradePage() {
       setTrailingStopLossSteps(data.trailingStopLossSteps || 5);
       setStopLossPercentageEnabled(Boolean(data.stopLossPercentageEnabled ?? false));
       setStopLossPercentage(data.stopLossPercentage || 10);
+      setSlMode(data.slMode === "candleClose" ? "candleClose" : "live");
       setTargetPointsEnabled(Boolean(data.targetPointsEnabled ?? true));
       setTargetPoints(data.targetPoints || 20);
       setWaitStrategyEnabled(Boolean(data.waitStrategyEnabled ?? false));
@@ -406,6 +409,7 @@ export default function TradePage() {
       trailingStopLossSteps,
       stopLossPercentageEnabled,
       stopLossPercentage,
+      slMode,
       targetPointsEnabled,
       targetPoints,
       minToHoldEnabled,
@@ -782,6 +786,32 @@ export default function TradePage() {
                     disabled={!stopLossPercentageEnabled}
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center space-x-4 pl-6 pt-1">
+                <label className={`text-sm ${(stopLossNumberEnabled || stopLossPercentageEnabled) ? "" : "text-gray-400"}`}>Use price:</label>
+                <label className={`flex items-center space-x-1 text-sm ${(stopLossNumberEnabled || stopLossPercentageEnabled) ? "" : "text-gray-400"}`}>
+                  <input
+                    type="radio"
+                    name="slMode"
+                    value="live"
+                    checked={slMode === "live"}
+                    onChange={(e) => setSlMode(e.target.value as "live" | "candleClose")}
+                    disabled={!stopLossNumberEnabled && !stopLossPercentageEnabled}
+                  />
+                  <span>LTP</span>
+                </label>
+                <label className={`flex items-center space-x-1 text-sm ${(stopLossNumberEnabled || stopLossPercentageEnabled) ? "" : "text-gray-400"}`}>
+                  <input
+                    type="radio"
+                    name="slMode"
+                    value="candleClose"
+                    checked={slMode === "candleClose"}
+                    onChange={(e) => setSlMode(e.target.value as "live" | "candleClose")}
+                    disabled={!stopLossNumberEnabled && !stopLossPercentageEnabled}
+                  />
+                  <span>Candle close</span>
+                </label>
               </div>
 
             </div>

@@ -24,6 +24,7 @@ import HistoryDesktop from "./HistoryDesktop";
 import AccountDesktop from "./AccountDesktop";
 import RiskManagement from "./RiskManagement";
 import ActiveTradesDesktop from "./ActiveTradesDesktop";
+import Nifty50MiniChart from "./Nifty50MiniChart";
 
 type RightPanelTab = "chart" | "active" | "options" | "history" | "settings" | "account";
 
@@ -172,14 +173,16 @@ export default function DashboardPage() {
 
         <Watchlist />
 
-        <ActiveTrade
+        {desktopViewEnabled && activeTab === "active" && <Nifty50MiniChart />}
+
+        {!(desktopViewEnabled && activeTab === "active") && <ActiveTrade
           activeTrades={activeTrades}
           waitingTrades={waitingTrades}
           activeLtps={activeLtps}
           isHydrated={isHydrated}
           onManualExit={logManualExit}
           onCancelWaiting={removeWaitingTrade}
-        />
+        />}
 
         {!desktopViewEnabled && <TradeHistory />}
 

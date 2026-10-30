@@ -23,6 +23,7 @@ export type WaitingTrade = {
   stopLossNumber: number;
   trailingStopLossEnabled: boolean;
   trailingStopLossSteps: number;
+  slMode?: "live" | "candleClose";
   targetPointsEnabled: boolean;
   targetPoints: number;
   targetMode: "live" | "candleClose";
@@ -87,6 +88,7 @@ export type ActiveTrade = {
   stopLossNumber: number;
   trailingStopLossEnabled: boolean;
   trailingStopLossSteps: number;
+  slMode?: "live" | "candleClose";
   targetPointsEnabled: boolean;
   targetPoints: number;
   targetMode: "live" | "candleClose";
@@ -408,6 +410,7 @@ export function TradeStoreProvider({
       stopLossNumber: readFormNumber(sym, "stopLossNumber", 15),
       trailingStopLossEnabled: readFormBool(sym, "trailingStopLossEnabled", false),
       trailingStopLossSteps: readFormNumber(sym, "trailingStopLossSteps", 5),
+      slMode: readFormString(sym, "slMode", "live") as "live" | "candleClose",
       targetPointsEnabled: readFormBool(sym, "targetPointsEnabled", true),
       targetPoints: readFormNumber(sym, "targetPoints", 20),
       targetMode: readFormString(sym, "targetMode", "live") as "live" | "candleClose",
