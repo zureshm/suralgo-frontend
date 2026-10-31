@@ -211,6 +211,8 @@ type WaitingTrade = {
 
   trailingStopLossSteps: number;
 
+  slMode?: "live" | "candleClose";
+
   targetPointsEnabled: boolean;
 
   targetPoints: number;
@@ -265,6 +267,7 @@ type WaitingTrade = {
   reEntryStartCandle: number;
   reEntryCandles: number;
   reEntryPoints: number;
+  reEntryPeakCandles?: number;
 
   reEntryStopLossEnabled: boolean;
   reEntryStopLoss: number;
@@ -287,6 +290,7 @@ type WaitingTrade = {
   triggerSeconds?: number;
   triggerMinPrice?: number;
   triggerMaxPrice?: number;
+  autoTriggerBuyPrice?: number;
 };
 
 
@@ -314,6 +318,8 @@ type ActiveTrade = {
   trailingStopLossEnabled: boolean;
 
   trailingStopLossSteps: number;
+
+  slMode?: "live" | "candleClose";
 
   targetPointsEnabled: boolean;
 
@@ -395,6 +401,7 @@ type ActiveTrade = {
   reEntryStartCandle: number;
   reEntryCandles: number;
   reEntryPoints: number;
+  reEntryPeakCandles?: number;
 
   reEntryStopLossEnabled: boolean;
   reEntryStopLoss: number;
@@ -429,6 +436,9 @@ type ActiveTrade = {
   triggerSeconds?: number;
   triggerMinPrice?: number;
   triggerMaxPrice?: number;
+  autoTriggerBuyPrice?: number;
+  autoExecuteExitPrice?: number;
+  autoExecuteExitDir?: "up" | "down";
 };
 
 
@@ -456,6 +466,8 @@ type TradeHistoryItem = {
     trailingStopLossEnabled?: boolean;
 
     trailingStopLossSteps?: number;
+
+    slMode?: "live" | "candleClose";
 
     targetPoints?: number;
 
@@ -644,11 +656,43 @@ const symbolHistoryStatus: Record<string, { status: string; candleCount: number 
 // Bound symbols get strategy signals from the Nifty50 stream (mirrored for PE)
 // instead of their own candles; real LTP still drives entry/exit pricing.
 const niftySignalBinding: Record<string, "FAKE_CE" | "FAKE_PE"> = {};
+// Bound-symbol candle-close emulation: the option's "close" is frozen to the
+// last LTP tick of each completed FAKE candle minute, so candle-close exit
+// modes compare a real candle close instead of a live tick.
+const boundLastSeenCandle: Record<string, string> = {};
+const boundLastTickLtp: Record<string, number> = {};
 
 // Rolling last-11 candle closes per signal source (real symbol or FAKE_CE/PE).
 // Auto Re-entry uses these for its "beat the highest close of the previous
 // 10 candles" breakout check.
 const recentCloses: Record<string, number[]> = {};
+
+// Auto Re-entry EMA trend gates — EMAs are computed on /chart-history closes
+// (full history; /evaluate only returns a handful of recent candles).
+// Cache refreshes once per new candle per signal source.
+const RE_ENTRY_EMA_FAST = 10;
+const RE_ENTRY_EMA_SLOW = 30;
+const RE_ENTRY_EMA_SLOPE_LOOKBACK = 5;
+const RE_ENTRY_EMA_HISTORY = 80;
+const RE_ENTRY_PEAK_CANDLES = 30;
+const reEntryEmaCache: Record<string, { candleTime: string; closes: number[]; highs: number[] }> = {};
+const reEntryEmaFetchPending = new Set<string>();
+
+// EMA seeded with the SMA of the first `period` prices — mirrors the chart
+// helper in strategy-chart.ts, kept local so lightweight-charts stays out
+// of the engine path.
+function calculateEMA(prices: number[], period: number): number[] {
+  if (!Number.isFinite(period) || period < 1 || prices.length < period) return [];
+  const ema: number[] = [];
+  const multiplier = 2 / (period + 1);
+  let sum = 0;
+  for (let i = 0; i < period; i++) sum += prices[i];
+  ema.push(sum / period);
+  for (let i = period; i < prices.length; i++) {
+    ema.push((prices[i] - ema[ema.length - 1]) * multiplier + ema[ema.length - 1]);
+  }
+  return ema;
+}
 
 // Ring buffer of history-fetch log lines for the Log Monitor page
 const historyFetchLogs: string[] = [];
@@ -1186,6 +1230,8 @@ function buildConfigSnapshot(trade: ActiveTrade): TradeHistoryItem["config"] {
 
     trailingStopLossSteps: trade.trailingStopLossEnabled ? trade.trailingStopLossSteps : undefined,
 
+    slMode: trade.stopLossNumberEnabled ? trade.slMode : undefined,
+
     targetPointsEnabled: Boolean(trade.targetPointsEnabled),
 
     targetPoints: trade.targetPointsEnabled ? trade.targetPoints : undefined,
@@ -1303,6 +1349,8 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
     trailingStopLossSteps: trade.trailingStopLossSteps,
 
+    slMode: trade.slMode,
+
     trailingSlHighWatermark: Number(entryPrice),
 
     targetPointsEnabled: trade.targetPointsEnabled,
@@ -1387,6 +1435,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     reEntryStartCandle: trade.reEntryStartCandle ?? 1,
     reEntryCandles: trade.reEntryCandles,
     reEntryPoints: trade.reEntryPoints,
+    reEntryPeakCandles: trade.reEntryPeakCandles ?? 30,
 
     reEntryStopLossEnabled: trade.reEntryStopLossEnabled,
     reEntryStopLoss: trade.reEntryStopLoss,
@@ -1574,6 +1623,12 @@ function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, log
     sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
   }
 
+  const exitTradeRef = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
+  if (exitTradeRef) {
+    delete exitTradeRef.autoExecuteExitPrice;
+    delete exitTradeRef.autoExecuteExitDir;
+  }
+
   activeTrades = activeTrades.map((trade) => {
     if (trade.symbol !== symbol || trade.status !== "ACTIVE") return trade;
 
@@ -1618,6 +1673,14 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
   const tradeToExit = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
   if (tradeToExit) {
     sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
+  }
+
+  // A completed cycle must not carry an armed Auto Execute Exit into the
+  // next cycle — clear before the map spreads the trade object.
+  const cycleTrade = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
+  if (cycleTrade) {
+    delete cycleTrade.autoExecuteExitPrice;
+    delete cycleTrade.autoExecuteExitDir;
   }
 
   activeTrades = activeTrades.map((trade) => {
@@ -1718,9 +1781,10 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
       }
     }
 
-    // Arm Auto Re-Entry whenever enabled (regardless of profit/loss on previous exit)
+    // Arm Auto Re-Entry only when the exit was profitable — a losing
+    // (SL) exit does not re-arm.
     const signalReEntryArmed = trade.signalReEntryEnabled;
-    const reEntryInfo = trade.reEntryAfterTargetEnabled ? {
+    const reEntryInfo = trade.reEntryAfterTargetEnabled && cyclePnl > 0 ? {
       reEntryExitPrice: Number(exitPrice),
       reEntrySellTime: lastStrategyCandleTime || trade.lastSellCandleTime,
       reEntryReason: logLine,
@@ -1731,8 +1795,10 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
     };
 
     let reEntryMsg = `Cycle ${newCompletedCycles}/${trade.numberOfTrades} completed (SL/Target hit - waiting for next signal)`;
-    if (trade.reEntryAfterTargetEnabled) {
-      reEntryMsg = `Auto Re-entry armed: watching for price > ₹${exitPrice} between ${trade.reEntryStartCandle ?? 1} & ${trade.reEntryCandles} candles`;
+    if (trade.reEntryAfterTargetEnabled && cyclePnl > 0) {
+      reEntryMsg = `Auto Re-entry armed: watching for price > ${trade.reEntryPeakCandles ?? RE_ENTRY_PEAK_CANDLES}-candle peak +${trade.reEntryPoints || 5} pts between ${trade.reEntryStartCandle ?? 1} & ${trade.reEntryCandles} candles`;
+    } else if (trade.reEntryAfterTargetEnabled) {
+      reEntryMsg += ` [Auto Re-entry skipped — exit not profitable]`;
     } else {
       reEntryMsg += ` [Auto Re-entry disabled]`;
     }
@@ -2042,7 +2108,10 @@ function handleStrategySignal(signal: any) {
   const lastCandle = signal.candles?.[signal.candles.length - 1];
 
   if (signalSymbol) {
-    if (Number.isFinite(Number(latestClose))) lastCandleCloseMap[signalSymbol] = Number(latestClose);
+    // Bound symbols skip this — their stamped close is live LTP, not a candle
+    // close. Their lastCandleCloseMap is frozen once per FAKE candle minute in
+    // the tick loop so candle-close exit modes see a true close.
+    if (!niftySignalBinding[signalSymbol] && Number.isFinite(Number(latestClose))) lastCandleCloseMap[signalSymbol] = Number(latestClose);
     const h = Number(signal.high ?? lastCandle?.high);
     const l = Number(signal.low ?? lastCandle?.low);
     if (Number.isFinite(h)) lastCandleHigh[signalSymbol] = h;
@@ -2625,6 +2694,14 @@ function handleStrategySignal(signal: any) {
 
     if (!reenterTrade) return;
 
+    // Silently drop REENTER if neither signal re-entry nor pendingSkippedBuy is relevant
+    const reHasPendingSkip = reenterTrade.pendingSkippedBuy === true;
+    const reHasSignalReEntry = ("signalReEntryArmed" in reenterTrade) && (reenterTrade as ActiveTrade).signalReEntryArmed === true && (reenterTrade as ActiveTrade).signalReEntryEnabled;
+    if (!reHasPendingSkip && !reHasSignalReEntry) {
+      lastHandledSignalKey[signalSymbol] = signal.signal + "-" + signal.lastCandleTime;
+      return;
+    }
+
     // Same baseline rule as BUY for waiting trades — a cached REENTER must not
     // fire on the trade's birth/first-observed candle.
     if (waitingTrades.some((t) => t.symbol === signalSymbol)) {
@@ -2638,17 +2715,6 @@ function handleStrategySignal(signal: any) {
 
     const hasPendingSkip = reenterTrade.pendingSkippedBuy === true;
     const hasSignalReEntry = ("signalReEntryArmed" in reenterTrade) && (reenterTrade as ActiveTrade).signalReEntryArmed === true && (reenterTrade as ActiveTrade).signalReEntryEnabled;
-
-    if (!hasPendingSkip && !hasSignalReEntry) {
-      const ignoreLog = `REENTER ignored â€“ no pending skipped BUY or signal re-entry at ${fmtTime(signal.lastCandleTime)}`;
-      if (waitingTrades.find((t) => t.symbol === signalSymbol)) {
-        addLogToWaiting(signalSymbol, ignoreLog);
-      } else {
-        addLogToActive(signalSymbol, ignoreLog);
-      }
-      lastHandledSignalKey[signalSymbol] = signalKey;
-      return;
-    }
 
     // Apply guards if they are enabled on the trade
     const reCandles = signal.candles;
@@ -2760,12 +2826,15 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     const useCloseForTrailing = isBacktestMode || trade.trailingMode === "candleClose";
     const useCloseForMinArm = isBacktestMode || trade.minToHoldArmMode === "candleClose";
     const useCloseForMinTrigger = isBacktestMode || trade.minToHoldMode === "candleClose";
+    const useCloseForSL = isBacktestMode || trade.slMode === "candleClose";
 
     const targetPrice = useCloseForTarget && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
     const trailingPrice = useCloseForTrailing && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
 
     const minTargetArmPrice = useCloseForMinArm && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
     const minTargetTriggerPrice = useCloseForMinTrigger && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
+
+    const slPrice = useCloseForSL && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
 
     // Use real-time LTP for SL/Minimum Target. Target/Trailing may use LTP or last candle close based on mode.
 
@@ -2845,25 +2914,89 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         const currentMin = toMinutes(lastStrategyCandleTime);
         if (sellMin >= 0 && currentMin >= 0) {
           const candlesSinceSell = currentMin - sellMin;
-          const reEntryThreshold = trade.reEntryExitPrice + (trade.reEntryPoints || 5);
           const startCandle = trade.reEntryStartCandle ?? 1;
           if (candlesSinceSell <= trade.reEntryCandles) {
-            if (candlesSinceSell >= startCandle && ltp > reEntryThreshold) {
-              // High-close wall — price must beat the highest close of the
-              // previous 10 candles from this trade's signal source (its own
-              // stream, or the bound FAKE_CE/PE index stream).
+            if (candlesSinceSell >= startCandle) {
               const wallSrc = niftySignalBinding[trade.symbol] ?? trade.symbol;
               const closes = recentCloses[wallSrc] || [];
-              if (closes.length >= 2) {
-                const wall = Math.max(...closes.slice(0, -1));
-                const cur = niftySignalBinding[trade.symbol] ? closes[closes.length - 1] : ltp;
-                if (!(cur > wall)) {
-                  if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
-                    lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
-                    addLogToActive(trade.symbol, `RE-ENTRY blocked — price below highest close of last 10 candles (₹${wall.toFixed(2)}) at ${currentTime}`);
-                  }
-                  continue;
+
+              // chart-history cache — closes + highs, refreshed once per new
+              // candle per signal source.
+              const srcCandleTime = lastCandleTimeMap[wallSrc] || lastStrategyCandleTime;
+              const emaCache = reEntryEmaCache[wallSrc];
+              if ((!emaCache || emaCache.candleTime !== srcCandleTime) && !reEntryEmaFetchPending.has(wallSrc)) {
+                const peakN = trade.reEntryPeakCandles ?? RE_ENTRY_PEAK_CANDLES;
+                reEntryEmaFetchPending.add(wallSrc);
+                fetch(`${STRATEGY_URL}/chart-history`)
+                  .then((r) => r.json())
+                  .then((h) => {
+                    const arr = Array.isArray(h?.[wallSrc]) ? h[wallSrc] : [];
+                    const cands = arr
+                      .map((c: { high?: unknown; close?: unknown }) => ({ high: Number(c?.high), close: Number(c?.close) }))
+                      .filter((c) => Number.isFinite(c.high) && Number.isFinite(c.close))
+                      .slice(-Math.max(RE_ENTRY_EMA_HISTORY, peakN + 1));
+                    reEntryEmaCache[wallSrc] = {
+                      candleTime: srcCandleTime,
+                      closes: cands.map((c) => c.close),
+                      highs: cands.map((c) => c.high),
+                    };
+                    reEntryEmaFetchPending.delete(wallSrc);
+                  })
+                  .catch(() => {
+                    // Cache the failure under this candle so we retry once per
+                    // new candle instead of hammering every tick.
+                    reEntryEmaCache[wallSrc] = { candleTime: srcCandleTime, closes: [], highs: [] };
+                    reEntryEmaFetchPending.delete(wallSrc);
+                  });
+              }
+              const emaCloses = reEntryEmaCache[wallSrc]?.closes ?? [];
+              const peakN = trade.reEntryPeakCandles ?? RE_ENTRY_PEAK_CANDLES;
+              const needed = Math.max(RE_ENTRY_EMA_SLOW + RE_ENTRY_EMA_SLOPE_LOOKBACK, peakN + 1);
+              if (emaCloses.length < needed) {
+                if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
+                  lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
+                  addLogToActive(trade.symbol, `RE-ENTRY blocked — insufficient candle history for EMA (${emaCloses.length}/${needed}) at ${currentTime}`);
                 }
+                continue;
+              }
+
+              // Price must clear the highest close of the previous N candles
+              // by the configured points. For bound symbols the comparison
+              // runs in the source stream's own scale (latest fake close),
+              // never mixing the option's LTP with index candles.
+              const peak = Math.max(...emaCloses.slice(-(peakN + 1), -1));
+              const reEntryThreshold = peak + (trade.reEntryPoints || 5);
+              const srcCur = niftySignalBinding[trade.symbol] ? closes[closes.length - 1] : ltp;
+              if (!(Number.isFinite(srcCur) && srcCur > reEntryThreshold)) {
+                if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
+                  lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
+                  addLogToActive(trade.symbol, `RE-ENTRY watching — ₹${Number.isFinite(srcCur) ? srcCur.toFixed(2) : "—"} vs ${peakN}-candle peak ₹${peak.toFixed(2)} +${trade.reEntryPoints || 5} (thr ₹${reEntryThreshold.toFixed(2)}) at ${currentTime}`);
+                }
+                continue;
+              }
+
+              // EMA trend gates — EMA10 must sit above EMA30, and EMA10
+              // itself must be rising vs N candles ago (slope check — the
+              // fast line's own angle, not the gap between the two lines).
+              const emaFast = calculateEMA(emaCloses, RE_ENTRY_EMA_FAST);
+              const emaSlow = calculateEMA(emaCloses, RE_ENTRY_EMA_SLOW);
+              const prevIdx = -(RE_ENTRY_EMA_SLOPE_LOOKBACK + 1);
+              const fNow = emaFast[emaFast.length - 1];
+              const sNow = emaSlow[emaSlow.length - 1];
+              const fPrev = emaFast[emaFast.length + prevIdx];
+              if (!(fNow > sNow)) {
+                if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
+                  lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
+                  addLogToActive(trade.symbol, `RE-ENTRY blocked — EMA${RE_ENTRY_EMA_FAST} (₹${fNow.toFixed(2)}) below EMA${RE_ENTRY_EMA_SLOW} (₹${sNow.toFixed(2)}) at ${currentTime}`);
+                }
+                continue;
+              }
+              if (!(fNow > fPrev)) {
+                if (lastReEntryBlockedCandle[trade.symbol] !== lastStrategyCandleTime) {
+                  lastReEntryBlockedCandle[trade.symbol] = lastStrategyCandleTime;
+                  addLogToActive(trade.symbol, `RE-ENTRY blocked — EMA${RE_ENTRY_EMA_FAST} flat/falling (₹${fPrev.toFixed(2)} → ₹${fNow.toFixed(2)} over ${RE_ENTRY_EMA_SLOPE_LOOKBACK} candles) at ${currentTime}`);
+                }
+                continue;
               }
               // AI Guard check â€” block re-entry if AI says sideways/reversing
               const aiSettings = getAiGuardSettings();
@@ -2878,7 +3011,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
                   continue;
                 }
               }
-              const reEntryLog = `RE-ENTRY triggered at ₹${ltp.toFixed(2)} (price exceeded exit+${trade.reEntryPoints || 5} ₹${reEntryThreshold.toFixed(2)} between candle ${startCandle} & ${trade.reEntryCandles}, current: ${candlesSinceSell}) at ${currentTime}`;
+              const reEntryLog = `RE-ENTRY triggered at ₹${ltp.toFixed(2)} (₹${srcCur.toFixed(2)} crossed ${peakN}-candle peak ₹${peak.toFixed(2)} +${trade.reEntryPoints || 5} pts between candle ${startCandle} & ${trade.reEntryCandles}, current: ${candlesSinceSell}) at ${currentTime}`;
               updateActiveTradeBuy(trade.symbol, String(ltp), reEntryLog);
               continue;
             }
@@ -2920,7 +3053,28 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     if (lastBuyTimestamp[trade.symbol] && (Date.now() - lastBuyTimestamp[trade.symbol]) < BUY_GRACE_PERIOD_MS) continue;
     if (trade.entryTimestamp && (Date.now() - trade.entryTimestamp) < BUY_GRACE_PERIOD_MS) continue;
 
-
+    // ── Auto Execute Exit — user-armed exit level (manual exit in a
+    // back-and-forth market). Direction latches on first evaluation:
+    // trigger above market = target (ltp >= price), below = stop
+    // (ltp <= price). Only ever evaluated while inPosition.
+    if (trade.autoExecuteExitPrice != null && Number.isFinite(trade.autoExecuteExitPrice)) {
+      const exitTrigger = trade.autoExecuteExitPrice;
+      let dir = trade.autoExecuteExitDir;
+      if (dir !== "up" && dir !== "down") {
+        dir = ltp <= exitTrigger ? "up" : "down";
+        trade.autoExecuteExitDir = dir;
+        persistState();
+      }
+      const hit = dir === "up" ? ltp >= exitTrigger : ltp <= exitTrigger;
+      if (hit) {
+        triggeredPositions.add(positionKey);
+        trailingArmedPositions.delete(positionKey);
+        delete trade.autoExecuteExitPrice;
+        delete trade.autoExecuteExitDir;
+        completeCycleWithoutExit(trade.symbol, String(ltp), `AUTO EXECUTE EXIT triggered for ₹${ltp} (${dir === "up" ? "reached" : "dropped to"} ₹${exitTrigger}) at ${currentTime}`);
+        continue;
+      }
+    }
 
     const trailingEnabled = trade.targetPointsEnabled && trade.targetPoints > 0 && trade.trailingAfterTargetEnabled && trade.trailingAfterTarget > 0;
 
@@ -2931,10 +3085,10 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     let trailedSLLevel = entry - (effectiveSL || 0);
     let slStepsCompleted = 0;
     if (effectiveSLEnabled && effectiveSL > 0) {
-      if (typeof trade.trailingSlHighWatermark !== "number" || ltp > trade.trailingSlHighWatermark) {
-        updateTrailingSlHighWatermark(trade.symbol, ltp);
+      if (typeof trade.trailingSlHighWatermark !== "number" || slPrice > trade.trailingSlHighWatermark) {
+        updateTrailingSlHighWatermark(trade.symbol, slPrice);
       }
-      const slHighMark = Math.max(trade.trailingSlHighWatermark ?? entry, ltp);
+      const slHighMark = Math.max(trade.trailingSlHighWatermark ?? entry, slPrice);
       if (trade.trailingStopLossEnabled && trade.trailingStopLossSteps > 0) {
         const slGain = Math.max(0, slHighMark - entry);
         slStepsCompleted = Math.floor(slGain / trade.trailingStopLossSteps);
@@ -3077,8 +3231,8 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
     }
 
     // Stop loss hit (Standard or Trailed)
-    if (effectiveSLEnabled && effectiveSL > 0 && ltp <= trailedSLLevel) {
-      const slExit = ltp <= trailedSLLevel ? ltp : trailedSLLevel;
+    if (effectiveSLEnabled && effectiveSL > 0 && slPrice <= trailedSLLevel) {
+      const slExit = slPrice <= trailedSLLevel ? slPrice : trailedSLLevel;
       triggeredPositions.add(positionKey);
       trailingArmedPositions.delete(positionKey);
 
@@ -3204,7 +3358,21 @@ async function tick() {
             for (const real of Object.keys(niftySignalBinding)) {
               if (niftySignalBinding[real] !== src) continue;
               const stamped = { ...signal, symbol: real };
-              if (Number.isFinite(boundLtp[real])) stamped.close = boundLtp[real];
+              if (Number.isFinite(boundLtp[real])) {
+                stamped.close = boundLtp[real];
+                // Freeze the option's "candle close" to its last tick of the
+                // minute that just ended — only when the FAKE candle rolls.
+                const srcCt = signal.lastCandleTime || signal.candles?.[signal.candles.length - 1]?.time;
+                if (srcCt) {
+                  if (boundLastSeenCandle[real] === undefined) {
+                    lastCandleCloseMap[real] = boundLtp[real];
+                  } else if (boundLastSeenCandle[real] !== srcCt && Number.isFinite(boundLastTickLtp[real])) {
+                    lastCandleCloseMap[real] = boundLastTickLtp[real];
+                  }
+                  boundLastSeenCandle[real] = srcCt;
+                  boundLastTickLtp[real] = boundLtp[real];
+                }
+              }
               handleStrategySignal(stamped);
             }
           } else {
@@ -3368,6 +3536,57 @@ async function tick() {
       triggerTimerFired.add(trade.symbol);
     }
 
+    // 5. Card Auto Trigger Buy check — on-the-fly trigger price set via Active Trades UI card
+    const autoTriggerCandidates = [
+      ...waitingTrades.filter((t) => t.autoTriggerBuyPrice != null && Number.isFinite(t.autoTriggerBuyPrice)),
+      ...activeTrades.filter((t) => t.status === "ACTIVE" && !t.inPosition && t.autoTriggerBuyPrice != null && Number.isFinite(t.autoTriggerBuyPrice)),
+    ];
+    if (autoTriggerCandidates.length > 0) {
+      const atSymbols = [...new Set(autoTriggerCandidates.map((t) => t.symbol))].join(",");
+      try {
+        const atRes = await fetch(`${API_URL}/prices?symbols=${atSymbols}`);
+        const atPrices = await atRes.json();
+        if (Array.isArray(atPrices)) {
+          for (const p of atPrices) {
+            if (!p?.symbol || p?.ltp == null) continue;
+            const currentLtp = Number(p.ltp);
+            if (!Number.isFinite(currentLtp)) continue;
+
+            // Check waiting trades
+            const waiting = waitingTrades.find((t) => t.symbol === p.symbol && t.autoTriggerBuyPrice != null);
+            if (waiting && waiting.autoTriggerBuyPrice != null && currentLtp >= waiting.autoTriggerBuyPrice) {
+              const targetPrice = waiting.autoTriggerBuyPrice;
+              delete waiting.autoTriggerBuyPrice;
+              const ltpStr = String(currentLtp);
+              const now = new Date();
+              const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+              const logLine = `AUTO TRIGGER BUY triggered for ₹${ltpStr} (exceeded ₹${targetPrice}) at ${timeStr}`;
+              console.log(`[trade-engine] ${waiting.symbol}: ${logLine}`);
+              activateWaitingTrade(waiting.symbol, ltpStr, logLine);
+              delete pendingBuyBuffer[waiting.symbol];
+              setPendingSkippedBuy(waiting.symbol, false);
+              continue;
+            }
+
+            // Check active trades (between cycles / not in position)
+            const active = activeTrades.find((t) => t.symbol === p.symbol && t.status === "ACTIVE" && !t.inPosition && t.autoTriggerBuyPrice != null);
+            if (active && active.autoTriggerBuyPrice != null && currentLtp >= active.autoTriggerBuyPrice) {
+              const targetPrice = active.autoTriggerBuyPrice;
+              delete active.autoTriggerBuyPrice;
+              const ltpStr = String(currentLtp);
+              const now = new Date();
+              const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+              const logLine = `AUTO TRIGGER BUY triggered for ₹${ltpStr} (exceeded ₹${targetPrice}) at ${timeStr}`;
+              console.log(`[trade-engine] ${active.symbol}: ${logLine}`);
+              updateActiveTradeBuy(active.symbol, ltpStr, logLine);
+              delete pendingBuyBuffer[active.symbol];
+              setPendingSkippedBuy(active.symbol, false);
+            }
+          }
+        }
+      } catch { /* API unreachable this tick */ }
+    }
+
   } catch (e) {
 
     console.error("[trade-engine] tick error:", e);
@@ -3512,6 +3731,12 @@ export function addWaitingTrade(trade: WaitingTrade) {
   // Clean up stale state before adding new trade
   cleanupStaleState();
 
+  // Stamp the known strategy name so it shows at initialization, not only
+  // on a later switch.
+  if (lastLoggedStrategyName && !trade.logs?.some((l) => l.startsWith("Strategy:"))) {
+    trade.logs = [...(trade.logs || []), `Strategy: ${lastLoggedStrategyName}`];
+  }
+
   waitingTrades = [trade, ...waitingTrades];
 
   persistState();
@@ -3643,6 +3868,62 @@ export async function manualEndCycle(symbol: string) {
 
   completeCycleWithoutExit(symbol, exitPrice, logLine);
   persistState();
+}
+
+export function setAutoTriggerBuyPrice(symbol: string, triggerPrice: number): boolean {
+  const waiting = waitingTrades.find((t) => t.symbol === symbol);
+  if (waiting) {
+    waiting.autoTriggerBuyPrice = triggerPrice;
+    addLogToWaiting(symbol, `Auto Trigger Buy set to ₹${triggerPrice}`);
+    persistState();
+    return true;
+  }
+  const active = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
+  if (active) {
+    active.autoTriggerBuyPrice = triggerPrice;
+    addLogToActive(symbol, `Auto Trigger Buy set to ₹${triggerPrice}`);
+    persistState();
+    return true;
+  }
+  return false;
+}
+
+export function resetAutoTriggerBuyPrice(symbol: string): boolean {
+  const waiting = waitingTrades.find((t) => t.symbol === symbol);
+  if (waiting) {
+    delete waiting.autoTriggerBuyPrice;
+    addLogToWaiting(symbol, `Auto Trigger Buy reset (cleared)`);
+    persistState();
+    return true;
+  }
+  const active = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
+  if (active) {
+    delete active.autoTriggerBuyPrice;
+    addLogToActive(symbol, `Auto Trigger Buy reset (cleared)`);
+    persistState();
+    return true;
+  }
+  return false;
+}
+
+export function setAutoExecuteExitPrice(symbol: string, triggerPrice: number): boolean {
+  const active = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE" && t.inPosition);
+  if (!active) return false;
+  active.autoExecuteExitPrice = triggerPrice;
+  delete active.autoExecuteExitDir;
+  addLogToActive(symbol, `Auto Execute Exit set to ₹${triggerPrice}`);
+  persistState();
+  return true;
+}
+
+export function resetAutoExecuteExitPrice(symbol: string): boolean {
+  const active = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
+  if (!active) return false;
+  delete active.autoExecuteExitPrice;
+  delete active.autoExecuteExitDir;
+  addLogToActive(symbol, `Auto Execute Exit reset (cleared)`);
+  persistState();
+  return true;
 }
 
 export function cancelWaitingTrade(symbol: string) {

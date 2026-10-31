@@ -108,6 +108,8 @@
   --theme-btn-add: #8b31dc;
   --theme-btn-add-hover: #9d45ee;
   --theme-btn-add-text: #ffffff;
+  --theme-btn-cancel: #8b31dc;
+  --theme-btn-cancel-text: #ffffff;
   --theme-btn-yellow: #d97706;
   --theme-btn-green: #10b981;
   
@@ -152,18 +154,18 @@
   --theme-text-config: #fef3c7;   /* Champagne for history params */
   
   /* Log/Console Colors */
-  --theme-log-bg: #0b0515;
-  --theme-log-text: #f5f3ff;
-  --theme-log-rs-gold: #fcd34d;
-  --theme-log-cyan-time: #38bdf8;
-  --theme-log-pl-profit: #34d399;
-  --theme-log-pl-loss: #f87171;
-  --theme-log-pl-profit-alt: #34d399;
-  --theme-log-pl-loss-alt: #f87171;
+  --theme-log-bg: #ddddff;
+  --theme-log-text: #1e1b4b;
+  --theme-log-rs-gold: #b45309;
+  --theme-log-cyan-time: #0369a1;
+  --theme-log-pl-profit: #047857;
+  --theme-log-pl-loss: #dc2626;
+  --theme-log-pl-profit-alt: #047857;
+  --theme-log-pl-loss-alt: #dc2626;
   
   /* Shadows */
-  --theme-shadow-log: rgba(0, 0, 0, 0.55);
-  --theme-shadow-log-inset: rgba(147, 51, 234, 0.1);
+  --theme-shadow-log: rgba(76, 29, 149, 0.15);
+  --theme-shadow-log-inset: rgba(76, 29, 149, 0.08);
   
   /* Time Badge */
   --theme-time-badge-bg: #1c0e35;
@@ -402,15 +404,15 @@
 }
 
 /* ============================================ */
-/* CANCEL BUTTONS: PROFESSIONAL GOLDENROD AMBER */
+/* CANCEL BUTTONS: PURPLE (MATCHES ADD BUTTON)  */
 /* ============================================ */
 
 /* Cancel in ...WAITING row */
-[data-theme="purple"] [class*="waitingActions"] button[class*="danger"],
-[data-theme="purple"] [class*="waitingBtn"][class*="danger"] {
-  background: #b45309 !important; /* Goldenrod Amber */
+[data-theme="purple"] [class*="waitingActions"] button[class*="cancel"],
+[data-theme="purple"] [class*="waitingBtn"][class*="cancel"] {
+  background: #8b31dc !important; /* Purple — matches ADD button */
   color: #ffffff !important;
-  border: 1px solid #d97706 !important;
+  border: 1px solid #9d45ee !important;
   border-radius: 6px !important;
   padding: 4px 12px !important;
   font-size: 11px !important;
@@ -419,7 +421,7 @@
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
-  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.35) !important;
+  box-shadow: 0 2px 6px rgba(139, 49, 220, 0.4) !important;
   transition: all 0.15s ease !important;
 
   svg {
@@ -427,7 +429,7 @@
   }
 
   &:hover {
-    background: #d97706 !important;
+    background: #9d45ee !important;
   }
 }
 

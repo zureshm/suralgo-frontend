@@ -9,6 +9,7 @@ import styles from "./ActiveTrade.module.scss";
 import type { ActiveTrade as ActiveTradeType, WaitingTrade } from "../store/TradeStore";
 import { useTradeStore } from "../store/TradeStore";
 import { sortSymbolsByPairs } from "@/lib/symbol-sort";
+import { AutoTriggerRow, AutoExecuteExitRow } from "./TriggerRows";
 
 function TradeLogsConsole({ logs }: { logs: string[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -62,6 +63,54 @@ type Props = {
   onCancelWaiting: (symbol: string) => void;
 };
 
+function renderSymbolWithBadge(symbol: string) {
+  if (symbol.endsWith("CE")) {
+    const prefix = symbol.slice(0, -2);
+    return (
+      <span>
+        {prefix}
+        <span
+          style={{
+            backgroundColor: "#16a34a",
+            color: "#ffffff",
+            padding: "1px 4px",
+            borderRadius: 3,
+            fontWeight: 700,
+            marginLeft: 2,
+            display: "inline-block",
+            lineHeight: 1.1,
+          }}
+        >
+          CE
+        </span>
+      </span>
+    );
+  }
+  if (symbol.endsWith("PE")) {
+    const prefix = symbol.slice(0, -2);
+    return (
+      <span>
+        {prefix}
+        <span
+          style={{
+            backgroundColor: "#dc2626",
+            color: "#ffffff",
+            padding: "1px 4px",
+            borderRadius: 3,
+            fontWeight: 700,
+            marginLeft: 2,
+            display: "inline-block",
+            lineHeight: 1.1,
+          }}
+        >
+          PE
+        </span>
+      </span>
+    );
+  }
+  return <span>{symbol}</span>;
+}
+
 export default function ActiveTrade({
   activeTrades,
   waitingTrades,
@@ -71,7 +120,7 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, niftySignalBindings } = useTradeStore();
+  const { removeTradeAndFreeSymbol, forceBuyEnabled, desktopViewEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, niftySignalBindings } = useTradeStore();
 
   // Track pending force-buy / end-cycle requests per symbol
   const [pendingAction, setPendingAction] = useState<Record<string, "force-buy" | "end-cycle">>({});
@@ -211,17 +260,7 @@ export default function ActiveTrade({
             <div key={t.symbol} className={styles.trade}>
               <div className={styles.tradeRow}>
                 <div className={styles.tradeSymbol}>
-                  {t.symbol}
-                  {t.symbol.endsWith("CE") && (
-                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                      <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
-                    </span>
-                  )}
-                  {t.symbol.endsWith("PE") && (
-                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                      <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
-                    </span>
-                  )}
+                  {renderSymbolWithBadge(t.symbol)}
                   {renderSignalIcon(t.symbol)}
                   {renderAiRegimeBadge(t.symbol)}
                 </div>
@@ -472,6 +511,18 @@ export default function ActiveTrade({
                 </div>
               )}
 
+              {forceBuyEnabled && !desktopViewEnabled && (
+                <div style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                  marginTop: 10, padding: "10px 12px", borderRadius: 10,
+                  border: "1px solid var(--theme-popup-field-border)",
+                  background: "var(--theme-popup-field-bg)",
+                }}>
+                  <AutoTriggerRow symbol={t.symbol} activeLtps={activeLtps} inPosition={t.inPosition} autoTriggerBuyPrice={t.autoTriggerBuyPrice} labelOnTop />
+                  <AutoExecuteExitRow symbol={t.symbol} activeLtps={activeLtps} inPosition={t.inPosition} autoExecuteExitPrice={t.autoExecuteExitPrice} labelOnTop />
+                </div>
+              )}
+
               {/* Trade Configuration */}
               <div className={styles.tradeConfig}>
                 <div className="text-xs" style={{ color: "var(--theme-text-gray-500)" }}>
@@ -511,17 +562,7 @@ export default function ActiveTrade({
                   </div>
                   <div className={styles.bannerBottom}>
                     <span className={styles.bannerSymbol} style={{ color: "#f59e0b" }}>
-                      {t.symbol}
-                      {t.symbol.endsWith("CE") && (
-                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                          <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
-                        </span>
-                      )}
-                      {t.symbol.endsWith("PE") && (
-                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                          <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
-                        </span>
-                      )}
+                      {renderSymbolWithBadge(t.symbol)}
                     </span>
                     <div className={styles.bannerActions}>
                       <button
@@ -593,17 +634,7 @@ export default function ActiveTrade({
                   </div>
                   <div className={styles.bannerBottom}>
                     <span className={styles.bannerSymbol}>
-                      {t.symbol}
-                      {t.symbol.endsWith("CE") && (
-                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                          <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
-                        </span>
-                      )}
-                      {t.symbol.endsWith("PE") && (
-                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                          <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
-                        </span>
-                      )}
+                      {renderSymbolWithBadge(t.symbol)}
                     </span>
                     <div className={styles.bannerActions}>
                       <button
@@ -658,17 +689,7 @@ export default function ActiveTrade({
               <div key={index} className={styles.trade}>
                 <div className={styles.tradeRow}>
                   <div className={styles.tradeSymbol}>
-                    {t.symbol}
-                    {t.symbol.endsWith("CE") && (
-                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,1 11,11 1,11" fill="#2e9e2e" /></svg>
-                      </span>
-                    )}
-                    {t.symbol.endsWith("PE") && (
-                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "rgba(0,0,0,0)", marginLeft: 2, flexShrink: 0 }}>
-                        <svg width="12" height="12" viewBox="0 0 12 12"><polygon points="6,11 11,1 1,1" fill="#ff0000" /></svg>
-                      </span>
-                    )}
+                    {renderSymbolWithBadge(t.symbol)}
                     {renderSignalIcon(t.symbol)}
                     {renderAiRegimeBadge(t.symbol)}
                     {(() => {
@@ -732,7 +753,7 @@ export default function ActiveTrade({
                   </button>
                   )}
                   <button
-                    className={`${styles.waitingBtn} ${styles.danger}`}
+                    className={`${styles.waitingBtn} ${styles.cancel}`}
                     type="button"
                     onClick={() => {
                       fetch(`/next-api/trades/${encodeURIComponent(t.symbol)}/cancel`, { method: "POST" }).catch(() => {});
@@ -824,6 +845,17 @@ export default function ActiveTrade({
                     </div>
                   );
                 })()}
+
+                {forceBuyEnabled && !desktopViewEnabled && (
+                  <div style={{
+                    display: "flex", justifyContent: "center",
+                    marginTop: 10, padding: "10px 12px", borderRadius: 10,
+                    border: "1px solid var(--theme-popup-field-border)",
+                    background: "var(--theme-popup-field-bg)",
+                  }}>
+                    <AutoTriggerRow symbol={t.symbol} activeLtps={activeLtps} inPosition={false} autoTriggerBuyPrice={t.autoTriggerBuyPrice} labelOnTop />
+                  </div>
+                )}
 
                 {/* Trade Configuration for Waiting Trades */}
                 <div className={styles.tradeConfig}>
