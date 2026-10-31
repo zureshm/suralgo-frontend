@@ -120,7 +120,7 @@ export default function ActiveTrade({
   onCancelWaiting,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const { removeTradeAndFreeSymbol, forceBuyEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, niftySignalBindings } = useTradeStore();
+  const { removeTradeAndFreeSymbol, forceBuyEnabled, desktopViewEnabled, initializedSymbols, symbolHistoryStatus, aiSuggestions, aiGuardActive, aiRegime, aiSymbolEnabled, niftySignalBindings } = useTradeStore();
 
   // Track pending force-buy / end-cycle requests per symbol
   const [pendingAction, setPendingAction] = useState<Record<string, "force-buy" | "end-cycle">>({});
@@ -511,7 +511,7 @@ export default function ActiveTrade({
                 </div>
               )}
 
-              {forceBuyEnabled && (
+              {forceBuyEnabled && !desktopViewEnabled && (
                 <div style={{
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
                   marginTop: 10, padding: "10px 12px", borderRadius: 10,
@@ -846,7 +846,7 @@ export default function ActiveTrade({
                   );
                 })()}
 
-                {forceBuyEnabled && (
+                {forceBuyEnabled && !desktopViewEnabled && (
                   <div style={{
                     display: "flex", justifyContent: "center",
                     marginTop: 10, padding: "10px 12px", borderRadius: 10,
