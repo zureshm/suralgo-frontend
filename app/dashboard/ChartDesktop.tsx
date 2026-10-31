@@ -15,6 +15,7 @@ import {
   ShortMaType,
   toHeikenAshi,
   calculateUTBot,
+  shortUtbotSignals,
   calculateSuperTrend,
   SuperTrendPrimitive,
   UTBotLabel,
@@ -27,9 +28,10 @@ interface NumericFieldProps extends Omit<React.ComponentProps<"input">, "value" 
   value: number | undefined | null;
   onChange: (val: number) => void;
   fallback?: string;
+  allowDecimal?: boolean;
 }
 
-function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: NumericFieldProps) {
+function NumericField({ value, onChange, onBlur, fallback = "0", allowDecimal, ...props }: NumericFieldProps) {
   const [local, setLocal] = useState<string>(value != null ? String(value) : "");
   const [prevValue, setPrevValue] = useState(value);
 
@@ -41,13 +43,16 @@ function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: Num
     <input
       {...props}
       type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
+      inputMode={allowDecimal ? "decimal" : "numeric"}
+      pattern={allowDecimal ? "[0-9.]*" : "[0-9]*"}
       value={local}
       onChange={(e) => {
-        const cleaned = e.target.value.replace(/\D/g, "");
+        let cleaned = e.target.value.replace(allowDecimal ? /[^\d.]/g : /\D/g, "");
+        if (allowDecimal) cleaned = cleaned.replace(/(\..*)\./g, "$1");
         setLocal(cleaned);
-        onChange(cleaned === "" ? 0 : Number(cleaned));
+        const num = Number(cleaned);
+        if (cleaned === "") onChange(0);
+        else if (Number.isFinite(num)) onChange(num);
       }}
       onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
         if (!e.target.value) {
@@ -428,6 +433,66 @@ export default function ChartDesktop() {
     return "#db2777";
   });
 
+  const [su1Enabled, setSu1Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_su1_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [su1Key, setSu1Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_su1_key");
+      return saved !== null ? parseFloat(saved) : 0.5;
+    }
+    return 0.5;
+  });
+  const [su1Atr, setSu1Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_su1_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [su1BuyColor, setSu1BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_su1_buy_color")) || "#0ea5e9");
+  const [su1SellColor, setSu1SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_su1_sell_color")) || "#f97316");
+  const [su2Enabled, setSu2Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_su2_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [su2Key, setSu2Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_su2_key");
+      return saved !== null ? parseFloat(saved) : 0.75;
+    }
+    return 0.75;
+  });
+  const [su2Atr, setSu2Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_su2_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [su2BuyColor, setSu2BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_su2_buy_color")) || "#84cc16");
+  const [su2SellColor, setSu2SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_su2_sell_color")) || "#e879f9");
+  const [suTime, setSuTime] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nifty_su_time") || "";
+    }
+    return "";
+  });
+  const [suCount, setSuCount] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_su_count");
+      return saved !== null ? parseInt(saved, 10) : 30;
+    }
+    return 30;
+  });
+
   const [macdEnabled, setMacdEnabled] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("nifty_macd_enabled");
@@ -720,6 +785,66 @@ export default function ChartDesktop() {
     return "#db2777";
   });
 
+  const [sSu1Enabled, setSSu1Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_su1_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sSu1Key, setSSu1Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_su1_key");
+      return saved !== null ? parseFloat(saved) : 0.5;
+    }
+    return 0.5;
+  });
+  const [sSu1Atr, setSSu1Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_su1_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [sSu1BuyColor, setSSu1BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_su1_buy_color")) || "#0ea5e9");
+  const [sSu1SellColor, setSSu1SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_su1_sell_color")) || "#f97316");
+  const [sSu2Enabled, setSSu2Enabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_su2_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sSu2Key, setSSu2Key] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_su2_key");
+      return saved !== null ? parseFloat(saved) : 0.75;
+    }
+    return 0.75;
+  });
+  const [sSu2Atr, setSSu2Atr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_su2_atr");
+      return saved !== null ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [sSu2BuyColor, setSSu2BuyColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_su2_buy_color")) || "#84cc16");
+  const [sSu2SellColor, setSSu2SellColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_su2_sell_color")) || "#e879f9");
+  const [sSuTime, setSSuTime] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("strategy_su_time") || "";
+    }
+    return "";
+  });
+  const [sSuCount, setSSuCount] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_su_count");
+      return saved !== null ? parseInt(saved, 10) : 30;
+    }
+    return 30;
+  });
+
   const [sMacdEnabled, setSMacdEnabled] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("strategy_macd_enabled");
@@ -864,6 +989,19 @@ export default function ChartDesktop() {
     localStorage.setItem("nifty_macd_slow", String(macdSlow));
     localStorage.setItem("nifty_macd_signal", String(macdSignal));
 
+    localStorage.setItem("nifty_su1_enabled", String(su1Enabled));
+    localStorage.setItem("nifty_su1_key", String(su1Key));
+    localStorage.setItem("nifty_su1_atr", String(su1Atr));
+    localStorage.setItem("nifty_su1_buy_color", su1BuyColor);
+    localStorage.setItem("nifty_su1_sell_color", su1SellColor);
+    localStorage.setItem("nifty_su2_enabled", String(su2Enabled));
+    localStorage.setItem("nifty_su2_key", String(su2Key));
+    localStorage.setItem("nifty_su2_atr", String(su2Atr));
+    localStorage.setItem("nifty_su2_buy_color", su2BuyColor);
+    localStorage.setItem("nifty_su2_sell_color", su2SellColor);
+    localStorage.setItem("nifty_su_time", suTime);
+    localStorage.setItem("nifty_su_count", String(suCount));
+
     localStorage.setItem("strategy_se_enabled", String(sSeEnabled));
     localStorage.setItem("strategy_se1_period", String(sSe1Period));
     localStorage.setItem("strategy_se2_period", String(sSe2Period));
@@ -877,6 +1015,19 @@ export default function ChartDesktop() {
     localStorage.setItem("strategy_macd_fast", String(sMacdFast));
     localStorage.setItem("strategy_macd_slow", String(sMacdSlow));
     localStorage.setItem("strategy_macd_signal", String(sMacdSignal));
+
+    localStorage.setItem("strategy_su1_enabled", String(sSu1Enabled));
+    localStorage.setItem("strategy_su1_key", String(sSu1Key));
+    localStorage.setItem("strategy_su1_atr", String(sSu1Atr));
+    localStorage.setItem("strategy_su1_buy_color", sSu1BuyColor);
+    localStorage.setItem("strategy_su1_sell_color", sSu1SellColor);
+    localStorage.setItem("strategy_su2_enabled", String(sSu2Enabled));
+    localStorage.setItem("strategy_su2_key", String(sSu2Key));
+    localStorage.setItem("strategy_su2_atr", String(sSu2Atr));
+    localStorage.setItem("strategy_su2_buy_color", sSu2BuyColor);
+    localStorage.setItem("strategy_su2_sell_color", sSu2SellColor);
+    localStorage.setItem("strategy_su_time", sSuTime);
+    localStorage.setItem("strategy_su_count", String(sSuCount));
   }, [
     ema1Enabled, ema1Period, ema1Color, ema2Enabled, ema2Period, ema2Color,
     utbot1Enabled, utbot1Key, utbot1Atr, utbot1BuyColor, utbot1SellColor,
@@ -897,8 +1048,14 @@ export default function ChartDesktop() {
     sSt2Enabled, sSt2Period, sSt2Mult, sSt2UpColor, sSt2DownColor,
     seEnabled, se1Period, se2Period, seTime, seCount, seMaType, se1Color, se2Color,
     sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color,
+    su1Enabled, su1Key, su1Atr, su1BuyColor, su1SellColor,
+    su2Enabled, su2Key, su2Atr, su2BuyColor, su2SellColor,
+    suTime, suCount,
     macdEnabled, macdFast, macdSlow, macdSignal,
-    sMacdEnabled, sMacdFast, sMacdSlow, sMacdSignal
+    sMacdEnabled, sMacdFast, sMacdSlow, sMacdSignal,
+    sSu1Enabled, sSu1Key, sSu1Atr, sSu1BuyColor, sSu1SellColor,
+    sSu2Enabled, sSu2Key, sSu2Atr, sSu2BuyColor, sSu2SellColor,
+    sSuTime, sSuCount
   ]);
 
   const activeSymbolsKey = useMemo(() => {
@@ -1150,6 +1307,16 @@ export default function ChartDesktop() {
           utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? utbot5BuyColor : utbot5SellColor })
         );
       }
+      if (su1Enabled) {
+        shortUtbotSignals(utbotCandles, su1Key, su1Atr, suTime, suCount).forEach(s =>
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? su1BuyColor : su1SellColor })
+        );
+      }
+      if (su2Enabled) {
+        shortUtbotSignals(utbotCandles, su2Key, su2Atr, suTime, suCount).forEach(s =>
+          utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? su2BuyColor : su2SellColor })
+        );
+      }
 
       labelPlugin.setData(
         displayCandles.map((c) => ({ time: c.time as number, high: c.high, low: c.low })),
@@ -1199,6 +1366,9 @@ export default function ChartDesktop() {
       st1Enabled, st1Period, st1Mult, st1UpColor, st1DownColor,
       st2Enabled, st2Period, st2Mult, st2UpColor, st2DownColor,
       seEnabled, se1Period, se2Period, seTime, seCount, seMaType, se1Color, se2Color,
+      su1Enabled, su1Key, su1Atr, su1BuyColor, su1SellColor,
+      su2Enabled, su2Key, su2Atr, su2BuyColor, su2SellColor,
+      suTime, suCount,
       macdEnabled, macdFast, macdSlow, macdSignal, niftyHeikenAshi]);
 
   useEffect(() => {
@@ -1412,6 +1582,16 @@ export default function ChartDesktop() {
             utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? sUtbot5BuyColor : sUtbot5SellColor })
           );
         }
+        if (sSu1Enabled) {
+          shortUtbotSignals(displayCandles, sSu1Key, sSu1Atr, sSuTime, sSuCount).forEach(s =>
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? sSu1BuyColor : sSu1SellColor })
+          );
+        }
+        if (sSu2Enabled) {
+          shortUtbotSignals(displayCandles, sSu2Key, sSu2Atr, sSuTime, sSuCount).forEach(s =>
+            utbotLabels.push({ time: s.time, type: s.type, color: s.type === "BUY" ? sSu2BuyColor : sSu2SellColor })
+          );
+        }
 
         labelPlugin.setData(
           displayCandles.map((c) => ({ time: c.time as number, high: c.high, low: c.low })),
@@ -1463,7 +1643,10 @@ export default function ChartDesktop() {
       sSt1Enabled, sSt1Period, sSt1Mult, sSt1UpColor, sSt1DownColor,
       sSt2Enabled, sSt2Period, sSt2Mult, sSt2UpColor, sSt2DownColor,
       sSeEnabled, sSe1Period, sSe2Period, sSeTime, sSeCount, sSeMaType, sSe1Color, sSe2Color,
-      sMacdEnabled, sMacdFast, sMacdSlow, sMacdSignal]);
+      sMacdEnabled, sMacdFast, sMacdSlow, sMacdSignal,
+      sSu1Enabled, sSu1Key, sSu1Atr, sSu1BuyColor, sSu1SellColor,
+      sSu2Enabled, sSu2Key, sSu2Atr, sSu2BuyColor, sSu2SellColor,
+      sSuTime, sSuCount]);
 
 
 
@@ -1650,6 +1833,49 @@ export default function ChartDesktop() {
               </select>
             </label>
           </IndicatorMenu>
+          <IndicatorMenu label="SHORT UTB" enabledCount={Number(su1Enabled) + Number(su2Enabled)}>
+            <div className="flex items-center gap-1.5 px-0.5 text-[8px] font-bold opacity-60">
+              <span className="w-3.5" />
+              <span className="w-14">NAME</span>
+              <span className="w-8 text-center">KEY</span>
+              <span className="w-8 text-center">ATR</span>
+              <span className="w-5 text-center">BUY</span>
+              <span className="w-5 text-center">SELL</span>
+            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={su1Enabled} onChange={(e) => setSu1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500 cursor-pointer" />
+              <span className="w-14 text-[10px] font-bold" style={{ color: su1BuyColor }}>UTB 1</span>
+              <NumericField value={su1Key} onChange={setSu1Key} allowDecimal className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="0.5" />
+              <NumericField value={su1Atr} onChange={setSu1Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              <input type="color" value={su1BuyColor} onChange={(e) => setSu1BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTB 1 BUY color" />
+              <input type="color" value={su1SellColor} onChange={(e) => setSu1SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTB 1 SELL color" />
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={su2Enabled} onChange={(e) => setSu2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-lime-500 cursor-pointer" />
+              <span className="w-14 text-[10px] font-bold" style={{ color: su2BuyColor }}>UTB 2</span>
+              <NumericField value={su2Key} onChange={setSu2Key} allowDecimal className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="0.75" />
+              <NumericField value={su2Atr} onChange={setSu2Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+              <input type="color" value={su2BuyColor} onChange={(e) => setSu2BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTB 2 BUY color" />
+              <input type="color" value={su2SellColor} onChange={(e) => setSu2SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTB 2 SELL color" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">AT</span>
+              <input
+                value={suTime}
+                onChange={(e) => setSuTime(e.target.value)}
+                placeholder="LATEST"
+                className="w-14 h-6 rounded text-center text-[10px] font-bold"
+                style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+              />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">LAST</span>
+              <NumericField value={suCount} onChange={setSuCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
+              <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
+            </label>
+          </IndicatorMenu>
           <IndicatorMenu label="MACD" enabledCount={Number(macdEnabled)}>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" checked={macdEnabled} onChange={(e) => setMacdEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500 cursor-pointer" />
@@ -1695,24 +1921,29 @@ export default function ChartDesktop() {
       {/* Strategy Charts Section */}
       {activeSymbols.size > 0 && (
         <div className="flex flex-col mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold" style={{ color: "var(--theme-popup-text)" }}>Strategy Chart Status</h3>
-            <button
-              onClick={() => setRefreshKey(k => k + 1)}
-              className="p-1.5 rounded-full transition hover:opacity-80"
-              style={{ background: "var(--theme-popup-border)", color: "#fff" }}
-              title="Refresh charts"
-              disabled={spinning}
-            >
-              <RefreshCw size={14} className={spinning ? "animate-spin" : ""} />
-            </button>
-          </div>
-
-          {/* Strategy Indicators Bar (Always Visible) */}
+          {/* Sticky Toolbar Header: Strategy Chart Status + Indicator Bar */}
           <div
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 shrink-0 text-xs mb-1 rounded-t-lg"
-            style={{ background: "rgba(0,0,0,0.05)", border: "1px solid var(--theme-popup-field-border)", borderBottom: "none" }}
+            className="sticky top-0 z-20 pb-2"
+            style={{ background: "var(--theme-card-white)" }}
           >
+            <div className="flex items-center justify-between mb-2 pt-1">
+              <h3 className="text-sm font-semibold" style={{ color: "var(--theme-popup-text)" }}>Strategy Chart Status</h3>
+              <button
+                onClick={() => setRefreshKey(k => k + 1)}
+                className="p-1.5 rounded-full transition hover:opacity-80"
+                style={{ background: "var(--theme-popup-border)", color: "#fff" }}
+                title="Refresh charts"
+                disabled={spinning}
+              >
+                <RefreshCw size={14} className={spinning ? "animate-spin" : ""} />
+              </button>
+            </div>
+
+            {/* Strategy Indicators Bar (Always Visible) */}
+            <div
+              className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 shrink-0 text-xs mb-1 rounded-t-lg"
+              style={{ background: "rgba(0,0,0,0.05)", border: "1px solid var(--theme-popup-field-border)", borderBottom: "none" }}
+            >
             <IndicatorMenu label="EMA" enabledCount={Number(sEma1Enabled) + Number(sEma2Enabled)}>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input type="checkbox" checked={sEma1Enabled} onChange={(e) => setSEma1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-blue-500 cursor-pointer" />
@@ -1846,6 +2077,49 @@ export default function ChartDesktop() {
                 </select>
               </label>
             </IndicatorMenu>
+            <IndicatorMenu label="SHORT UTB" enabledCount={Number(sSu1Enabled) + Number(sSu2Enabled)}>
+              <div className="flex items-center gap-1.5 px-0.5 text-[8px] font-bold opacity-60">
+                <span className="w-3.5" />
+                <span className="w-14">NAME</span>
+                <span className="w-8 text-center">KEY</span>
+                <span className="w-8 text-center">ATR</span>
+                <span className="w-5 text-center">BUY</span>
+                <span className="w-5 text-center">SELL</span>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sSu1Enabled} onChange={(e) => setSSu1Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500 cursor-pointer" />
+                <span className="w-14 text-[10px] font-bold" style={{ color: sSu1BuyColor }}>UTB 1</span>
+                <NumericField value={sSu1Key} onChange={setSSu1Key} allowDecimal className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="0.5" />
+                <NumericField value={sSu1Atr} onChange={setSSu1Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+                <input type="color" value={sSu1BuyColor} onChange={(e) => setSSu1BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTB 1 BUY color" />
+                <input type="color" value={sSu1SellColor} onChange={(e) => setSSu1SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTB 1 SELL color" />
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sSu2Enabled} onChange={(e) => setSSu2Enabled(e.target.checked)} className="h-3.5 w-3.5 accent-lime-500 cursor-pointer" />
+                <span className="w-14 text-[10px] font-bold" style={{ color: sSu2BuyColor }}>UTB 2</span>
+                <NumericField value={sSu2Key} onChange={setSSu2Key} allowDecimal className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="0.75" />
+                <NumericField value={sSu2Atr} onChange={setSSu2Atr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="10" />
+                <input type="color" value={sSu2BuyColor} onChange={(e) => setSSu2BuyColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTB 2 BUY color" />
+                <input type="color" value={sSu2SellColor} onChange={(e) => setSSu2SellColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="UTB 2 SELL color" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">AT</span>
+                <input
+                  value={sSuTime}
+                  onChange={(e) => setSSuTime(e.target.value)}
+                  placeholder="LATEST"
+                  className="w-14 h-6 rounded text-center text-[10px] font-bold"
+                  style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+                />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">LAST</span>
+                <NumericField value={sSuCount} onChange={setSSuCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
+                <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
+              </label>
+            </IndicatorMenu>
             <IndicatorMenu label="MACD" enabledCount={Number(sMacdEnabled)}>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input type="checkbox" checked={sMacdEnabled} onChange={(e) => setSMacdEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-sky-500 cursor-pointer" />
@@ -1873,6 +2147,7 @@ export default function ChartDesktop() {
                 <span style={{ position: "absolute", top: 2, left: heikenAshi ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
               </button>
             </div>
+          </div>
           </div>
 
           {error ? (

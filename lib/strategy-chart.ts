@@ -451,6 +451,37 @@ export function calculateUTBot(candles: { time: string | number; open: number; h
   return signals;
 }
 
+// UTBot computed over a short trailing window (default 30 candles) ending at
+// an anchor minute ("HH:MM" UTC, blank = latest candle) — same window logic
+// as shortMaSeries. The first evaluated candle's signal is dropped: the
+// trailing stop starts at 0, so that candle can emit a fake instant BUY/SELL
+// (cold-start artifact, not a real crossover).
+export function shortUtbotSignals(
+  candles: { time: string | number; open: number; high: number; low: number; close: number }[],
+  key: number,
+  atrPeriod: number,
+  anchorMin: string,
+  windowSize = 30
+): UTBotSignal[] {
+  if (candles.length === 0) return [];
+
+  let endIdx = candles.length - 1;
+  const anchor = anchorMin.trim();
+  if (anchor) {
+    for (let i = candles.length - 1; i >= 0; i--) {
+      const hhmm = new Date(toChartTime(candles[i].time) * 1000).toISOString().slice(11, 16);
+      if (hhmm === anchor) { endIdx = i; break; }
+    }
+  }
+
+  const startIdx = Math.max(0, endIdx - windowSize + 1);
+  const slice = candles.slice(startIdx, endIdx + 1);
+  if (slice.length < atrPeriod + 1) return [];
+
+  const coldStartTime = toChartTime(slice[atrPeriod].time);
+  return calculateUTBot(slice, key, atrPeriod).filter((s) => s.time !== coldStartTime);
+}
+
 // SuperTrend — TradingView algorithm: hl2 source, RMA ATR bands with
 // ratcheting, direction flips when close crosses the opposite band.
 export type SuperTrendPoint = { time: number; st: number; hl2: number; up: boolean };

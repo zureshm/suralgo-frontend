@@ -97,6 +97,11 @@
   color: var(--theme-btn-danger-text);
 }
 
+.cancel {
+  background: var(--theme-btn-cancel, var(--theme-btn-danger));
+  color: var(--theme-btn-cancel-text, var(--theme-btn-danger-text));
+}
+
 .dark {
   background: var(--theme-card-dark);
   color: var(--theme-btn-dark-text);
@@ -108,7 +113,7 @@
   border-radius: 8px;
   padding: 16px;
   background: var(--theme-log-bg);
-  color: var(--theme-text-white);
+  color: var(--theme-log-text);
   min-height: 150px;
   max-height: 150px;
   overflow-y: auto;
