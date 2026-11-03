@@ -2839,6 +2839,11 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
 
     const slPrice = useCloseForSL && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? lastCandleCloseMap[trade.symbol] : ltp;
 
+    // Price-source tag appended to exit logs — "(Candle close)" when the exit
+    // was evaluated against the last completed candle close, "(LTP)" otherwise.
+    const pxSrc = (useClose: boolean) =>
+      useClose && Number.isFinite(lastCandleCloseMap[trade.symbol]) ? " (Candle close)" : " (LTP)";
+
     // Use real-time LTP for SL/Minimum Target. Target/Trailing may use LTP or last candle close based on mode.
 
     const currentTime = marketTime || fmtTime();
@@ -3074,7 +3079,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         trailingArmedPositions.delete(positionKey);
         delete trade.autoExecuteExitPrice;
         delete trade.autoExecuteExitDir;
-        completeCycleWithoutExit(trade.symbol, String(ltp), `AUTO EXECUTE EXIT triggered for ₹${ltp} (${dir === "up" ? "reached" : "dropped to"} ₹${exitTrigger}) at ${currentTime}`);
+        completeCycleWithoutExit(trade.symbol, String(ltp), `AUTO EXECUTE EXIT triggered for ₹${ltp} (${dir === "up" ? "reached" : "dropped to"} ₹${exitTrigger}) at ${currentTime} (LTP)`);
         continue;
       }
     }
@@ -3136,7 +3141,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         completeCycleWithoutExit(
           trade.symbol,
           String(exitPrice),
-          `WATCHDOG exit triggered for ₹${exitPrice.toFixed(2)} (reached +${reachedCp.points} pts, dropped below +${reachedCp.breakBelow} pts) at ${currentTime}`
+          `WATCHDOG exit triggered for ₹${exitPrice.toFixed(2)} (reached +${reachedCp.points} pts, dropped below +${reachedCp.breakBelow} pts) at ${currentTime} (LTP)`
         );
         continue;
       }
@@ -3178,7 +3183,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
             const exitPrice = Math.min(minTargetTriggerPrice, minTargetFloor);
             triggeredPositions.add(positionKey);
             trailingArmedPositions.delete(positionKey);
-            completeCycleWithoutExit(trade.symbol, String(exitPrice), `${useReEntryMinTarget ? "ReEntry " : ""}${effectiveMinTrailing ? "TRAILING MIN TARGET" : "MINIMUM TARGET"} hit for ₹${exitPrice.toFixed(2)} at ${currentTime}`);
+            completeCycleWithoutExit(trade.symbol, String(exitPrice), `${useReEntryMinTarget ? "ReEntry " : ""}${effectiveMinTrailing ? "TRAILING MIN TARGET" : "MINIMUM TARGET"} hit for ₹${exitPrice.toFixed(2)} at ${currentTime}${pxSrc(useCloseForMinTrigger)}`);
             continue;
           }
         }
@@ -3204,7 +3209,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         } else {
           const exitPrice = Math.min(trailingPrice, trailingFloor);
           triggeredPositions.add(positionKey);
-          completeCycleWithoutExit(trade.symbol, String(exitPrice), `Trailing target hit for ₹${exitPrice} at ${currentTime}`);
+          completeCycleWithoutExit(trade.symbol, String(exitPrice), `Trailing target hit for ₹${exitPrice} at ${currentTime}${pxSrc(useCloseForTrailing)}`);
           continue;
         }
       }
@@ -3229,7 +3234,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
       }
 
       triggeredPositions.add(positionKey);
-      completeCycleWithoutExit(trade.symbol, String(tgtExit), `TARGET hit for ₹${tgtExit} at ${currentTime}`);
+      completeCycleWithoutExit(trade.symbol, String(tgtExit), `TARGET hit for ₹${tgtExit} at ${currentTime}${pxSrc(useCloseForTarget)}`);
       continue;
     }
 
@@ -3242,12 +3247,12 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
       let slLog: string;
       if (trade.isReEntryCycle) {
         slLog = (trade.trailingStopLossEnabled && slStepsCompleted > 0)
-          ? `RE-ENTRY TRAILING STOPLOSS hit for ₹${slExit} (trailed to ₹${trailedSLLevel.toFixed(2)}) at ${currentTime}`
-          : `RE-ENTRY STOPLOSS hit for ₹${slExit} at ${currentTime}`;
+          ? `RE-ENTRY TRAILING STOPLOSS hit for ₹${slExit} (trailed to ₹${trailedSLLevel.toFixed(2)}) at ${currentTime}${pxSrc(useCloseForSL)}`
+          : `RE-ENTRY STOPLOSS hit for ₹${slExit} at ${currentTime}${pxSrc(useCloseForSL)}`;
       } else {
         slLog = (trade.trailingStopLossEnabled && slStepsCompleted > 0)
-          ? `TRAILING STOPLOSS hit for ₹${slExit} (trailed to ₹${trailedSLLevel.toFixed(2)}) at ${currentTime}`
-          : `STOPLOSS hit for ₹${slExit} at ${currentTime}`;
+          ? `TRAILING STOPLOSS hit for ₹${slExit} (trailed to ₹${trailedSLLevel.toFixed(2)}) at ${currentTime}${pxSrc(useCloseForSL)}`
+          : `STOPLOSS hit for ₹${slExit} at ${currentTime}${pxSrc(useCloseForSL)}`;
       }
 
       completeCycleWithoutExit(trade.symbol, String(slExit), slLog);
@@ -3262,7 +3267,7 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         const candlesSinceEntry = currentMin - entryMin;
         if (candlesSinceEntry >= trade.sellWhenLossCandles) {
           triggeredPositions.add(positionKey);
-          completeCycleWithoutExit(trade.symbol, String(ltp), `SELL (in loss for ${candlesSinceEntry} candles) at ₹${ltp} at ${currentTime}`);
+          completeCycleWithoutExit(trade.symbol, String(ltp), `SELL (in loss for ${candlesSinceEntry} candles) at ₹${ltp} at ${currentTime} (LTP)`);
           continue;
         }
       }
