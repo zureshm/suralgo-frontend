@@ -661,6 +661,9 @@ const niftySignalBinding: Record<string, "FAKE_CE" | "FAKE_PE"> = {};
 // modes compare a real candle close instead of a live tick.
 const boundLastSeenCandle: Record<string, string> = {};
 const boundLastTickLtp: Record<string, number> = {};
+// Tracks the last real option candle time consumed from /evaluate?symbol=<option>,
+// so we only update lastCandleCloseMap when a fresh option close arrives.
+const boundLastOptionCandleTime: Record<string, string> = {};
 
 // Rolling last-11 candle closes per signal source (real symbol or FAKE_CE/PE).
 // Auto Re-entry uses these for its "beat the highest close of the previous
@@ -3323,6 +3326,25 @@ async function tick() {
       } catch { /* market data not running */ }
     }
 
+    // Real option candle closes for bound symbols — the option's own candles
+    // are built by angel-feed and sent to the strategy server, so /evaluate
+    // carries its true completed-candle close (not an LTP approximation).
+    // Falls back to the LTP-freeze emulation below when unavailable.
+    const boundRealClose: Record<string, { close: number; time: string }> = {};
+    if (boundSymbols.size > 0) {
+      await Promise.all(
+        [...boundSymbols].map(async (real) => {
+          try {
+            const r = await fetch(`${STRATEGY_URL}/evaluate?symbol=${encodeURIComponent(real)}`);
+            const d = await r.json();
+            const c = Number(d?.close);
+            const t = d?.lastCandleTime || d?.candles?.[d.candles.length - 1]?.time;
+            if (Number.isFinite(c) && t) boundRealClose[real] = { close: c, time: String(t) };
+          } catch { /* option stream not ready yet — fallback to LTP freeze below */ }
+        })
+      );
+    }
+
     // Track the active strategy name — logged on first sight and on switch.
     try {
       const stratRes = await fetch(`${STRATEGY_URL}/strategy`);
@@ -3364,9 +3386,22 @@ async function tick() {
                 // minute that just ended — only when the FAKE candle rolls.
                 const srcCt = signal.lastCandleTime || signal.candles?.[signal.candles.length - 1]?.time;
                 if (srcCt) {
-                  if (boundLastSeenCandle[real] === undefined) {
+                  const realClose = boundRealClose[real];
+                  if (realClose) {
+                    // Real option candle close is available from the strategy
+                    // server. Update lastCandleCloseMap whenever a new option
+                    // candle arrives — this is the true completed-candle
+                    // close, not an LTP approximation.
+                    if (boundLastOptionCandleTime[real] !== realClose.time) {
+                      lastCandleCloseMap[real] = realClose.close;
+                      boundLastOptionCandleTime[real] = realClose.time;
+                    }
+                  } else if (boundLastSeenCandle[real] === undefined) {
+                    // First poll, no real close yet — seed with current LTP
                     lastCandleCloseMap[real] = boundLtp[real];
                   } else if (boundLastSeenCandle[real] !== srcCt && Number.isFinite(boundLastTickLtp[real])) {
+                    // FAKE rolled but real close fetch failed — fallback to
+                    // the LTP-freeze emulation.
                     lastCandleCloseMap[real] = boundLastTickLtp[real];
                   }
                   boundLastSeenCandle[real] = srcCt;
@@ -3681,6 +3716,9 @@ export function unbindNiftySignal(symbol: string) {
   if (!niftySignalBinding[symbol]) return;
   delete niftySignalBinding[symbol];
   delete recentCloses[symbol];
+  delete boundLastOptionCandleTime[symbol];
+  delete boundLastSeenCandle[symbol];
+  delete boundLastTickLtp[symbol];
   pushHistoryLog(`${symbol} unbound — strategy signals reverted to its own candles`);
   addLogToWaiting(symbol, `Signal source switched back to ${symbol}'s own candles`);
   persistState();
@@ -3936,6 +3974,9 @@ export function cancelWaitingTrade(symbol: string) {
   delete lastBuyCandleTime[symbol];
   delete niftySignalBinding[symbol];
   delete recentCloses[symbol];
+  delete boundLastOptionCandleTime[symbol];
+  delete boundLastSeenCandle[symbol];
+  delete boundLastTickLtp[symbol];
 
   setAiSymbolEnabled(symbol, false);
 
@@ -4039,6 +4080,9 @@ export function removeCompletedTrade(symbol: string) {
   delete lastBuyCandleTime[symbol];
   delete niftySignalBinding[symbol];
   delete recentCloses[symbol];
+  delete boundLastOptionCandleTime[symbol];
+  delete boundLastSeenCandle[symbol];
+  delete boundLastTickLtp[symbol];
 
   setAiSymbolEnabled(symbol, false);
 
