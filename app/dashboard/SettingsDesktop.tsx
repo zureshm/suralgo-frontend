@@ -8,6 +8,8 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
 import { useSharedAiSettings } from "@/lib/useSharedAiSettings";
 
+const APP_VERSION = "1.0.0";
+
 interface ClampedNumericFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> {
   value: number;
   onChange: (val: number) => void;
@@ -1329,6 +1331,11 @@ export default function SettingsDesktop() {
                   )}
                 </div>
               )}
+
+              {/* App version */}
+              <div className="text-center text-xs mt-4" style={{ color: "var(--theme-popup-label)" }}>
+                Version: {APP_VERSION}
+              </div>
             </section>
           </div>
         )}

@@ -211,6 +211,10 @@ type WaitingTrade = {
 
   trailingStopLossSteps: number;
 
+  stopLossPercentageEnabled?: boolean;
+
+  stopLossPercentage?: number;
+
   slMode?: "live" | "candleClose";
 
   targetPointsEnabled: boolean;
@@ -318,6 +322,10 @@ type ActiveTrade = {
   trailingStopLossEnabled: boolean;
 
   trailingStopLossSteps: number;
+
+  stopLossPercentageEnabled?: boolean;
+
+  stopLossPercentage?: number;
 
   slMode?: "live" | "candleClose";
 
@@ -466,6 +474,10 @@ type TradeHistoryItem = {
     trailingStopLossEnabled?: boolean;
 
     trailingStopLossSteps?: number;
+
+    stopLossPercentageEnabled?: boolean;
+
+    stopLossPercentage?: number;
 
     slMode?: "live" | "candleClose";
 
@@ -664,6 +676,10 @@ const boundLastTickLtp: Record<string, number> = {};
 // Tracks the last real option candle time consumed from /evaluate?symbol=<option>,
 // so we only update lastCandleCloseMap when a fresh option close arrives.
 const boundLastOptionCandleTime: Record<string, string> = {};
+
+// Last SL floor shown in the trade log — reset per entry so each new cycle's
+// SL level is logged once ("SL set at ...").
+const lastLoggedSlLevel: Record<string, number> = {};
 
 // Rolling last-11 candle closes per signal source (real symbol or FAKE_CE/PE).
 // Auto Re-entry uses these for its "beat the highest close of the previous
@@ -1233,6 +1249,10 @@ function buildConfigSnapshot(trade: ActiveTrade): TradeHistoryItem["config"] {
 
     trailingStopLossSteps: trade.trailingStopLossEnabled ? trade.trailingStopLossSteps : undefined,
 
+    stopLossPercentageEnabled: Boolean(trade.stopLossPercentageEnabled),
+
+    stopLossPercentage: trade.stopLossPercentageEnabled ? trade.stopLossPercentage : undefined,
+
     slMode: trade.stopLossNumberEnabled ? trade.slMode : undefined,
 
     targetPointsEnabled: Boolean(trade.targetPointsEnabled),
@@ -1321,6 +1341,9 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
 
   queueSound("enter");
 
+  // New entry — reset the logged SL floor so the new cycle's level is logged.
+  delete lastLoggedSlLevel[symbol];
+
 
 
   const newActive: ActiveTrade = {
@@ -1351,6 +1374,10 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     trailingStopLossEnabled: trade.trailingStopLossEnabled,
 
     trailingStopLossSteps: trade.trailingStopLossSteps,
+
+    stopLossPercentageEnabled: trade.stopLossPercentageEnabled,
+
+    stopLossPercentage: trade.stopLossPercentage,
 
     slMode: trade.slMode,
 
@@ -1836,6 +1863,9 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: string) {
 
   queueSound("enter");
+
+  // New entry — reset the logged SL floor so the new cycle's level is logged.
+  delete lastLoggedSlLevel[symbol];
 
   const matchedTrade = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
 
@@ -3102,6 +3132,29 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         slStepsCompleted = Math.floor(slGain / trade.trailingStopLossSteps);
         trailedSLLevel = (entry - effectiveSL) + (slStepsCompleted * trade.trailingStopLossSteps);
       }
+      // Percentage SL — floor = pct% below this cycle's entry price. Each
+      // BUY / re-entry / force-buy gets an SL exactly pct% below its own
+      // entry, instead of points frozen from the form's price at submit.
+      if (trade.stopLossPercentageEnabled && (trade.stopLossPercentage ?? 0) > 0) {
+        const pctFloor = entry * (1 - (trade.stopLossPercentage ?? 0) / 100);
+        trailedSLLevel = Math.max(trailedSLLevel, pctFloor);
+      }
+    }
+
+    // Log the SL floor once per change — "SL set at" on each entry/cycle,
+    // "SL trailed to" when trailing steps or pct ratchet it upward.
+    if (effectiveSLEnabled && (effectiveSL > 0 || (trade.stopLossPercentageEnabled && (trade.stopLossPercentage ?? 0) > 0))) {
+      const prevLogged = lastLoggedSlLevel[trade.symbol];
+      if (prevLogged === undefined || Math.abs(trailedSLLevel - prevLogged) >= 0.01) {
+        const pct = trade.stopLossPercentage ?? 0;
+        const basis = trade.stopLossPercentageEnabled && pct > 0
+          ? `${pct}% below ₹${entry.toFixed(2)} entry`
+          : `${(effectiveSL || 0)} pts below ₹${entry.toFixed(2)} entry`;
+        addLogToActive(trade.symbol, `${prevLogged === undefined ? "SL set" : "SL trailed"} at ₹${trailedSLLevel.toFixed(2)} (${basis}) at ${currentTime}`);
+        lastLoggedSlLevel[trade.symbol] = trailedSLLevel;
+      }
+    } else {
+      delete lastLoggedSlLevel[trade.symbol];
     }
 
     // ── Watchdog Checkpoints Logic ──
@@ -3724,6 +3777,7 @@ export function unbindNiftySignal(symbol: string) {
   delete boundLastOptionCandleTime[symbol];
   delete boundLastSeenCandle[symbol];
   delete boundLastTickLtp[symbol];
+  delete lastLoggedSlLevel[symbol];
   pushHistoryLog(`${symbol} unbound — strategy signals reverted to its own candles`);
   addLogToWaiting(symbol, `Signal source switched back to ${symbol}'s own candles`);
   persistState();
@@ -3982,6 +4036,7 @@ export function cancelWaitingTrade(symbol: string) {
   delete boundLastOptionCandleTime[symbol];
   delete boundLastSeenCandle[symbol];
   delete boundLastTickLtp[symbol];
+  delete lastLoggedSlLevel[symbol];
 
   setAiSymbolEnabled(symbol, false);
 
@@ -4088,6 +4143,7 @@ export function removeCompletedTrade(symbol: string) {
   delete boundLastOptionCandleTime[symbol];
   delete boundLastSeenCandle[symbol];
   delete boundLastTickLtp[symbol];
+  delete lastLoggedSlLevel[symbol];
 
   setAiSymbolEnabled(symbol, false);
 
