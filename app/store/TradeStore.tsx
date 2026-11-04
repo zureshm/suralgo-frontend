@@ -551,6 +551,7 @@ export function TradeStoreProvider({
       trailingStopLossSteps: tradeToActivate.trailingStopLossSteps,
       stopLossPercentageEnabled: tradeToActivate.stopLossPercentageEnabled,
       stopLossPercentage: tradeToActivate.stopLossPercentage,
+      slMode: tradeToActivate.slMode,
       targetPointsEnabled: tradeToActivate.targetPointsEnabled,
       targetPoints: tradeToActivate.targetPoints,
       targetMode: tradeToActivate.targetMode,
