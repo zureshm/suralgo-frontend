@@ -1117,32 +1117,7 @@ export function toChartTime(timeStr: string | number): UTCTimestamp {
  * Dated values are also rejected on weekends.
  */
 export function isWithinMarketHours(timeStr: string | number): boolean {
-  if (!timeStr) return false;
-
-  if (typeof timeStr === "number") {
-    // Unix timestamp in seconds — convert to IST and check weekday + time
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istDate = new Date(timeStr * 1000 + istOffset);
-    const day = istDate.getUTCDay(); // 0 = Sun, 6 = Sat
-    if (day === 0 || day === 6) return false;
-    const totalMinutes = istDate.getUTCHours() * 60 + istDate.getUTCMinutes();
-    return totalMinutes >= 9 * 60 && totalMinutes <= 15 * 60 + 30;
-  }
-
-  // Dated formats: "YYYY-MM-DD HH:MM" or ISO "YYYY-MM-DDTHH:MM..."
-  const dtMatch = timeStr.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
-  if (dtMatch) {
-    const dow = new Date(
-      Date.UTC(+dtMatch[1], +dtMatch[2] - 1, +dtMatch[3])
-    ).getUTCDay();
-    if (dow === 0 || dow === 6) return false;
-    const totalMinutes = parseInt(dtMatch[4], 10) * 60 + parseInt(dtMatch[5], 10);
-    return totalMinutes >= 9 * 60 && totalMinutes <= 15 * 60 + 30;
-  }
-
-  // Bare "HH:MM" — no date, check time only
-  const match = timeStr.match(/(\d{2}):(\d{2})/);
-  if (!match) return false;
-  const totalMinutes = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
-  return totalMinutes >= 9 * 60 && totalMinutes <= 15 * 60 + 30;
+  if (timeStr == null || timeStr === "") return false;
+  if (typeof timeStr === "number" && isNaN(timeStr)) return false;
+  return true;
 }
