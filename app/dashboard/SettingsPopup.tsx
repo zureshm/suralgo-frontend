@@ -118,6 +118,9 @@ export default function SettingsPopup({ open, onClose }: Props) {
     { points: 190, breakBelow: 160 },
     { points: 210, breakBelow: 180 },
   ]);
+  const [watchdogTab, setWatchdogTab] = useState<"profit" | "negative">("profit");
+  const [watchdogSlEnabled, setWatchdogSlEnabled] = useState(false);
+  const [watchdogSlPoints, setWatchdogSlPoints] = useState(15);
   const watchdogLoadedRef = useRef(false);
   const watchdogDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -206,6 +209,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
           if (Array.isArray(data.watchdogCheckpoints)) {
             setWatchdogCheckpoints(data.watchdogCheckpoints);
           }
+          if (typeof data.watchdogSlEnabled === "boolean") setWatchdogSlEnabled(data.watchdogSlEnabled);
+          if (typeof data.watchdogSlPoints === "number") setWatchdogSlPoints(data.watchdogSlPoints);
           watchdogLoadedRef.current = true;
         }
       })
@@ -363,13 +368,15 @@ export default function SettingsPopup({ open, onClose }: Props) {
         body: JSON.stringify({
           watchdogEnabled,
           watchdogCheckpoints,
+          watchdogSlEnabled,
+          watchdogSlPoints,
         }),
       }).catch((err) => console.error("Failed to save watchdog settings:", err));
     }, 300);
     return () => {
       if (watchdogDebounceRef.current) clearTimeout(watchdogDebounceRef.current);
     };
-  }, [watchdogEnabled, watchdogCheckpoints]);
+  }, [watchdogEnabled, watchdogCheckpoints, watchdogSlEnabled, watchdogSlPoints]);
 
   // Test API key when it changes (or provider changes)
   const testAiConnection = useCallback(async () => {
@@ -856,16 +863,132 @@ export default function SettingsPopup({ open, onClose }: Props) {
 
               {watchdogEnabled && (
               <>
-              <div className="flex items-baseline gap-2 mt-1 mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--theme-popup-text)" }}>Checkpoints</span>
-                <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>Based on current trade points achieved</span>
+              <div
+                className="grid grid-cols-2 p-1 rounded-xl mt-3.5 mb-2"
+                style={{
+                  background: "var(--theme-popup-field-bg)",
+                  border: "1px solid var(--theme-popup-field-border)",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setWatchdogTab("profit")}
+                  className="py-1.5 rounded-lg text-xs font-bold text-center transition"
+                  style={{
+                    background: watchdogTab === "profit" ? "var(--theme-popup-border)" : "transparent",
+                    color: watchdogTab === "profit" ? "#fff" : "var(--theme-popup-label)",
+                    boxShadow: watchdogTab === "profit" ? "0 1px 3px rgba(0,0,0,0.18)" : "none",
+                  }}
+                >
+                  Checkpoints
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWatchdogTab("negative")}
+                  className="py-1.5 rounded-lg text-xs font-bold text-center transition"
+                  style={{
+                    background: watchdogTab === "negative" ? "var(--theme-popup-border)" : "transparent",
+                    color: watchdogTab === "negative" ? "#fff" : "var(--theme-popup-label)",
+                    boxShadow: watchdogTab === "negative" ? "0 1px 3px rgba(0,0,0,0.18)" : "none",
+                  }}
+                >
+                  Negatives
+                </button>
               </div>
 
-              <div className="space-y-2">
-                {watchdogCheckpoints.map((cp, idx) => (
+              {watchdogTab === "profit" && (
+                <>
+                  <div className="flex items-baseline gap-2 mt-1 mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--theme-popup-text)" }}>Checkpoints</span>
+                    <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>Based on current trade points achieved</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {watchdogCheckpoints.map((cp, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-lg border flex flex-col gap-2"
+                        style={{
+                          background: "var(--theme-popup-field-bg)",
+                          borderColor: "var(--theme-popup-field-border)",
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>
+                            CP {idx + 1} Points
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-bold text-emerald-400">+</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={999}
+                              value={cp.points}
+                              disabled={!watchdogEnabled}
+                              onChange={(e) => {
+                                const val = Number(e.target.value) || 0;
+                                setWatchdogCheckpoints((prev) => {
+                                  const updated = [...prev];
+                                  updated[idx] = { ...updated[idx], points: val };
+                                  return updated;
+                                });
+                              }}
+                              className="w-16 h-7 px-1 border rounded text-center text-xs font-semibold focus:outline-none"
+                              style={{
+                                background: "var(--theme-popup-bg)",
+                                color: "var(--theme-popup-text)",
+                                borderColor: "var(--theme-popup-field-border)",
+                              }}
+                            />
+                            <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                          <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>
+                            Break when reach below
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-bold text-amber-400">+</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={999}
+                              value={cp.breakBelow}
+                              disabled={!watchdogEnabled}
+                              onChange={(e) => {
+                                const val = Number(e.target.value) || 0;
+                                setWatchdogCheckpoints((prev) => {
+                                  const updated = [...prev];
+                                  updated[idx] = { ...updated[idx], breakBelow: val };
+                                  return updated;
+                                });
+                              }}
+                              className="w-16 h-7 px-1 border rounded text-center text-xs font-semibold focus:outline-none"
+                              style={{
+                                background: "var(--theme-popup-bg)",
+                                color: "var(--theme-popup-text)",
+                                borderColor: "var(--theme-popup-field-border)",
+                              }}
+                            />
+                            <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {watchdogTab === "negative" && (
+                <>
+                  <div className="flex items-baseline gap-2 mt-1 mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--theme-popup-text)" }}>SL Trigger Point</span>
+                    <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>Exit trigger when position moves backwards</span>
+                  </div>
+
                   <div
-                    key={idx}
-                    className="p-2.5 rounded-lg border flex flex-col gap-2"
+                    className="p-2.5 rounded-lg border flex flex-col gap-2.5"
                     style={{
                       background: "var(--theme-popup-field-bg)",
                       borderColor: "var(--theme-popup-field-border)",
@@ -873,24 +996,17 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)" }}>
-                        CP {idx + 1} Points
+                        SL Checkpoint
                       </span>
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-emerald-400">+</span>
+                        <span className="text-xs font-bold text-rose-400">-</span>
                         <input
                           type="number"
                           min={0}
                           max={999}
-                          value={cp.points}
+                          value={watchdogSlPoints}
                           disabled={!watchdogEnabled}
-                          onChange={(e) => {
-                            const val = Number(e.target.value) || 0;
-                            setWatchdogCheckpoints((prev) => {
-                              const updated = [...prev];
-                              updated[idx] = { ...updated[idx], points: val };
-                              return updated;
-                            });
-                          }}
+                          onChange={(e) => setWatchdogSlPoints(Math.max(0, Number(e.target.value) || 0))}
                           className="w-16 h-7 px-1 border rounded text-center text-xs font-semibold focus:outline-none"
                           style={{
                             background: "var(--theme-popup-bg)",
@@ -904,37 +1020,23 @@ export default function SettingsPopup({ open, onClose }: Props) {
 
                     <div className="flex items-center justify-between pt-1 border-t border-white/5">
                       <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>
-                        Break when reach below
+                        Enable SL Exit
                       </span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-amber-400">+</span>
-                        <input
-                          type="number"
-                          min={0}
-                          max={999}
-                          value={cp.breakBelow}
-                          disabled={!watchdogEnabled}
-                          onChange={(e) => {
-                            const val = Number(e.target.value) || 0;
-                            setWatchdogCheckpoints((prev) => {
-                              const updated = [...prev];
-                              updated[idx] = { ...updated[idx], breakBelow: val };
-                              return updated;
-                            });
-                          }}
-                          className="w-16 h-7 px-1 border rounded text-center text-xs font-semibold focus:outline-none"
-                          style={{
-                            background: "var(--theme-popup-bg)",
-                            color: "var(--theme-popup-text)",
-                            borderColor: "var(--theme-popup-field-border)",
-                          }}
-                        />
-                        <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>pts</span>
-                      </div>
+                      <input
+                        type="checkbox"
+                        checked={watchdogSlEnabled}
+                        disabled={!watchdogEnabled}
+                        onChange={(e) => setWatchdogSlEnabled(e.target.checked)}
+                        className="h-4 w-4 accent-rose-500 cursor-pointer rounded"
+                      />
+                    </div>
+
+                    <div className="text-[10px] pt-1 border-t border-white/5" style={{ color: "var(--theme-popup-label)" }}>
+                      When enabled, triggers exit if LTP drops backwards by {watchdogSlPoints} pts below entry.
                     </div>
                   </div>
-                ))}
-              </div>
+                </>
+              )}
               </>
               )}
             </div>
