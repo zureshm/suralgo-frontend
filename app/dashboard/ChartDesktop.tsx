@@ -18,6 +18,8 @@ import {
   shortUtbotSignals,
   calculateSuperTrend,
   SuperTrendPrimitive,
+  calculateSentimentRangeMA,
+  SentimentRangeMaPrimitive,
   UTBotLabel,
   UTBotLabelsPrimitive,
   toChartTime,
@@ -166,7 +168,7 @@ export default function ChartDesktop() {
   const chartRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const chartInstances = useRef<Record<string, IChartApi>>({});
   type MacdRefs = { pane: IPaneApi<Time>; hist: ISeriesApi<"Histogram">; macd: ISeriesApi<"Line">; signal: ISeriesApi<"Line"> } | null;
-  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time>; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive; macd: MacdRefs }>>({});
+  const seriesInstances = useRef<Record<string, { main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; markerPlugin: ISeriesMarkersPluginApi<Time>; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive; srmaPlugin: SentimentRangeMaPrimitive; macd: MacdRefs }>>({});
   const observers = useRef<Record<string, ResizeObserver>>({});
 
   // Nifty50 live chart state
@@ -174,7 +176,7 @@ export default function ChartDesktop() {
   const [nifty50Connected, setNifty50Connected] = useState(false);
   const nifty50ChartRef = useRef<HTMLDivElement | null>(null);
   const nifty50ChartInstance = useRef<IChartApi | null>(null);
-  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive; macd: MacdRefs } | null>(null);
+  const nifty50SeriesInstance = useRef<{ main: ISeriesApi<"Candlestick">; ema1: ISeriesApi<"Line">; ema2: ISeriesApi<"Line">; se1: ISeriesApi<"Line">; se2: ISeriesApi<"Line">; labelPlugin: UTBotLabelsPrimitive; st1Plugin: SuperTrendPrimitive; st2Plugin: SuperTrendPrimitive; srmaPlugin: SentimentRangeMaPrimitive; macd: MacdRefs } | null>(null);
   const nifty50Observer = useRef<ResizeObserver | null>(null);
 
   // Indicators state
@@ -492,6 +494,59 @@ export default function ChartDesktop() {
     }
     return 30;
   });
+
+  const [srmaEnabled, setSrmaEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_srma_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [srmaLength, setSrmaLength] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_srma_length");
+      return saved !== null ? parseInt(saved, 10) : 20;
+    }
+    return 20;
+  });
+  const [srmaTrig, setSrmaTrig] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_srma_trig");
+      return saved !== null ? parseInt(saved, 10) : 4;
+    }
+    return 4;
+  });
+  const [srmaAtr, setSrmaAtr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_srma_atr");
+      return saved !== null ? parseInt(saved, 10) : 200;
+    }
+    return 200;
+  });
+  const [srmaMult, setSrmaMult] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_srma_mult");
+      return saved !== null ? parseFloat(saved) : 6;
+    }
+    return 6;
+  });
+  const [srmaRange, setSrmaRange] = useState<"body" | "wick">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_srma_range");
+      return saved === "wick" ? "wick" : "body";
+    }
+    return "body";
+  });
+  const [srmaColorStyle, setSrmaColorStyle] = useState<"direction" | "cross" | "solid">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("nifty_srma_colorstyle");
+      return saved === "cross" || saved === "solid" ? saved : "direction";
+    }
+    return "direction";
+  });
+  const [srmaBullColor, setSrmaBullColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_srma_bull_color")) || "#21ff78");
+  const [srmaBearColor, setSrmaBearColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_srma_bear_color")) || "#ff2121");
+  const [srmaNeutralColor, setSrmaNeutralColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("nifty_srma_neutral_color")) || "#898989");
 
   const [macdEnabled, setMacdEnabled] = useState(() => {
     if (typeof window !== "undefined") {
@@ -845,6 +900,59 @@ export default function ChartDesktop() {
     return 30;
   });
 
+  const [sSrmaEnabled, setSSrmaEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_srma_enabled");
+      return saved !== null ? saved === "true" : false;
+    }
+    return false;
+  });
+  const [sSrmaLength, setSSrmaLength] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_srma_length");
+      return saved !== null ? parseInt(saved, 10) : 20;
+    }
+    return 20;
+  });
+  const [sSrmaTrig, setSSrmaTrig] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_srma_trig");
+      return saved !== null ? parseInt(saved, 10) : 4;
+    }
+    return 4;
+  });
+  const [sSrmaAtr, setSSrmaAtr] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_srma_atr");
+      return saved !== null ? parseInt(saved, 10) : 200;
+    }
+    return 200;
+  });
+  const [sSrmaMult, setSSrmaMult] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_srma_mult");
+      return saved !== null ? parseFloat(saved) : 6;
+    }
+    return 6;
+  });
+  const [sSrmaRange, setSSrmaRange] = useState<"body" | "wick">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_srma_range");
+      return saved === "wick" ? "wick" : "body";
+    }
+    return "body";
+  });
+  const [sSrmaColorStyle, setSSrmaColorStyle] = useState<"direction" | "cross" | "solid">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("strategy_srma_colorstyle");
+      return saved === "cross" || saved === "solid" ? saved : "direction";
+    }
+    return "direction";
+  });
+  const [sSrmaBullColor, setSSrmaBullColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_srma_bull_color")) || "#21ff78");
+  const [sSrmaBearColor, setSSrmaBearColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_srma_bear_color")) || "#ff2121");
+  const [sSrmaNeutralColor, setSSrmaNeutralColor] = useState(() => (typeof window !== "undefined" && localStorage.getItem("strategy_srma_neutral_color")) || "#898989");
+
   const [sMacdEnabled, setSMacdEnabled] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("strategy_macd_enabled");
@@ -1002,6 +1110,17 @@ export default function ChartDesktop() {
     localStorage.setItem("nifty_su_time", suTime);
     localStorage.setItem("nifty_su_count", String(suCount));
 
+    localStorage.setItem("nifty_srma_enabled", String(srmaEnabled));
+    localStorage.setItem("nifty_srma_length", String(srmaLength));
+    localStorage.setItem("nifty_srma_trig", String(srmaTrig));
+    localStorage.setItem("nifty_srma_atr", String(srmaAtr));
+    localStorage.setItem("nifty_srma_mult", String(srmaMult));
+    localStorage.setItem("nifty_srma_range", srmaRange);
+    localStorage.setItem("nifty_srma_colorstyle", srmaColorStyle);
+    localStorage.setItem("nifty_srma_bull_color", srmaBullColor);
+    localStorage.setItem("nifty_srma_bear_color", srmaBearColor);
+    localStorage.setItem("nifty_srma_neutral_color", srmaNeutralColor);
+
     localStorage.setItem("strategy_se_enabled", String(sSeEnabled));
     localStorage.setItem("strategy_se1_period", String(sSe1Period));
     localStorage.setItem("strategy_se2_period", String(sSe2Period));
@@ -1028,6 +1147,17 @@ export default function ChartDesktop() {
     localStorage.setItem("strategy_su2_sell_color", sSu2SellColor);
     localStorage.setItem("strategy_su_time", sSuTime);
     localStorage.setItem("strategy_su_count", String(sSuCount));
+
+    localStorage.setItem("strategy_srma_enabled", String(sSrmaEnabled));
+    localStorage.setItem("strategy_srma_length", String(sSrmaLength));
+    localStorage.setItem("strategy_srma_trig", String(sSrmaTrig));
+    localStorage.setItem("strategy_srma_atr", String(sSrmaAtr));
+    localStorage.setItem("strategy_srma_mult", String(sSrmaMult));
+    localStorage.setItem("strategy_srma_range", sSrmaRange);
+    localStorage.setItem("strategy_srma_colorstyle", sSrmaColorStyle);
+    localStorage.setItem("strategy_srma_bull_color", sSrmaBullColor);
+    localStorage.setItem("strategy_srma_bear_color", sSrmaBearColor);
+    localStorage.setItem("strategy_srma_neutral_color", sSrmaNeutralColor);
   }, [
     ema1Enabled, ema1Period, ema1Color, ema2Enabled, ema2Period, ema2Color,
     utbot1Enabled, utbot1Key, utbot1Atr, utbot1BuyColor, utbot1SellColor,
@@ -1051,11 +1181,13 @@ export default function ChartDesktop() {
     su1Enabled, su1Key, su1Atr, su1BuyColor, su1SellColor,
     su2Enabled, su2Key, su2Atr, su2BuyColor, su2SellColor,
     suTime, suCount,
+    srmaEnabled, srmaLength, srmaTrig, srmaAtr, srmaMult, srmaRange, srmaColorStyle, srmaBullColor, srmaBearColor, srmaNeutralColor,
     macdEnabled, macdFast, macdSlow, macdSignal,
     sMacdEnabled, sMacdFast, sMacdSlow, sMacdSignal,
     sSu1Enabled, sSu1Key, sSu1Atr, sSu1BuyColor, sSu1SellColor,
     sSu2Enabled, sSu2Key, sSu2Atr, sSu2BuyColor, sSu2SellColor,
-    sSuTime, sSuCount
+    sSuTime, sSuCount,
+    sSrmaEnabled, sSrmaLength, sSrmaTrig, sSrmaAtr, sSrmaMult, sSrmaRange, sSrmaColorStyle, sSrmaBullColor, sSrmaBearColor, sSrmaNeutralColor
   ]);
 
   const activeSymbolsKey = useMemo(() => {
@@ -1211,8 +1343,11 @@ export default function ChartDesktop() {
       series.attachPrimitive(st1Plugin);
       series.attachPrimitive(st2Plugin);
 
+      const srmaPlugin = new SentimentRangeMaPrimitive();
+      series.attachPrimitive(srmaPlugin);
+
       nifty50ChartInstance.current = chart;
-      nifty50SeriesInstance.current = { main: series, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, labelPlugin, st1Plugin, st2Plugin, macd: null };
+      nifty50SeriesInstance.current = { main: series, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, labelPlugin, st1Plugin, st2Plugin, srmaPlugin, macd: null };
 
       const ro = new ResizeObserver(() => {
         if (!nifty50ChartInstance.current) return;
@@ -1224,7 +1359,7 @@ export default function ChartDesktop() {
     }
 
     if (!nifty50SeriesInstance.current) return;
-    const { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, labelPlugin, st1Plugin, st2Plugin } = nifty50SeriesInstance.current;
+    const { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, labelPlugin, st1Plugin, st2Plugin, srmaPlugin } = nifty50SeriesInstance.current;
 
     const mapped = allCandles
       .filter((c) => c != null)
@@ -1328,6 +1463,16 @@ export default function ChartDesktop() {
       st1Plugin.setData(st1Enabled ? calculateSuperTrend(displayCandles, st1Period, st1Mult) : []);
       st2Plugin.setData(st2Enabled ? calculateSuperTrend(displayCandles, st2Period, st2Mult) : []);
 
+      srmaPlugin.setColors(srmaBullColor, srmaBearColor, srmaNeutralColor);
+      srmaPlugin.setData(srmaEnabled ? calculateSentimentRangeMA(displayCandles, {
+        length: srmaLength,
+        triggerSmoothing: srmaTrig,
+        atrLength: srmaAtr,
+        multiplier: srmaMult,
+        rangeStyle: srmaRange,
+        colorStyle: srmaColorStyle,
+      }) : []);
+
       se1Line?.setData(seEnabled ? shortMaSeries(displayCandles, se1Period, seTime, seCount, seMaType) : []);
       se2Line?.setData(seEnabled ? shortMaSeries(displayCandles, se2Period, seTime, seCount, seMaType) : []);
       se1Line?.applyOptions({ color: se1Color });
@@ -1369,6 +1514,7 @@ export default function ChartDesktop() {
       su1Enabled, su1Key, su1Atr, su1BuyColor, su1SellColor,
       su2Enabled, su2Key, su2Atr, su2BuyColor, su2SellColor,
       suTime, suCount,
+      srmaEnabled, srmaLength, srmaTrig, srmaAtr, srmaMult, srmaRange, srmaColorStyle, srmaBullColor, srmaBearColor, srmaNeutralColor,
       macdEnabled, macdFast, macdSlow, macdSignal, niftyHeikenAshi]);
 
   useEffect(() => {
@@ -1491,8 +1637,11 @@ export default function ChartDesktop() {
         main.attachPrimitive(st1Plugin);
         main.attachPrimitive(st2Plugin);
 
+        const srmaPlugin = new SentimentRangeMaPrimitive();
+        main.attachPrimitive(srmaPlugin);
+
         chartInstances.current[symbol] = chart;
-        seriesInstances.current[symbol] = { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, markerPlugin: createSeriesMarkers(main), labelPlugin, st1Plugin, st2Plugin, macd: null };
+        seriesInstances.current[symbol] = { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, markerPlugin: createSeriesMarkers(main), labelPlugin, st1Plugin, st2Plugin, srmaPlugin, macd: null };
 
         const ro = new ResizeObserver(() => {
           if (!chartInstances.current[symbol]) return;
@@ -1504,7 +1653,7 @@ export default function ChartDesktop() {
       }
 
       if (!seriesInstances.current[symbol]) return;
-      const { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, markerPlugin, labelPlugin, st1Plugin, st2Plugin } = seriesInstances.current[symbol];
+      const { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, markerPlugin, labelPlugin, st1Plugin, st2Plugin, srmaPlugin } = seriesInstances.current[symbol];
       main.applyOptions(niftySignalBindings[symbol] ? FAKE_CANDLE_COLORS : REAL_CANDLE_COLORS);
 
       const mapped = candles
@@ -1603,6 +1752,16 @@ export default function ChartDesktop() {
         st1Plugin.setData(sSt1Enabled ? calculateSuperTrend(displayCandles, sSt1Period, sSt1Mult) : []);
         st2Plugin.setData(sSt2Enabled ? calculateSuperTrend(displayCandles, sSt2Period, sSt2Mult) : []);
 
+        srmaPlugin.setColors(sSrmaBullColor, sSrmaBearColor, sSrmaNeutralColor);
+        srmaPlugin.setData(sSrmaEnabled ? calculateSentimentRangeMA(displayCandles, {
+          length: sSrmaLength,
+          triggerSmoothing: sSrmaTrig,
+          atrLength: sSrmaAtr,
+          multiplier: sSrmaMult,
+          rangeStyle: sSrmaRange,
+          colorStyle: sSrmaColorStyle,
+        }) : []);
+
         se1Line?.setData(sSeEnabled ? shortMaSeries(displayCandles, sSe1Period, sSeTime, sSeCount, sSeMaType) : []);
         se2Line?.setData(sSeEnabled ? shortMaSeries(displayCandles, sSe2Period, sSeTime, sSeCount, sSeMaType) : []);
         se1Line?.applyOptions({ color: sSe1Color });
@@ -1646,7 +1805,8 @@ export default function ChartDesktop() {
       sMacdEnabled, sMacdFast, sMacdSlow, sMacdSignal,
       sSu1Enabled, sSu1Key, sSu1Atr, sSu1BuyColor, sSu1SellColor,
       sSu2Enabled, sSu2Key, sSu2Atr, sSu2BuyColor, sSu2SellColor,
-      sSuTime, sSuCount]);
+      sSuTime, sSuCount,
+      sSrmaEnabled, sSrmaLength, sSrmaTrig, sSrmaAtr, sSrmaMult, sSrmaRange, sSrmaColorStyle, sSrmaBullColor, sSrmaBearColor, sSrmaNeutralColor]);
 
 
 
@@ -1874,6 +2034,55 @@ export default function ChartDesktop() {
               <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">LAST</span>
               <NumericField value={suCount} onChange={setSuCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
               <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
+            </label>
+          </IndicatorMenu>
+          <IndicatorMenu label="SR MA" enabledCount={Number(srmaEnabled)}>
+            <div className="flex items-center gap-1.5 px-0.5 text-[8px] font-bold opacity-60">
+              <span className="w-3.5" />
+              <span className="w-10">NAME</span>
+              <span className="w-8 text-center">LEN</span>
+              <span className="w-8 text-center">TRIG</span>
+              <span className="w-8 text-center">ATR</span>
+              <span className="w-8 text-center">MULT</span>
+            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={srmaEnabled} onChange={(e) => setSrmaEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500 cursor-pointer" />
+              <span style={{ color: srmaBullColor }} className="w-10 text-[10px] font-bold">SRMA</span>
+              <NumericField value={srmaLength} onChange={setSrmaLength} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="20" />
+              <NumericField value={srmaTrig} onChange={setSrmaTrig} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
+              <NumericField value={srmaAtr} onChange={setSrmaAtr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="200" />
+              <NumericField value={srmaMult} onChange={setSrmaMult} allowDecimal className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="6" />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-10 text-[10px] font-bold">RANGE</span>
+              <select
+                value={srmaRange}
+                onChange={(e) => setSrmaRange(e.target.value as "body" | "wick")}
+                className="h-6 rounded text-center text-[10px] font-bold px-1"
+                style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+              >
+                <option value="body">BODY</option>
+                <option value="wick">WICK</option>
+              </select>
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold ml-1">COLOR</span>
+              <select
+                value={srmaColorStyle}
+                onChange={(e) => setSrmaColorStyle(e.target.value as "direction" | "cross" | "solid")}
+                className="h-6 rounded text-center text-[10px] font-bold px-1"
+                style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+              >
+                <option value="direction">DIRECTION</option>
+                <option value="cross">CROSS</option>
+                <option value="solid">SOLID</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="w-3.5" />
+              <span style={{ color: "var(--theme-popup-text)" }} className="w-10 text-[10px] font-bold">COLORS</span>
+              <input type="color" value={srmaBullColor} onChange={(e) => setSrmaBullColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="SR MA bullish color" />
+              <input type="color" value={srmaBearColor} onChange={(e) => setSrmaBearColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="SR MA bearish color" />
+              <input type="color" value={srmaNeutralColor} onChange={(e) => setSrmaNeutralColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="SR MA neutral color" />
             </label>
           </IndicatorMenu>
           <IndicatorMenu label="MACD" enabledCount={Number(macdEnabled)}>
@@ -2118,6 +2327,55 @@ export default function ChartDesktop() {
                 <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold">LAST</span>
                 <NumericField value={sSuCount} onChange={setSSuCount} className="w-10 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="30" />
                 <span style={{ color: "var(--theme-popup-text)", fontSize: "10px", fontWeight: "bold" }}>CANDLES</span>
+              </label>
+            </IndicatorMenu>
+            <IndicatorMenu label="SR MA" enabledCount={Number(sSrmaEnabled)}>
+              <div className="flex items-center gap-1.5 px-0.5 text-[8px] font-bold opacity-60">
+                <span className="w-3.5" />
+                <span className="w-10">NAME</span>
+                <span className="w-8 text-center">LEN</span>
+                <span className="w-8 text-center">TRIG</span>
+                <span className="w-8 text-center">ATR</span>
+                <span className="w-8 text-center">MULT</span>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={sSrmaEnabled} onChange={(e) => setSSrmaEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500 cursor-pointer" />
+                <span style={{ color: sSrmaBullColor }} className="w-10 text-[10px] font-bold">SRMA</span>
+                <NumericField value={sSrmaLength} onChange={setSSrmaLength} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="20" />
+                <NumericField value={sSrmaTrig} onChange={setSSrmaTrig} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="4" />
+                <NumericField value={sSrmaAtr} onChange={setSSrmaAtr} className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="200" />
+                <NumericField value={sSrmaMult} onChange={setSSrmaMult} allowDecimal className="w-8 h-6 rounded text-center text-[10px] font-bold" style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }} fallback="6" />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "var(--theme-popup-text)" }} className="w-10 text-[10px] font-bold">RANGE</span>
+                <select
+                  value={sSrmaRange}
+                  onChange={(e) => setSSrmaRange(e.target.value as "body" | "wick")}
+                  className="h-6 rounded text-center text-[10px] font-bold px-1"
+                  style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+                >
+                  <option value="body">BODY</option>
+                  <option value="wick">WICK</option>
+                </select>
+                <span style={{ color: "var(--theme-popup-text)" }} className="w-9 text-[10px] font-bold ml-1">COLOR</span>
+                <select
+                  value={sSrmaColorStyle}
+                  onChange={(e) => setSSrmaColorStyle(e.target.value as "direction" | "cross" | "solid")}
+                  className="h-6 rounded text-center text-[10px] font-bold px-1"
+                  style={{ background: "var(--theme-popup-field-bg)", border: "1px solid var(--theme-popup-field-border)", color: "var(--theme-popup-text)" }}
+                >
+                  <option value="direction">DIRECTION</option>
+                  <option value="cross">CROSS</option>
+                  <option value="solid">SOLID</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="w-3.5" />
+                <span style={{ color: "var(--theme-popup-text)" }} className="w-10 text-[10px] font-bold">COLORS</span>
+                <input type="color" value={sSrmaBullColor} onChange={(e) => setSSrmaBullColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="SR MA bullish color" />
+                <input type="color" value={sSrmaBearColor} onChange={(e) => setSSrmaBearColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="SR MA bearish color" />
+                <input type="color" value={sSrmaNeutralColor} onChange={(e) => setSSrmaNeutralColor(e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" title="SR MA neutral color" />
               </label>
             </IndicatorMenu>
             <IndicatorMenu label="MACD" enabledCount={Number(sMacdEnabled)}>

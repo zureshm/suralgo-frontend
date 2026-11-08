@@ -656,6 +656,307 @@ class SuperTrendPaneView implements IPrimitivePaneView {
   }
 }
 
+// Sentiment Range MA [ChartPrime] — TradingView Pine port.
+// Stateful MA that re-anchors to source whenever the smoothed candle
+// top/bottom escapes the ATR×multiplier bands, then smooths the anchor
+// step-series with WMA (or WMA∘SMA "double filter").
+export type SentimentRangeMaTone = "bull" | "bear" | "neutral";
+
+export type SentimentRangeMaPoint = {
+  time: number;
+  ma: number;
+  top: number;
+  bottom: number;
+  tone: SentimentRangeMaTone;
+};
+
+export type SentimentRangeMaOptions = {
+  length?: number;            // Pine "Length" input (UI value; effective smoothing = +1)
+  doubleFilter?: boolean;     // Pine "Double Filter" (default true)
+  triggerSmoothing?: number;  // Pine "Trigger Smoothing" input (effective = +1)
+  atrLength?: number;         // Pine "ATR Length" (default 200)
+  multiplier?: number;        // Pine "Range Multiplier" (default 6)
+  rangeStyle?: "body" | "wick"; // Pine "Range Style" (default "Body")
+  colorStyle?: "direction" | "cross" | "solid"; // Pine "Color Style" (default "MA Direction")
+};
+
+function smaAt(arr: number[], i: number, len: number): number {
+  // SMA ending at index i over arr[i-len+1..i]; NaN if any value missing/non-finite
+  if (i < len - 1) return NaN;
+  let sum = 0;
+  for (let j = i - len + 1; j <= i; j++) {
+    const v = arr[j];
+    if (!Number.isFinite(v)) return NaN;
+    sum += v;
+  }
+  return sum / len;
+}
+
+function wmaAt(arr: number[], i: number, len: number): number {
+  // WMA ending at index i; most recent weight = len, oldest = 1
+  if (i < len - 1) return NaN;
+  const denom = (len * (len + 1)) / 2;
+  let sum = 0;
+  for (let j = 0; j < len; j++) {
+    const v = arr[i - j];
+    if (!Number.isFinite(v)) return NaN;
+    sum += v * (len - j);
+  }
+  return sum / denom;
+}
+
+function smoothSeries(src: number[], len: number, doubleFilter: boolean): number[] {
+  const out = new Array<number>(src.length).fill(NaN);
+  if (doubleFilter) {
+    // ta.wma(ta.sma(src, len), len) — SMA first (tail-aligned), then WMA over it
+    const sma = new Array<number>(src.length).fill(NaN);
+    for (let i = 0; i < src.length; i++) sma[i] = smaAt(src, i, len);
+    for (let i = 0; i < src.length; i++) out[i] = wmaAt(sma, i, len);
+  } else {
+    for (let i = 0; i < src.length; i++) out[i] = wmaAt(src, i, len);
+  }
+  return out;
+}
+
+export function calculateSentimentRangeMA(
+  candles: { time: string | number; open: number; high: number; low: number; close: number }[],
+  opts: SentimentRangeMaOptions = {}
+): SentimentRangeMaPoint[] {
+  const outLen = Math.max(1, (opts.length ?? 20) + 1);
+  const doubleFilter = opts.doubleFilter ?? true;
+  const trigLen = Math.max(1, (opts.triggerSmoothing ?? 4) + 1);
+  const atrLen = Math.max(1, Math.floor(opts.atrLength ?? 200));
+  const mult = opts.multiplier ?? 6;
+  const wick = opts.rangeStyle === "wick";
+  const colorStyle = opts.colorStyle ?? "direction";
+
+  const n = candles.length;
+  if (n === 0 || !Number.isFinite(mult)) return [];
+
+  const candleTop = new Array<number>(n);
+  const candleBottom = new Array<number>(n);
+  const smoothTop = new Array<number>(n).fill(NaN);
+  const smoothBottom = new Array<number>(n).fill(NaN);
+  const atr = new Array<number>(n).fill(NaN);
+  const tr = new Array<number>(n);
+
+  for (let i = 0; i < n; i++) {
+    const c = candles[i];
+    const top = wick ? c.high : Math.max(c.open, c.close);
+    const bottom = wick ? c.low : Math.min(c.open, c.close);
+    candleTop[i] = top;
+    candleBottom[i] = bottom;
+    tr[i] = top - bottom;
+  }
+  for (let i = trigLen - 1; i < n; i++) {
+    smoothTop[i] = smaAt(candleTop, i, trigLen);
+    smoothBottom[i] = smaAt(candleBottom, i, trigLen);
+  }
+  for (let i = atrLen - 1; i < n; i++) atr[i] = smaAt(tr, i, atrLen);
+
+  // Stateful anchor pass — mirrors the Pine var-block:
+  // flag uses PREVIOUS bar's top/bottom/current_range; on flag, re-anchor.
+  // sr_ma := source fires on every flag bar (even while atr is na); the
+  // range vars persist between anchors.
+  const rawMa = new Array<number>(n).fill(NaN);
+  const rawTop = new Array<number>(n).fill(NaN);
+  const rawBottom = new Array<number>(n).fill(NaN);
+  let curRange = NaN;
+  let topRange = NaN;
+  let bottomRange = NaN;
+
+  for (let i = 0; i < n; i++) {
+    const st = smoothTop[i];
+    const sb = smoothBottom[i];
+    const flag =
+      !Number.isFinite(curRange) ||
+      (Number.isFinite(st) && st > topRange) ||
+      (Number.isFinite(sb) && sb < bottomRange);
+    if (flag) {
+      const src = candles[i].close;
+      rawMa[i] = src;
+      const a = atr[i];
+      curRange = Number.isFinite(a) ? a * mult : NaN;
+      topRange = Number.isFinite(curRange) ? src + curRange : NaN;
+      bottomRange = Number.isFinite(curRange) ? src - curRange : NaN;
+    } else {
+      rawMa[i] = i > 0 ? rawMa[i - 1] : NaN;
+    }
+    rawTop[i] = topRange;
+    rawBottom[i] = bottomRange;
+  }
+
+  const smMa = smoothSeries(rawMa, outLen, doubleFilter);
+  const smTop = smoothSeries(rawTop, outLen, doubleFilter);
+  const smBottom = smoothSeries(rawBottom, outLen, doubleFilter);
+
+  const points: SentimentRangeMaPoint[] = [];
+  for (let i = 0; i < n; i++) {
+    const ma = smMa[i];
+    const top = smTop[i];
+    const bottom = smBottom[i];
+    if (!Number.isFinite(ma) || !Number.isFinite(top) || !Number.isFinite(bottom)) continue;
+
+    const c = candles[i];
+    let tone: SentimentRangeMaTone;
+    if (colorStyle === "solid") {
+      tone = "neutral";
+    } else if (colorStyle === "cross") {
+      tone = c.low > ma ? "bull" : c.high < ma ? "bear" : "neutral";
+    } else {
+      const prev = i > 0 ? smMa[i - 1] : NaN;
+      const prevV = Number.isFinite(prev) ? prev : 0;
+      const d = ma - prevV;
+      tone = d > 0 ? "bull" : d < 0 ? "bear" : "neutral";
+    }
+    points.push({ time: toChartTime(c.time) as number, ma, top, bottom, tone });
+  }
+  return points;
+}
+
+const SRMA_TONE_COLORS: Record<SentimentRangeMaTone, string> = {
+  bull: "#21ff78",
+  bear: "#ff2121",
+  neutral: "#898989",
+};
+
+// Sentiment Range MA overlay — colored MA line plus translucent bands
+// filled between the MA and the top/bottom ranges (Pine fills at ~82%
+// transparency). Range boundary lines are invisible in Pine, so skipped.
+export class SentimentRangeMaPrimitive implements ISeriesPrimitive<Time> {
+  private _timeScale: ITimeScaleApi<Time> | null = null;
+  private _series: ISeriesApi<"Candlestick"> | null = null;
+  private _requestUpdate: (() => void) | null = null;
+  private _points: SentimentRangeMaPoint[] = [];
+  private _bullColor: string = SRMA_TONE_COLORS.bull;
+  private _bearColor: string = SRMA_TONE_COLORS.bear;
+  private _neutralColor: string = SRMA_TONE_COLORS.neutral;
+  private _paneViews: IPrimitivePaneView[];
+
+  constructor() {
+    this._paneViews = [new SentimentRangeMaPaneView(this)];
+  }
+
+  setColors(bull: string, bear: string, neutral: string) {
+    if (bull) this._bullColor = bull;
+    if (bear) this._bearColor = bear;
+    if (neutral) this._neutralColor = neutral;
+    this._requestUpdate?.();
+  }
+
+  attached(param: SeriesAttachedParameter<Time>) {
+    this._timeScale = param.chart.timeScale();
+    this._series = param.series as ISeriesApi<"Candlestick">;
+    this._requestUpdate = param.requestUpdate;
+  }
+
+  detached() {
+    this._timeScale = null;
+    this._series = null;
+  }
+
+  setData(points: SentimentRangeMaPoint[]) {
+    this._points = points;
+    this._requestUpdate?.();
+  }
+
+  paneViews() {
+    return this._paneViews;
+  }
+
+  private _toneColor(tone: SentimentRangeMaTone): string {
+    return tone === "bull" ? this._bullColor : tone === "bear" ? this._bearColor : this._neutralColor;
+  }
+
+  drawOverlay(ctx: CanvasRenderingContext2D) {
+    const ts = this._timeScale;
+    const series = this._series;
+    if (!ts || !series || this._points.length < 2) return;
+
+    const coords: { x: number; yMa: number; yTop: number; yBottom: number; tone: SentimentRangeMaTone }[] = [];
+    for (const p of this._points) {
+      const x = ts.timeToCoordinate(p.time as Time);
+      const yMa = series.priceToCoordinate(p.ma);
+      const yTop = series.priceToCoordinate(p.top);
+      const yBottom = series.priceToCoordinate(p.bottom);
+      if (x === null || yMa === null || yTop === null || yBottom === null) continue;
+      coords.push({ x, yMa, yTop, yBottom, tone: p.tone });
+    }
+    if (coords.length < 2) return;
+
+    // Pass 1: translucent fills between MA and each range band — gradient
+    // fading from the MA edge (semi-transparent) to invisible at the range
+    // boundary, matching Pine's fill() color interpolation (the halo look).
+    for (let i = 0; i < coords.length - 1; i++) {
+      const a = coords[i];
+      const b = coords[i + 1];
+      if (b.x <= a.x) continue;
+      const color = this._toneColor(b.tone);
+      const solid = hexToRgba(color, 0.22);
+      const transparent = hexToRgba(color, 0);
+
+      // upper band: ma → top (skip degenerate zero-height band)
+      if (a.yTop !== a.yMa) {
+        const grad = ctx.createLinearGradient(0, a.yMa, 0, a.yTop);
+        grad.addColorStop(0, solid);
+        grad.addColorStop(1, transparent);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.yMa);
+        ctx.lineTo(b.x, b.yMa);
+        ctx.lineTo(b.x, b.yTop);
+        ctx.lineTo(a.x, a.yTop);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // lower band: ma → bottom
+      if (a.yBottom !== a.yMa) {
+        const grad = ctx.createLinearGradient(0, a.yMa, 0, a.yBottom);
+        grad.addColorStop(0, solid);
+        grad.addColorStop(1, transparent);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.yMa);
+        ctx.lineTo(b.x, b.yMa);
+        ctx.lineTo(b.x, b.yBottom);
+        ctx.lineTo(a.x, a.yBottom);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // Pass 2: MA line, colored per segment
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = "round";
+    for (let i = 0; i < coords.length - 1; i++) {
+      const a = coords[i];
+      const b = coords[i + 1];
+      if (b.x <= a.x) continue;
+      ctx.strokeStyle = this._toneColor(b.tone);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.yMa);
+      ctx.lineTo(b.x, b.yMa);
+      ctx.stroke();
+    }
+  }
+}
+
+class SentimentRangeMaPaneView implements IPrimitivePaneView {
+  constructor(private _source: SentimentRangeMaPrimitive) {}
+
+  renderer(): IPrimitivePaneRenderer {
+    const source = this._source;
+    return {
+      draw(target) {
+        target.useMediaCoordinateSpace(({ context: ctx }) => {
+          source.drawOverlay(ctx);
+        });
+      },
+    };
+  }
+}
+
 // UTBot label — TradingView-style colored box with white text and arrow tail
 export type UTBotLabel = { time: number; type: "BUY" | "SELL"; color: string };
 
