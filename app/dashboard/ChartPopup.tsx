@@ -15,6 +15,7 @@ import {
   UTBotLabelsPrimitive,
   toChartTime,
   isWithinMarketHours,
+  isValidCandle,
 } from "@/lib/strategy-chart";
 
 interface NumericFieldProps extends Omit<React.ComponentProps<"input">, "value" | "onChange"> {
@@ -401,8 +402,8 @@ export default function ChartPopup({ open, onClose }: Props) {
       .then((r) => r.json())
       .then((data) => {
         if (disposed) return;
-        const completed = (data.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
-        const current = data.currentCandle && isWithinMarketHours(data.currentCandle.time) ? data.currentCandle : null;
+        const completed = (data.completedCandles || []).filter((c: any) => isValidCandle(c));
+        const current = data.currentCandle && isValidCandle(data.currentCandle) ? data.currentCandle : null;
         if (completed.length > 0 || current) {
           setNifty50Data({ completedCandles: completed, currentCandle: current });
         }
@@ -423,8 +424,8 @@ export default function ChartPopup({ open, onClose }: Props) {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "snapshot" || msg.type === "update") {
-            const incomingCompleted = (msg.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
-            const incomingCurrent = msg.currentCandle && isWithinMarketHours(msg.currentCandle.time) ? msg.currentCandle : null;
+            const incomingCompleted = (msg.completedCandles || []).filter((c: any) => isValidCandle(c));
+            const incomingCurrent = msg.currentCandle && isValidCandle(msg.currentCandle) ? msg.currentCandle : null;
 
             setNifty50Data((prev) => {
               // Sticky guard: if incoming data is filtered out entirely but we have data, keep the old data
@@ -473,8 +474,8 @@ export default function ChartPopup({ open, onClose }: Props) {
     const container = nifty50ChartRef.current;
     if (!container) return;
 
-    const allCandles = [...(nifty50Data.completedCandles || [])].filter((c) => c != null);
-    if (nifty50Data.currentCandle) {
+    const allCandles = [...(nifty50Data.completedCandles || [])].filter((c) => isValidCandle(c));
+    if (nifty50Data.currentCandle && isValidCandle(nifty50Data.currentCandle)) {
       allCandles.push(nifty50Data.currentCandle);
     }
 
@@ -526,7 +527,7 @@ export default function ChartPopup({ open, onClose }: Props) {
     const { main, ema1, ema2, labelPlugin } = nifty50SeriesInstance.current!;
 
     const mapped = allCandles
-      .filter((c) => c != null)
+      .filter((c) => isValidCandle(c))
       .map((c) => ({
         time: toChartTime(c.time),
         open: c.open,
@@ -630,7 +631,7 @@ export default function ChartPopup({ open, onClose }: Props) {
           // Filter out candles outside market hours for each symbol
           const filteredResult: SymbolCandles = {};
           for (const sym of Object.keys(result)) {
-            filteredResult[sym] = (result[sym] || []).filter(c => isWithinMarketHours(c.time));
+            filteredResult[sym] = (result[sym] || []).filter(c => isValidCandle(c));
           }
           // Bound symbols chart the candles the strategy actually evaluates
           for (const [sym, src] of Object.entries(niftySignalBindings)) {
@@ -720,7 +721,7 @@ export default function ChartPopup({ open, onClose }: Props) {
 
       // Filter invalid times, deduplicate, and sort ascending
       const mapped = candles
-        .filter((c) => c != null)
+        .filter((c) => isValidCandle(c))
         .map((c) => ({
           time: toChartTime(c.time),
           open: c.open,

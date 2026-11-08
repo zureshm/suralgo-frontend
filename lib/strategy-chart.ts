@@ -1112,12 +1112,32 @@ export function toChartTime(timeStr: string | number): UTCTimestamp {
 }
 
 /**
+ * Check if a candle has valid price data and is not a blank/flat tick
+ * where start (open) and end (close) and high/low are all identical (zero-range dummy bar).
+ */
+export function isValidCandle(candle: { time?: string | number; open?: number | string; high?: number | string; low?: number | string; close?: number | string } | null | undefined): boolean {
+  if (!candle || !candle.time) return false;
+  const o = Number(candle.open);
+  const h = Number(candle.high);
+  const l = Number(candle.low);
+  const c = Number(candle.close);
+  if (!Number.isFinite(o) || !Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(c)) return false;
+  if (o <= 0 || h <= 0 || l <= 0 || c <= 0) return false;
+  // Reject blank/flat candles where start and end are all the same (open == high == low == close)
+  if (h <= l && o === c) return false;
+  return true;
+}
+
+/**
  * Check if a given candle time is within the allowed trading session (09:00 - 15:30 IST)
  * Handles "HH:MM", "YYYY-MM-DD HH:MM", ISO timestamps, and unix seconds.
  * Dated values are also rejected on weekends.
  */
-export function isWithinMarketHours(timeStr: string | number): boolean {
-  if (timeStr == null || timeStr === "") return false;
-  if (typeof timeStr === "number" && isNaN(timeStr)) return false;
+export function isWithinMarketHours(timeStrOrCandle: string | number | { time?: string | number; open?: number | string; high?: number | string; low?: number | string; close?: number | string }): boolean {
+  if (!timeStrOrCandle) return false;
+  if (typeof timeStrOrCandle === "object") {
+    return isValidCandle(timeStrOrCandle);
+  }
+  if (typeof timeStrOrCandle === "number" && isNaN(timeStrOrCandle)) return false;
   return true;
 }

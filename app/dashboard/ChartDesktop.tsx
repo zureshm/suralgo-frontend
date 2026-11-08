@@ -24,6 +24,7 @@ import {
   UTBotLabelsPrimitive,
   toChartTime,
   isWithinMarketHours,
+  isValidCandle,
 } from "@/lib/strategy-chart";
 
 interface NumericFieldProps extends Omit<React.ComponentProps<"input">, "value" | "onChange"> {
@@ -1213,8 +1214,8 @@ export default function ChartDesktop() {
       .then((r) => r.json())
       .then((data) => {
         if (disposed) return;
-        const completed = (data.completedCandles || []).filter((c: CandleData) => isWithinMarketHours(c.time));
-        const current = data.currentCandle && isWithinMarketHours(data.currentCandle.time) ? data.currentCandle : null;
+        const completed = (data.completedCandles || []).filter((c: CandleData) => isValidCandle(c));
+        const current = data.currentCandle && isValidCandle(data.currentCandle) ? data.currentCandle : null;
         if (completed.length > 0 || current) {
           setNifty50Data({ completedCandles: completed, currentCandle: current });
         }
@@ -1235,8 +1236,8 @@ export default function ChartDesktop() {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "snapshot" || msg.type === "update") {
-            const incomingCompleted = (msg.completedCandles || []).filter((c: CandleData) => isWithinMarketHours(c.time));
-            const incomingCurrent = msg.currentCandle && isWithinMarketHours(msg.currentCandle.time) ? msg.currentCandle : null;
+            const incomingCompleted = (msg.completedCandles || []).filter((c: CandleData) => isValidCandle(c));
+            const incomingCurrent = msg.currentCandle && isValidCandle(msg.currentCandle) ? msg.currentCandle : null;
 
             setNifty50Data((prev) => {
               // Sticky guard: if incoming data is filtered out entirely but we have data, keep the old data
@@ -1362,7 +1363,7 @@ export default function ChartDesktop() {
     const { main, ema1: ema1Line, ema2: ema2Line, se1: se1Line, se2: se2Line, labelPlugin, st1Plugin, st2Plugin, srmaPlugin } = nifty50SeriesInstance.current;
 
     const mapped = allCandles
-      .filter((c) => c != null)
+      .filter((c) => isValidCandle(c))
       .map((c) => ({
         time: toChartTime(c.time),
         open: c.open,
@@ -1544,7 +1545,7 @@ export default function ChartDesktop() {
         .then((result) => {
           const filteredResult: SymbolCandles = {};
           for (const sym of Object.keys(result)) {
-            filteredResult[sym] = (result[sym] || []).filter(c => isWithinMarketHours(c.time));
+            filteredResult[sym] = (result[sym] || []).filter(c => isValidCandle(c));
           }
           // Bound symbols chart the candles the strategy actually evaluates
           for (const [sym, src] of Object.entries(niftySignalBindings)) {
@@ -1657,7 +1658,7 @@ export default function ChartDesktop() {
       main.applyOptions(niftySignalBindings[symbol] ? FAKE_CANDLE_COLORS : REAL_CANDLE_COLORS);
 
       const mapped = candles
-        .filter((c) => c != null)
+        .filter((c) => isValidCandle(c))
         .map((c) => ({
           time: toChartTime(c.time),
           open: c.open,
