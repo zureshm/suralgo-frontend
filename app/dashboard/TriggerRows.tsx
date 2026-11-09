@@ -140,15 +140,15 @@ export function AutoTriggerRow({
         type="button"
         disabled={disabled}
         style={{
-          minWidth: 78,
+          minWidth: labelOnTop ? 38 : 78,
           height: 32,
-          padding: "0 8px 0 10px",
+          padding: labelOnTop ? "0" : "0 8px 0 10px",
           fontSize: 12,
           fontWeight: 700,
           borderRadius: 6,
           display: "inline-flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: labelOnTop ? "center" : "space-between",
           gap: 6,
           cursor: disabled ? "not-allowed" : "pointer",
           pointerEvents: disabled ? "none" : "auto",
@@ -170,7 +170,7 @@ export function AutoTriggerRow({
           }).catch(() => {});
         }}
       >
-        <span style={{ color: isSet ? "#0f172a" : "#ffffff", fontWeight: 700 }}>SET</span>
+        {!labelOnTop && <span style={{ color: isSet ? "#0f172a" : "#ffffff", fontWeight: 700 }}>SET</span>}
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, transition: "all 0.2s ease" }}>
           <circle cx="8" cy="8" r="7" fill={isSet ? "#16a34a" : "rgba(255, 255, 255, 0.2)"} />
           <path d="M4.8 8.2L6.8 10.2L11.2 5.8" stroke={isSet ? "#ffffff" : "rgba(255, 255, 255, 0.75)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -181,12 +181,13 @@ export function AutoTriggerRow({
         type="button"
         disabled={disabled}
         style={{
-          minWidth: 70,
+          minWidth: labelOnTop ? 38 : 78,
           height: 32,
-          padding: "0 10px",
+          padding: labelOnTop ? "0" : "0 10px",
           fontSize: 12,
           fontWeight: 600,
           justifyContent: "center",
+          gap: 6,
           cursor: disabled ? "not-allowed" : "pointer",
           pointerEvents: disabled ? "none" : "auto",
           opacity: disabled ? 0.45 : 1,
@@ -203,7 +204,11 @@ export function AutoTriggerRow({
           fetch(`/next-api/trades/${encodeURIComponent(symbol)}/auto-trigger-buy/reset`, { method: "POST" }).catch(() => {});
         }}
       >
-        <span>Reset</span>
+        {!labelOnTop && <span>Reset</span>}
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+          <polyline points="15.3 2.7 15.3 6.7 11.3 6.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M13.66 10a6 6 0 1 1-1.41-6.24L15.3 6.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       </div>
     </div>
@@ -314,15 +319,15 @@ export function AutoExecuteExitRow({
         type="button"
         disabled={disabled}
         style={{
-          minWidth: 78,
+          minWidth: labelOnTop ? 38 : 78,
           height: 32,
-          padding: "0 8px 0 10px",
+          padding: labelOnTop ? "0" : "0 8px 0 10px",
           fontSize: 12,
           fontWeight: 700,
           borderRadius: 6,
           display: "inline-flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: labelOnTop ? "center" : "space-between",
           gap: 6,
           cursor: disabled ? "not-allowed" : "pointer",
           pointerEvents: disabled ? "none" : "auto",
@@ -344,7 +349,7 @@ export function AutoExecuteExitRow({
           }).catch(() => {});
         }}
       >
-        <span style={{ color: isSet ? "#0f172a" : "#ffffff", fontWeight: 700 }}>SET</span>
+        {!labelOnTop && <span style={{ color: isSet ? "#0f172a" : "#ffffff", fontWeight: 700 }}>SET</span>}
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, transition: "all 0.2s ease" }}>
           <circle cx="8" cy="8" r="7" fill={isSet ? "#16a34a" : "rgba(255, 255, 255, 0.2)"} />
           <path d="M4.8 8.2L6.8 10.2L11.2 5.8" stroke={isSet ? "#ffffff" : "rgba(255, 255, 255, 0.75)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -355,12 +360,13 @@ export function AutoExecuteExitRow({
         type="button"
         disabled={disabled}
         style={{
-          minWidth: 70,
+          minWidth: labelOnTop ? 38 : 78,
           height: 32,
-          padding: "0 10px",
+          padding: labelOnTop ? "0" : "0 10px",
           fontSize: 12,
           fontWeight: 600,
           justifyContent: "center",
+          gap: 6,
           cursor: disabled ? "not-allowed" : "pointer",
           pointerEvents: disabled ? "none" : "auto",
           opacity: disabled ? 0.45 : 1,
@@ -377,7 +383,11 @@ export function AutoExecuteExitRow({
           fetch(`/next-api/trades/${encodeURIComponent(symbol)}/auto-execute-exit/reset`, { method: "POST" }).catch(() => {});
         }}
       >
-        <span>Reset</span>
+        {!labelOnTop && <span>Reset</span>}
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+          <polyline points="15.3 2.7 15.3 6.7 11.3 6.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M13.66 10a6 6 0 1 1-1.41-6.24L15.3 6.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       </div>
     </div>
