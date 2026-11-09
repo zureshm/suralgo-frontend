@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import styles from "./ActiveTrade.module.scss";
 import { useWatchlist } from "../store/WatchlistContext";
 
@@ -9,12 +9,14 @@ export function AutoTriggerRow({
   activeLtps,
   inPosition,
   autoTriggerBuyPrice,
+  autoTriggerBuyMode,
   labelOnTop,
 }: {
   symbol: string;
   activeLtps?: Record<string, number>;
   inPosition?: boolean;
   autoTriggerBuyPrice?: number;
+  autoTriggerBuyMode?: "on" | "below";
   labelOnTop?: boolean;
 }) {
   const { watchlist } = useWatchlist();
@@ -29,24 +31,30 @@ export function AutoTriggerRow({
     return "120";
   });
   const [isSet, setIsSet] = useState(serverSet);
+  const [mode, setMode] = useState<"on" | "below">(autoTriggerBuyMode === "below" ? "below" : "on");
 
   // Sync if server state changes (e.g. set/reset on another device, or cleared after trigger firing)
-  useEffect(() => {
+  const [prevServer, setPrevServer] = useState({ price: autoTriggerBuyPrice, mode: autoTriggerBuyMode });
+  if (autoTriggerBuyPrice !== prevServer.price || autoTriggerBuyMode !== prevServer.mode) {
+    setPrevServer({ price: autoTriggerBuyPrice, mode: autoTriggerBuyMode });
     if (autoTriggerBuyPrice != null && Number.isFinite(autoTriggerBuyPrice)) {
       setValue(String(autoTriggerBuyPrice));
       setIsSet(true);
       setIsVirgin(false);
+      setMode(autoTriggerBuyMode === "below" ? "below" : "on");
     } else if (autoTriggerBuyPrice === undefined) {
       setIsSet(false);
     }
-  }, [autoTriggerBuyPrice]);
+  }
 
   // While virgin, automatically follow the live price from watchlist/activeLtps
-  useEffect(() => {
+  const [prevLiveLtp, setPrevLiveLtp] = useState(liveLtp);
+  if (liveLtp !== prevLiveLtp) {
+    setPrevLiveLtp(liveLtp);
     if (isVirgin && liveLtp != null && Number.isFinite(liveLtp)) {
       setValue(String(liveLtp));
     }
-  }, [isVirgin, liveLtp]);
+  }
 
   const disabled = inPosition === true;
 
@@ -58,8 +66,37 @@ export function AutoTriggerRow({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: labelOnTop ? 4 : 10, minHeight: 30, flexDirection: labelOnTop ? "column" : "row" }}>
-      <span className="text-xs" style={{ color: "var(--theme-text-gray-500)", whiteSpace: "nowrap", fontWeight: 500, opacity: disabled ? 0.5 : 1 }}>Set Auto Trigger Buy On</span>
+      <span className="text-xs" style={{ color: "var(--theme-text-gray-500)", whiteSpace: "nowrap", fontWeight: 500, opacity: disabled ? 0.5 : 1 }}>Set Auto Trigger Buy</span>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ display: "inline-flex", borderRadius: 6, overflow: "hidden", border: "2px solid #6366f1", opacity: disabled ? 0.45 : 1, flexShrink: 0 }}>
+        {(["on", "below"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            disabled={disabled}
+            title={m === "on" ? "Buy when price rises to the set price" : "Buy when price drops to the set price"}
+            style={{
+              height: 28,
+              padding: "0 9px",
+              fontSize: 11,
+              fontWeight: 700,
+              border: "none",
+              cursor: disabled ? "not-allowed" : "pointer",
+              background: mode === m ? "#6366f1" : "var(--theme-card-white)",
+              color: mode === m ? "#ffffff" : "inherit",
+              transition: "all 0.15s ease",
+            }}
+            onClick={() => {
+              if (disabled) return;
+              setMode(m);
+              setIsVirgin(false);
+              setIsSet(false);
+            }}
+          >
+            {m === "on" ? "On" : "Below"}
+          </button>
+        ))}
+      </div>
       <input
         type="text"
         inputMode="decimal"
@@ -129,7 +166,7 @@ export function AutoTriggerRow({
           fetch(`/next-api/trades/${encodeURIComponent(symbol)}/auto-trigger-buy`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ triggerPrice: Number(value || "0") }),
+            body: JSON.stringify({ triggerPrice: Number(value || "0"), mode }),
           }).catch(() => {});
         }}
       >
@@ -200,7 +237,9 @@ export function AutoExecuteExitRow({
   const [isSet, setIsSet] = useState(serverSet);
 
   // Sync if server state changes (e.g. set/reset on another device, or cleared after trigger firing)
-  useEffect(() => {
+  const [prevExitPrice, setPrevExitPrice] = useState(autoExecuteExitPrice);
+  if (autoExecuteExitPrice !== prevExitPrice) {
+    setPrevExitPrice(autoExecuteExitPrice);
     if (autoExecuteExitPrice != null && Number.isFinite(autoExecuteExitPrice)) {
       setValue(String(autoExecuteExitPrice));
       setIsSet(true);
@@ -208,14 +247,16 @@ export function AutoExecuteExitRow({
     } else if (autoExecuteExitPrice === undefined) {
       setIsSet(false);
     }
-  }, [autoExecuteExitPrice]);
+  }
 
   // While virgin, automatically follow the live price from watchlist/activeLtps
-  useEffect(() => {
+  const [prevLiveLtp, setPrevLiveLtp] = useState(liveLtp);
+  if (liveLtp !== prevLiveLtp) {
+    setPrevLiveLtp(liveLtp);
     if (isVirgin && liveLtp != null && Number.isFinite(liveLtp)) {
       setValue(String(liveLtp));
     }
-  }, [isVirgin, liveLtp]);
+  }
 
   // Enabled only while the trade is in position — inverse of Auto Trigger Buy
   const disabled = inPosition !== true;
