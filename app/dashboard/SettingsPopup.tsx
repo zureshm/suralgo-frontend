@@ -106,7 +106,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
 
   // Watchdog settings
   const [watchdogEnabled, setWatchdogEnabled] = useState(false);
-  const [watchdogCheckpoints, setWatchdogCheckpoints] = useState([
+  const [watchdogCheckpoints, setWatchdogCheckpoints] = useState<Array<{ points: number; breakBelow: number; trailing?: boolean }>>([
     { points: 16, breakBelow: 10 },
     { points: 25, breakBelow: 15 },
     { points: 40, breakBelow: 25 },
@@ -973,6 +973,38 @@ export default function SettingsPopup({ open, onClose }: Props) {
                             />
                             <span className="text-[10px]" style={{ color: "var(--theme-popup-label)" }}>pts</span>
                           </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                          <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>
+                            Trail peak to next CP
+                          </span>
+                          <button
+                            type="button"
+                            disabled={!watchdogEnabled}
+                            onClick={() => {
+                              setWatchdogCheckpoints((prev) => {
+                                const updated = [...prev];
+                                updated[idx] = { ...updated[idx], trailing: !cp.trailing };
+                                return updated;
+                              });
+                            }}
+                            style={{
+                              height: 24,
+                              padding: "0 12px",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              borderRadius: 12,
+                              border: "none",
+                              cursor: watchdogEnabled ? "pointer" : "not-allowed",
+                              background: cp.trailing ? "#6366f1" : "var(--theme-popup-bg)",
+                              color: cp.trailing ? "#ffffff" : "var(--theme-popup-label)",
+                              opacity: watchdogEnabled ? 1 : 0.45,
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            Trail
+                          </button>
                         </div>
                       </div>
                     ))}

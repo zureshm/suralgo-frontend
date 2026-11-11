@@ -98,7 +98,7 @@ export default function SettingsDesktop() {
   const autoCutoffDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [watchdogEnabled, setWatchdogEnabled] = useState(false);
-  const [watchdogCheckpoints, setWatchdogCheckpoints] = useState([
+  const [watchdogCheckpoints, setWatchdogCheckpoints] = useState<Array<{ points: number; breakBelow: number; trailing?: boolean }>>([
     { points: 16, breakBelow: 10 },
     { points: 25, breakBelow: 15 },
     { points: 40, breakBelow: 25 },
@@ -787,6 +787,33 @@ export default function SettingsDesktop() {
                                 />
                                 <span className="text-[11px] font-medium" style={{ color: "var(--theme-popup-label)" }}>pts</span>
                               </div>
+                              <button
+                                type="button"
+                                disabled={!watchdogEnabled}
+                                title="Trail: once armed, the floor follows the peak — exits after giving back (checkpoint − break) pts from the high"
+                                onClick={() => {
+                                  setWatchdogCheckpoints((prev) => {
+                                    const updated = [...prev];
+                                    updated[idx] = { ...updated[idx], trailing: !cp.trailing };
+                                    return updated;
+                                  });
+                                }}
+                                style={{
+                                  height: 24,
+                                  padding: "0 10px",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  borderRadius: 12,
+                                  border: "none",
+                                  cursor: watchdogEnabled ? "pointer" : "not-allowed",
+                                  background: cp.trailing ? "#6366f1" : "var(--theme-popup-field-bg)",
+                                  color: cp.trailing ? "#ffffff" : "var(--theme-popup-label)",
+                                  opacity: watchdogEnabled ? 1 : 0.45,
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                Trail
+                              </button>
                             </div>
                           </div>
                         ))}

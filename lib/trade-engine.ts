@@ -587,6 +587,7 @@ export function setAutoCutoffSettings(settings: {
 export interface WatchdogCheckpoint {
   points: number;
   breakBelow: number;
+  trailing?: boolean;
 }
 
 export interface WatchdogSettings {
@@ -637,6 +638,7 @@ export function setWatchdogSettings(settings: Partial<WatchdogSettings>) {
     watchdogCheckpoints = settings.watchdogCheckpoints.slice(0, DEFAULT_WATCHDOG_CHECKPOINTS.length).map((cp, idx) => ({
       points: Number.isFinite(Number(cp.points)) ? Number(cp.points) : (DEFAULT_WATCHDOG_CHECKPOINTS[idx]?.points ?? 0),
       breakBelow: Number.isFinite(Number(cp.breakBelow)) ? Number(cp.breakBelow) : (DEFAULT_WATCHDOG_CHECKPOINTS[idx]?.breakBelow ?? 0),
+      trailing: cp.trailing === true,
     }));
     while (watchdogCheckpoints.length < DEFAULT_WATCHDOG_CHECKPOINTS.length) {
       const idx = watchdogCheckpoints.length;
@@ -1024,9 +1026,10 @@ function loadState() {
       if (typeof data.watchdogSlEnabled === "boolean") watchdogSlEnabled = data.watchdogSlEnabled;
       if (typeof data.watchdogSlPoints === "number" && Number.isFinite(data.watchdogSlPoints)) watchdogSlPoints = Math.max(0, data.watchdogSlPoints);
       if (Array.isArray(data.watchdogCheckpoints)) {
-        watchdogCheckpoints = data.watchdogCheckpoints.slice(0, DEFAULT_WATCHDOG_CHECKPOINTS.length).map((cp: { points?: unknown; breakBelow?: unknown }, idx: number) => ({
+        watchdogCheckpoints = data.watchdogCheckpoints.slice(0, DEFAULT_WATCHDOG_CHECKPOINTS.length).map((cp: { points?: unknown; breakBelow?: unknown; trailing?: unknown }, idx: number) => ({
           points: typeof cp.points === "number" ? cp.points : (DEFAULT_WATCHDOG_CHECKPOINTS[idx]?.points ?? 0),
           breakBelow: typeof cp.breakBelow === "number" ? cp.breakBelow : (DEFAULT_WATCHDOG_CHECKPOINTS[idx]?.breakBelow ?? 0),
+          trailing: cp.trailing === true,
         }));
         while (watchdogCheckpoints.length < DEFAULT_WATCHDOG_CHECKPOINTS.length) {
           const idx = watchdogCheckpoints.length;
@@ -3295,23 +3298,33 @@ function handleLtpMonitoring(ltpMap: Record<string, number>, marketTime?: string
         }
       }
 
+      // Effective exit floor — a trailing checkpoint ratchets its floor up
+      // with the peak gain, keeping (points − breakBelow) pts of give-back
+      // behind the high instead of a fixed level. At arm time the floor
+      // equals breakBelow, identical to fixed mode.
+      const effectiveFloor = reachedCp
+        ? reachedCp.trailing
+          ? Math.max(reachedCp.breakBelow, currentMaxGain - Math.max(0, reachedCp.points - reachedCp.breakBelow))
+          : reachedCp.breakBelow
+        : 0;
+
       if (reachedCp && reachedCpIndex > (trade.watchdogArmedCheckpoint ?? 0)) {
         updateWatchdogState(trade.symbol, currentMaxGain, reachedCpIndex);
         addLogToActive(
           trade.symbol,
-          `WATCHDOG armed Checkpoint ${reachedCpIndex} (+${reachedCp.points} pts reached) — break floor set at +${reachedCp.breakBelow} pts (₹${(entry + reachedCp.breakBelow).toFixed(2)}) at ${currentTime}`
+          `WATCHDOG armed Checkpoint ${reachedCpIndex} (+${reachedCp.points} pts reached) — ${reachedCp.trailing ? `TRAIL mode: floor follows peak −${Math.max(0, reachedCp.points - reachedCp.breakBelow)} pts (now +${effectiveFloor} pts = ₹${(entry + effectiveFloor).toFixed(2)})` : `break floor set at +${reachedCp.breakBelow} pts (₹${(entry + reachedCp.breakBelow).toFixed(2)})`} at ${currentTime}`
         );
         persistState();
       }
 
-      if (reachedCp && currentGain <= reachedCp.breakBelow) {
+      if (reachedCp && currentGain <= effectiveFloor) {
         const exitPrice = ltp;
         triggeredPositions.add(positionKey);
         trailingArmedPositions.delete(positionKey);
         completeCycleWithoutExit(
           trade.symbol,
           String(exitPrice),
-          `WATCHDOG exit triggered for ₹${exitPrice.toFixed(2)} (reached +${reachedCp.points} pts, dropped below +${reachedCp.breakBelow} pts) at ${currentTime} (LTP)`
+          `WATCHDOG exit triggered for ₹${exitPrice.toFixed(2)} (reached +${reachedCp.points} pts, ${reachedCp.trailing ? `trailed off peak +${currentMaxGain.toFixed(1)} pts, dropped below floor +${effectiveFloor.toFixed(1)} pts` : `dropped below +${reachedCp.breakBelow} pts`}) at ${currentTime} (LTP)`
         );
         continue;
       }
