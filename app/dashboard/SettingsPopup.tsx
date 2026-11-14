@@ -1579,7 +1579,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </div>
                       {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                         <a
-                          href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
+                          href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : aiProvider === "aicredits" ? "https://aicredits.in/dashboard/keys" : "https://console.groq.com/keys"}
                           target="_blank"
                           rel="noreferrer"
                           className="text-xs underline font-semibold"
@@ -1592,7 +1592,15 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     </div>
                     <select
                       value={aiProvider}
-                      onChange={(e) => updateAiSettings({ provider: e.target.value })}
+                      onChange={(e) => {
+                        const p = e.target.value;
+                        const patch: { provider: string; model?: string } = { provider: p };
+                        const groqModels = ["openai/gpt-oss-120b"];
+                        const aicModels = ["deepseek/deepseek-chat", "openai/gpt-5-mini", "google/gemini-2.5-flash", "anthropic/claude-haiku-4.5"];
+                        if (p === "groq" && !groqModels.includes(aiModel)) patch.model = groqModels[0];
+                        if (p === "aicredits" && !aicModels.includes(aiModel)) patch.model = aicModels[0];
+                        updateAiSettings(patch);
+                      }}
                       className="w-full h-9 px-3 rounded-lg text-xs"
                       style={{
                         background: "var(--theme-popup-field-bg)",
@@ -1606,6 +1614,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       <option value="local_v3" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V3 (Swift Trend Sniper)</option>
                       <option value="local_v4" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V4 (Choppy Filter)</option>
                       <option value="groq" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Groq (free)</option>
+                      <option value="aicredits" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>AI Credits (paid, INR)</option>
                       <option value="claude" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 3.5 (paid)</option>
                     </select>
                   </div>
@@ -1627,9 +1636,32 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         outline: "none",
                       }}
                     >
-                      <option value="openai/gpt-oss-20b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT OSS 20B — fast, low cost</option>
                       <option value="openai/gpt-oss-120b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT OSS 120B — highest quality (recommended)</option>
-                      <option value="qwen/qwen3.6-27b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Qwen 3.6 27B — preview</option>
+                    </select>
+                  </div>
+                  )}
+
+                  {/* AI Credits Model dropdown */}
+                  {aiProvider === "aicredits" && (
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>AI Credits Model</label>
+                    </div>
+                    <select
+                      value={aiModel}
+                      onChange={(e) => updateAiSettings({ model: e.target.value })}
+                      className="w-full h-9 px-3 rounded-lg text-xs"
+                      style={{
+                        background: "var(--theme-popup-field-bg)",
+                        color: "var(--theme-popup-text)",
+                        border: "1px solid var(--theme-popup-field-border)",
+                        outline: "none",
+                      }}
+                    >
+                      <option value="deepseek/deepseek-chat" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>DeepSeek V3 — cheapest, recommended</option>
+                      <option value="openai/gpt-5-mini" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT-5 Mini — low cost</option>
+                      <option value="google/gemini-2.5-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Gemini 2.5 Flash</option>
+                      <option value="anthropic/claude-haiku-4.5" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 4.5 — premium</option>
                     </select>
                   </div>
                   )}
