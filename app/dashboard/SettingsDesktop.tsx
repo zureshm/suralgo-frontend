@@ -1018,7 +1018,7 @@ export default function SettingsDesktop() {
                         </div>
                         {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                           <a
-                            href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : aiProvider === "aicredits" ? "https://aicredits.in/dashboard/keys" : "https://console.groq.com/keys"}
+                            href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : aiProvider === "aicredits" ? "https://aicredits.in/dashboard/keys" : aiProvider === "indos" ? "https://indos.tech/keys" : "https://console.groq.com/keys"}
                             target="_blank"
                             rel="noreferrer"
                             className="text-xs underline font-semibold"
@@ -1034,8 +1034,10 @@ export default function SettingsDesktop() {
                           const patch: { provider: string; model?: string } = { provider: p };
                           const groqModels = ["openai/gpt-oss-120b"];
                           const aicModels = ["deepseek/deepseek-chat", "openai/gpt-5-mini", "google/gemini-2.5-flash", "anthropic/claude-haiku-4.5"];
+                          const indosModels = ["Alibaba/qwen3.8-flash", "Novita/xiaomimimo/mimo-v2.5", "openrouter/meta-llama/llama-4-scout", "deepseek/deepseek-v4-flash"];
                           if (p === "groq" && !groqModels.includes(aiModel)) patch.model = groqModels[0];
                           if (p === "aicredits" && !aicModels.includes(aiModel)) patch.model = aicModels[0];
+                          if (p === "indos" && !indosModels.includes(aiModel)) patch.model = indosModels[0];
                           updateAiSettings(patch);
                         }}
                         className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
@@ -1047,6 +1049,7 @@ export default function SettingsDesktop() {
                         <option value="local_v4" style={{ background: "var(--theme-popup-bg)" }}>Dinkan V4 (Choppy Filter)</option>
                         <option value="groq" style={{ background: "var(--theme-popup-bg)" }}>Groq (free)</option>
                         <option value="aicredits" style={{ background: "var(--theme-popup-bg)" }}>AI Credits (paid, INR)</option>
+                        <option value="indos" style={{ background: "var(--theme-popup-bg)" }}>Indos (₹500 free credits)</option>
                         <option value="claude" style={{ background: "var(--theme-popup-bg)" }}>Claude Haiku 3.5 (paid)</option>
                       </select>
                     </div>
@@ -1239,6 +1242,23 @@ export default function SettingsDesktop() {
                   </div>
                   )}
 
+                  {/* Indos Model dropdown */}
+                  {aiProvider === "indos" && (
+                  <div className="pt-4">
+                    <label className="block mb-1" style={labelStyle}>Indos Model</label>
+                    <select
+                      value={aiModel} onChange={(e) => updateAiSettings({ model: e.target.value })}
+                      className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
+                      style={{ color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
+                    >
+                      <option value="Alibaba/qwen3.8-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Qwen 3.8 Flash — cheapest, recommended</option>
+                      <option value="Novita/xiaomimimo/mimo-v2.5" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Mimo V2.5 — low cost</option>
+                      <option value="openrouter/meta-llama/llama-4-scout" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Llama 4 Scout — lowest price</option>
+                      <option value="deepseek/deepseek-v4-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>DeepSeek V4 Flash — best quality</option>
+                    </select>
+                  </div>
+                  )}
+
                   {/* API Key input */}
                   {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                   <div className="pt-4">
@@ -1266,7 +1286,7 @@ export default function SettingsDesktop() {
                     <textarea
                       value={aiApiKey}
                       onChange={(e) => updateAiSettings({ apiKey: e.target.value })}
-                      placeholder={`Paste your ${aiProvider === "claude" ? "Claude" : "Groq"} API key(s) here — one per line`}
+                      placeholder={`Paste your ${aiProvider === "claude" ? "Claude" : aiProvider === "aicredits" ? "AI Credits" : aiProvider === "indos" ? "Indos" : "Groq"} API key(s) here — one per line`}
                       rows={3}
                       className="w-full px-3 py-2 rounded-lg text-xs resize-vertical"
                       style={{

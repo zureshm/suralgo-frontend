@@ -209,6 +209,22 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     parseContent: (data) => data?.choices?.[0]?.message?.content || "",
     providerName: "AI Credits",
   },
+  indos: {
+    url: "https://api.indos.tech/v1/chat/completions",
+    model: "",
+    headers: (apiKey) => ({ "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }),
+    buildBody: (systemPrompt, userPrompt, maxTokens) => ({
+      model: aiGuardSettings.model || "Alibaba/qwen3.8-flash",
+      temperature: 0,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    }),
+    parseContent: (data) => data?.choices?.[0]?.message?.content || "",
+    providerName: "Indos",
+  },
   claude: {
     url: ANTHROPIC_URL,
     model: ANTHROPIC_MODEL,

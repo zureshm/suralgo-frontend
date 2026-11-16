@@ -1579,7 +1579,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       </div>
                       {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                         <a
-                          href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : aiProvider === "aicredits" ? "https://aicredits.in/dashboard/keys" : "https://console.groq.com/keys"}
+                          href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : aiProvider === "aicredits" ? "https://aicredits.in/dashboard/keys" : aiProvider === "indos" ? "https://indos.tech/keys" : "https://console.groq.com/keys"}
                           target="_blank"
                           rel="noreferrer"
                           className="text-xs underline font-semibold"
@@ -1597,8 +1597,10 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         const patch: { provider: string; model?: string } = { provider: p };
                         const groqModels = ["openai/gpt-oss-120b"];
                         const aicModels = ["deepseek/deepseek-chat", "openai/gpt-5-mini", "google/gemini-2.5-flash", "anthropic/claude-haiku-4.5"];
+                        const indosModels = ["Alibaba/qwen3.8-flash", "Novita/xiaomimimo/mimo-v2.5", "openrouter/meta-llama/llama-4-scout", "deepseek/deepseek-v4-flash"];
                         if (p === "groq" && !groqModels.includes(aiModel)) patch.model = groqModels[0];
                         if (p === "aicredits" && !aicModels.includes(aiModel)) patch.model = aicModels[0];
+                        if (p === "indos" && !indosModels.includes(aiModel)) patch.model = indosModels[0];
                         updateAiSettings(patch);
                       }}
                       className="w-full h-9 px-3 rounded-lg text-xs"
@@ -1615,6 +1617,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                       <option value="local_v4" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Dinkan V4 (Choppy Filter)</option>
                       <option value="groq" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Groq (free)</option>
                       <option value="aicredits" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>AI Credits (paid, INR)</option>
+                      <option value="indos" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Indos (₹500 free credits)</option>
                       <option value="claude" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 3.5 (paid)</option>
                     </select>
                   </div>
@@ -1666,6 +1669,31 @@ export default function SettingsPopup({ open, onClose }: Props) {
                   </div>
                   )}
 
+                  {/* Indos Model dropdown */}
+                  {aiProvider === "indos" && (
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold" style={{ color: "var(--theme-popup-text)" }}>Indos Model</label>
+                    </div>
+                    <select
+                      value={aiModel}
+                      onChange={(e) => updateAiSettings({ model: e.target.value })}
+                      className="w-full h-9 px-3 rounded-lg text-xs"
+                      style={{
+                        background: "var(--theme-popup-field-bg)",
+                        color: "var(--theme-popup-text)",
+                        border: "1px solid var(--theme-popup-field-border)",
+                        outline: "none",
+                      }}
+                    >
+                      <option value="Alibaba/qwen3.8-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Qwen 3.8 Flash — cheapest, recommended</option>
+                      <option value="Novita/xiaomimimo/mimo-v2.5" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Mimo V2.5 — low cost</option>
+                      <option value="openrouter/meta-llama/llama-4-scout" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Llama 4 Scout — lowest price</option>
+                      <option value="deepseek/deepseek-v4-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>DeepSeek V4 Flash — best quality</option>
+                    </select>
+                  </div>
+                  )}
+
                   {/* API Key input */}
                   {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                   <div>
@@ -1693,7 +1721,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                     <textarea
                       value={aiApiKey}
                       onChange={(e) => updateAiSettings({ apiKey: e.target.value })}
-                      placeholder={`Paste your ${aiProvider === "claude" ? "Claude" : "Groq"} API key(s) here — one per line`}
+                      placeholder={`Paste your ${aiProvider === "claude" ? "Claude" : aiProvider === "aicredits" ? "AI Credits" : aiProvider === "indos" ? "Indos" : "Groq"} API key(s) here — one per line`}
                       rows={3}
                       className="w-full px-3 py-2 rounded-lg text-xs resize-vertical"
                       style={{
