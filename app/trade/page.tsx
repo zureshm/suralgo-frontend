@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, type FocusEvent } from "react";
-import { HelpCircle, ShieldAlert, Clock, Target, RefreshCw, Timer, Plus, Minus } from "lucide-react";
+import React, { useEffect, useRef, useState, type FocusEvent } from "react";
+import { HelpCircle, ShieldAlert, Clock, Target, RefreshCw, Timer, Plus, Minus, SlidersHorizontal } from "lucide-react";
 import { useTradeStore, WaitingTrade } from "../store/TradeStore";
 import { useRouter } from "next/navigation";
 import { getPrices } from "@/lib/getPrices";
@@ -87,7 +87,7 @@ function NumericField({ value, onChange, onBlur, fallback = "0", ...props }: Num
 
 export default function TradePage() {
   const router = useRouter();
-  const { selection, addWaitingTradeFromSelection, waitingTrades, activeTrades } = useTradeStore();
+  const { selection, addWaitingTradeFromSelection, waitingTrades, activeTrades, desktopViewEnabled } = useTradeStore();
   const [currentPrice, setCurrentPrice] = useState<string | null>(null);
   const [lotValue, setLotValue] = useState(1);
   const [availableBalance, setAvailableBalance] = useState<number | null>(null);
@@ -254,6 +254,7 @@ export default function TradePage() {
   const [triggerTimerEnabled, setTriggerTimerEnabled] = useState(false);
   const [triggerTimeEnabled, setTriggerTimeEnabled] = useState(true);
   const [triggerPriceEnabled, setTriggerPriceEnabled] = useState(true);
+  const [showMoreSettings, setShowMoreSettings] = useState(false);
   const [triggerHours, setTriggerHours] = useState(9);
   const [triggerMinutes, setTriggerMinutes] = useState(15);
   const [triggerSeconds, setTriggerSeconds] = useState(10);
@@ -466,14 +467,1194 @@ export default function TradePage() {
     localStorage.setItem('tradeForm_' + selection.symbol, JSON.stringify(formData));
   };
 
+  const slTopBoxRef = useRef<HTMLDivElement>(null);
+  const targetTopBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const syncTopCards = () => {
+      const a = slTopBoxRef.current;
+      const b = targetTopBoxRef.current;
+      if (!a || !b) return;
+      a.style.minHeight = "";
+      b.style.minHeight = "";
+      if (desktopViewEnabled) {
+        const h = Math.max(a.offsetHeight, b.offsetHeight);
+        a.style.minHeight = `${h}px`;
+        b.style.minHeight = `${h}px`;
+      }
+    };
+    syncTopCards();
+    const ro = new ResizeObserver(syncTopCards);
+    if (slTopBoxRef.current) ro.observe(slTopBoxRef.current);
+    if (targetTopBoxRef.current) ro.observe(targetTopBoxRef.current);
+    window.addEventListener("resize", syncTopCards);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", syncTopCards);
+    };
+  }, [desktopViewEnabled]);
+
+  const renderAutoTrigger = (extraClass = "", idPrefix = "") => (
+    <div className={`space-y-3 ${extraClass}`}>
+      <div
+        style={{
+          background: "var(--theme-bg)",
+          padding: "16px",
+          borderRadius: "12px",
+          border: "1px solid rgba(255,255,255,0.05)",
+          position: "relative",
+          overflow: "hidden"
+        }}
+      >
+        {/* Title row with toggle */}
+        <div className="flex items-center justify-between mb-5 relative z-10">
+          <div className="flex items-center gap-2">
+            <Timer className="w-4 h-4" style={{ color: triggerTimerEnabled ? "var(--theme-btn-buy)" : "var(--theme-text-gray-400)" }} />
+            <span style={{ color: "#ccc", fontWeight: 600, fontSize: "14px", letterSpacing: "0.3px" }}>
+              Auto Trigger
+            </span>
+            {serverTime && (
+              <span style={{ color: triggerTimerEnabled ? "#4ade80" : "var(--theme-text-gray-500)", fontSize: "11px", fontFamily: "monospace", fontWeight: 500, marginLeft: "4px" }}>
+                {serverTime}
+              </span>
+            )}
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => setTriggerTimerEnabled((prev) => !prev)}
+            aria-pressed={triggerTimerEnabled}
+            aria-label="Toggle auto trigger"
+            style={{
+              width: 44,
+              height: 24,
+              borderRadius: 12,
+              background: triggerTimerEnabled ? "var(--theme-btn-buy)" : "var(--theme-text-gray-600)",
+              position: "relative",
+              transition: "background 0.2s",
+              border: "none",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                position: "absolute",
+                top: 3,
+                left: triggerTimerEnabled ? 23 : 3,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "#fff",
+                transition: "left 0.2s",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              }}
+            />
+          </button>
+        </div>
+
+        {triggerTimerEnabled && (
+        <div className="space-y-4 relative z-10">
+          {/* Time Based Section */}
+          <div className="rounded-lg border border-white/5 p-3 space-y-3 bg-white/5">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id={`${idPrefix}triggerTimeEnabled`}
+                checked={triggerTimeEnabled}
+                onChange={(e) => setTriggerTimeEnabled(e.target.checked)}
+                className="h-4 w-4 accent-green-500"
+              />
+              <label htmlFor={`${idPrefix}triggerTimeEnabled`} className="text-xs font-bold uppercase tracking-wider" style={{ color: "#ccc" }}>Time Based</label>
+            </div>
+
+            <div className={`flex items-center justify-center gap-3 ${triggerTimeEnabled ? "" : "opacity-30 pointer-events-none"}`}>
+              <div className="flex flex-col items-center gap-1">
+                <NumericField
+                  value={triggerHours}
+                  onChange={setTriggerHours}
+                  className="w-14 h-9 border-none rounded-lg text-center font-bold text-lg"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    color: "var(--theme-text-white)",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
+                  }}
+                />
+                <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Hrs</label>
+              </div>
+              <span style={{ color: "var(--theme-text-gray-600)", fontWeight: "bold", fontSize: "18px", marginTop: "-14px" }}>:</span>
+              <div className="flex flex-col items-center gap-1">
+                <NumericField
+                  value={triggerMinutes}
+                  onChange={setTriggerMinutes}
+                  className="w-14 h-9 border-none rounded-lg text-center font-bold text-lg"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    color: "var(--theme-text-white)",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
+                  }}
+                />
+                <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Min</label>
+              </div>
+              <span style={{ color: "var(--theme-text-gray-600)", fontWeight: "bold", fontSize: "18px", marginTop: "-14px" }}>:</span>
+              <div className="flex flex-col items-center gap-1">
+                <NumericField
+                  value={triggerSeconds}
+                  onChange={setTriggerSeconds}
+                  className="w-14 h-9 border-none rounded-lg text-center font-bold text-lg"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    color: "var(--theme-text-white)",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
+                  }}
+                />
+                <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Sec</label>
+              </div>
+            </div>
+          </div>
+
+          {/* Price Based Section */}
+          <div className="rounded-lg border border-white/5 p-3 space-y-3 bg-white/5">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id={`${idPrefix}triggerPriceEnabled`}
+                checked={triggerPriceEnabled}
+                onChange={(e) => setTriggerPriceEnabled(e.target.checked)}
+                className="h-4 w-4 accent-green-500"
+              />
+              <label htmlFor={`${idPrefix}triggerPriceEnabled`} className="text-xs font-bold uppercase tracking-wider" style={{ color: "#ccc" }}>Price Based</label>
+            </div>
+
+            <div className={`flex items-center justify-center gap-6 ${triggerPriceEnabled ? "" : "opacity-30 pointer-events-none"}`}>
+              <div className="flex flex-col items-center gap-1">
+                <NumericField
+                  value={triggerMinPrice}
+                  onChange={setTriggerMinPrice}
+                  className="w-20 h-9 border-none rounded-lg text-center font-bold text-base"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    color: "var(--theme-text-white)",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
+                  }}
+                />
+                <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Min Price</label>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <NumericField
+                  value={triggerMaxPrice}
+                  onChange={setTriggerMaxPrice}
+                  className="w-20 h-9 border-none rounded-lg text-center font-bold text-base"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    color: "var(--theme-text-white)",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
+                  }}
+                />
+                <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Max Price</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* Reset button only - Save is handled by main button */}
+        <div className="mt-4 relative z-10 flex justify-end">
+          <Button 
+            onClick={() => {
+              setTriggerHours(9);
+              setTriggerMinutes(15);
+              setTriggerSeconds(10);
+              setTriggerMinPrice(100);
+              setTriggerMaxPrice(800);
+              setTriggerTimeEnabled(true);
+              setTriggerPriceEnabled(true);
+            }}
+            className="text-[11px] h-8 px-4 text-black uppercase tracking-wider rounded-md border border-black/10"
+            style={{
+              backgroundColor: "var(--theme-btn-danger)",
+              opacity: triggerTimerEnabled ? 1 : 0.4,
+              transition: "all 0.2s ease"
+            }}
+          >
+            Reset Defaults
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderWaitStrategies = (extraClass = "", idPrefix = "") => (
+    <div className={`space-y-2 ${extraClass}`}>
+      <div className="text-base font-medium flex items-center gap-2"><Clock className="h-4 w-4" /> Wait Strategies</div>
+      <div className="rounded-md border border-gray-200 p-3 space-y-3">
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id={`${idPrefix}waitStrategyEnabled`}
+            checked={waitStrategyEnabled}
+            onChange={(e) => setWaitStrategyEnabled(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <label htmlFor={`${idPrefix}waitStrategyEnabled`} className="text-sm font-medium">
+            Wait when candle size ≥
+          </label>
+          <div className="relative inline-flex">
+            <button
+              type="button"
+              className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+              onClick={() => setIsCandleSizeInfoOpen((prev) => !prev)}
+              aria-label="Wait candle size info"
+            >
+              <HelpCircle className="h-3 w-3" />
+            </button>
+            {isCandleSizeInfoOpen && (
+              <div
+                className="absolute right-0 top-7 w-56 rounded-md p-3 text-white shadow-lg"
+                style={{ zIndex: 9999, background: "rgba(0,0,0,0.9)", fontSize: "11px", lineHeight: "16px", maxHeight: "200px", overflowY: "auto" }}
+              >
+                When a BUY signal is skipped because the candle is too large, the trade remembers this. If the next signal before any other BUY is a REENTER from the strategy, it will enter at that point as if a BUY had occurred.
+              </div>
+            )}
+          </div>
+          <NumericField
+            value={buyOverrideSize}
+            onChange={setBuyOverrideSize}
+            className="w-16 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          />
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id={`${idPrefix}waitAfterSellEnabled`}
+            checked={waitAfterSellEnabled}
+            onChange={(e) => setWaitAfterSellEnabled(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <label htmlFor={`${idPrefix}waitAfterSellEnabled`} className="text-sm font-medium">After a SELL wait for</label>
+          <NumericField
+            value={waitAfterSellCandles}
+            onChange={setWaitAfterSellCandles}
+            className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2 text-sm"
+            min="1"
+            max="99"
+            disabled={!waitAfterSellEnabled}
+          />
+          <span className="text-sm ml-2">candles</span>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id={`${idPrefix}sellWhenLossCandlesEnabled`}
+            checked={sellWhenLossCandlesEnabled}
+            onChange={(e) => setSellWhenLossCandlesEnabled(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <label htmlFor={`${idPrefix}sellWhenLossCandlesEnabled`} className="text-sm font-medium">SELL when in loss for</label>
+          <NumericField
+            value={sellWhenLossCandles}
+            onChange={setSellWhenLossCandles}
+            className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2 text-sm"
+            min="1"
+            max="99"
+            disabled={!sellWhenLossCandlesEnabled}
+          />
+          <span className="text-sm ml-2">candles</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderTargetStrategies = (extraClass = "", idPrefix = "") => (
+    <div className={`space-y-4 ${extraClass}`}>
+      <div className="text-base font-medium flex items-center gap-2"><Target className="h-4 w-4" /> Target Strategies</div>
+      
+      <div className="space-y-3">
+        <div className="rounded-md border border-gray-200 p-3 space-y-3">
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id={`${idPrefix}targetPointsEnabled`}
+              checked={targetPointsEnabled}
+              onChange={(e) => setTargetPointsEnabled(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <label htmlFor={`${idPrefix}targetPointsEnabled`} className="text-sm font-medium">Target Points</label>
+          </div>
+
+          <div className="flex items-center space-x-2 pl-6">
+            <label htmlFor={`${idPrefix}targetPoints`} className={`text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>Points</label>
+            <NumericInput
+              id={`${idPrefix}targetPoints`}
+              value={targetPoints}
+              onChange={setTargetPoints}
+              className="w-20 h-8 text-sm"
+              disabled={!targetPointsEnabled}
+            />
+          </div>
+
+          <div className="flex items-center space-x-4 pl-6 pt-1">
+            <label className={`text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>Use price:</label>
+            <label className={`flex items-center space-x-1 text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>
+              <input
+                type="radio"
+                name="priceMode"
+                value="live"
+                checked={priceMode === "live"}
+                onChange={(e) => {
+                  const mode = e.target.value as "live" | "candleClose";
+                  setPriceMode(mode);
+                  setTargetMode(mode);
+                  setTrailingMode(mode);
+                }}
+                className="h-3 w-3"
+                disabled={!targetPointsEnabled}
+              />
+              <span>LTP</span>
+            </label>
+            <label className={`flex items-center space-x-1 text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>
+              <input
+                type="radio"
+                name="priceMode"
+                value="candleClose"
+                checked={priceMode === "candleClose"}
+                onChange={(e) => {
+                  const mode = e.target.value as "live" | "candleClose";
+                  setPriceMode(mode);
+                  setTargetMode(mode);
+                  setTrailingMode(mode);
+                }}
+                className="h-3 w-3"
+                disabled={!targetPointsEnabled}
+              />
+              <span>Candle close</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="rounded-md border border-gray-200 p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id={`${idPrefix}trailingAfterTargetEnabled`}
+                checked={trailingAfterTargetEnabled}
+                onChange={(e) => setTrailingAfterTargetEnabled(e.target.checked)}
+                className="h-4 w-4"
+                disabled={!!isAlreadyActive}
+                style={isAlreadyActive ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+              />
+              <label htmlFor={`${idPrefix}trailingAfterTargetEnabled`} className="text-sm font-medium">
+                Trailing Target <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span>
+              </label>
+            </div>
+
+            <div className="relative">
+              <button
+                type="button"
+                className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                onClick={() => setIsTrailingAfterInfoOpen((prev) => !prev)}
+                aria-label="Trailing Target info"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+              </button>
+              {isTrailingAfterInfoOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-60 rounded-md p-2 text-white shadow-lg"
+                  style={{
+                    zIndex: 9,
+                    background: "rgba(0, 0, 0, 0.8)",
+                    fontSize: "11px",
+                    lineHeight: "18px",
+                  }}
+                >
+                  Once your primary target is hit, this trailing target keeps following price by the number of points you set. If price reverses by that amount, profits are locked automatically.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 pl-6">
+            <label
+              htmlFor={`${idPrefix}trailingAfterTargetValue`}
+              className={`text-sm ${trailingAfterTargetEnabled ? "" : "text-gray-400"}`}
+            >
+              Points
+            </label>
+            <NumericInput
+              id={`${idPrefix}trailingAfterTargetValue`}
+              value={trailingAfterTarget}
+              onChange={setTrailingAfterTarget}
+              className="w-20 h-8 text-sm"
+              disabled={!trailingAfterTargetEnabled}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-md border border-gray-200 p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id={`${idPrefix}minToHoldEnabled`}
+                checked={minToHoldEnabled}
+                onChange={(e) => setMinToHoldEnabled(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <label htmlFor={`${idPrefix}minToHoldEnabled`} className="text-sm font-medium" style={{color:'green'}}>Minimum target</label>
+            </div>
+
+            <div className="relative">
+              <button
+                type="button"
+                className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                onClick={() => setIsMinToHoldInfoOpen((prev) => !prev)}
+                aria-label="Minimum to hold info"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+              </button>
+              {isMinToHoldInfoOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-56 rounded-md p-2 text-white shadow-lg"
+                  style={{
+                    zIndex: 9,
+                    background: "rgba(0, 0, 0, 0.8)",
+                    fontSize: "11px",
+                    lineHeight: "18px",
+                  }}
+                >
+                  Example: buy at 200 with minimum target {minToHold} and trigger @ {minToHoldTrigger}. Once price hits {200 + minToHold + minToHoldTrigger} ({200 + minToHold} + {minToHoldTrigger}), we lock the exit at {200 + minToHold}. Even if it rallies higher and drops back, you still capture those {minToHold} points.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 pl-6">
+            <label htmlFor={`${idPrefix}minToHoldValue`} className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Points</label>
+            <NumericInput
+              id={`${idPrefix}minToHoldValue`}
+              value={minToHold}
+              onChange={setMinToHold}
+              className="w-20 h-8 text-sm"
+              disabled={!minToHoldEnabled}
+            />
+            <label htmlFor={`${idPrefix}minToHoldTrigger`} className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trigger @</label>
+            <NumericInput
+              id={`${idPrefix}minToHoldTrigger`}
+              value={minToHoldTrigger}
+              onChange={setMinToHoldTrigger}
+              className="w-16 h-8 text-sm"
+              disabled={!minToHoldEnabled}
+            />
+          </div>
+
+          <div className="flex items-center space-x-4 pl-6">
+            <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trailing</label>
+            <div className="flex items-center space-x-2">
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="minToHoldTrailing"
+                  value="yes"
+                  checked={minToHoldTrailing === "yes"}
+                  onChange={(e) => setMinToHoldTrailing(e.target.value)}
+                  disabled={!minToHoldEnabled}
+                  className="h-4 w-4"
+                />
+                <span className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Yes</span>
+              </label>
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="minToHoldTrailing"
+                  value="no"
+                  checked={minToHoldTrailing === "no"}
+                  onChange={(e) => setMinToHoldTrailing(e.target.value)}
+                  disabled={!minToHoldEnabled}
+                  className="h-4 w-4"
+                />
+                <span className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>No</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4 pl-6 pt-1">
+            <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Arming</label>
+            <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
+              <input
+                type="radio"
+                name="minToHoldArmMode"
+                value="live"
+                checked={minToHoldArmMode === "live"}
+                onChange={(e) => {
+                  const mode = e.target.value as "live" | "candleClose";
+                  setMinToHoldArmMode(mode);
+                }}
+                className="h-3 w-3"
+                disabled={!minToHoldEnabled}
+              />
+              <span>LTP</span>
+            </label>
+            <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
+              <input
+                type="radio"
+                name="minToHoldArmMode"
+                value="candleClose"
+                checked={minToHoldArmMode === "candleClose"}
+                onChange={(e) => {
+                  const mode = e.target.value as "live" | "candleClose";
+                  setMinToHoldArmMode(mode);
+                }}
+                className="h-3 w-3"
+                disabled={!minToHoldEnabled}
+              />
+              <span>Candle close</span>
+            </label>
+          </div>
+
+          <div className="flex items-center space-x-4 pl-6 pt-1">
+            <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trigger:</label>
+            <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
+              <input
+                type="radio"
+                name="minToHoldPriceMode"
+                value="live"
+                checked={minToHoldMode === "live"}
+                onChange={(e) => {
+                  const mode = e.target.value as "live" | "candleClose";
+                  setMinToHoldMode(mode);
+                }}
+                className="h-3 w-3"
+                disabled={!minToHoldEnabled}
+              />
+              <span>LTP</span>
+            </label>
+            <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
+              <input
+                type="radio"
+                name="minToHoldPriceMode"
+                value="candleClose"
+                checked={minToHoldMode === "candleClose"}
+                onChange={(e) => {
+                  const mode = e.target.value as "live" | "candleClose";
+                  setMinToHoldMode(mode);
+                }}
+                className="h-3 w-3"
+                disabled={!minToHoldEnabled}
+              />
+              <span>Candle close</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-xs text-gray-500">If no target/profit strategy is checked, target booking will not be applied for this trade.</p>
+    </div>
+  );
+
+  const renderReEntryStrategies = (extraClass = "", idPrefix = "") => (
+    <div className={`space-y-4 ${extraClass}`}>
+      {/* Re-entry Strategies heading */}
+      <div className="text-base font-medium pt-2 flex items-center gap-2"><RefreshCw className="h-4 w-4" /> Re-entry Strategies</div>
+
+      {/* ReEntry After Target */}
+      <div className="space-y-2 border rounded-lg p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id={`${idPrefix}reEntryAfterTargetEnabled`}
+              checked={reEntryAfterTargetEnabled}
+              onChange={(e) => setReEntryAfterTargetEnabled(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <label htmlFor={`${idPrefix}reEntryAfterTargetEnabled`} className="text-sm font-medium" style={{color:'red'}}>Auto Re-entry</label>
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+              onClick={() => setIsReEntryInfoOpen((prev) => !prev)}
+              aria-label="ReEntry after target info"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+            </button>
+            {isReEntryInfoOpen && (
+              <div
+                className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
+                style={{
+                  zIndex: 9,
+                  background: "rgba(0, 0, 0, 0.8)",
+                  fontSize: "11px",
+                  lineHeight: "18px",
+                }}
+              >
+                After a profitable exit (target, trailing SL, or minimum target), re-entry arms for the specified candle window. A new buy fires only when the price crosses the highest close of the last N candles + Plus points, and the 10-EMA sits above the 30-EMA while itself rising vs 5 candles ago. Stop-loss or losing exits do not arm it.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 pl-6">
+          <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Plus</label>
+          <NumericField
+            value={reEntryPoints}
+            onChange={setReEntryPoints}
+            className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm"
+            min="1"
+            max="99"
+            disabled={!reEntryAfterTargetEnabled}
+          />
+          <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Pts After Target</span>
+        </div>
+
+        <div className="flex items-center space-x-2 pl-6">
+          <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Uptrend between</label>
+          <NumericField
+            value={reEntryStartCandle}
+            onChange={setReEntryStartCandle}
+            className="w-8 h-8 px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm text-center"
+            min="0"
+            max="99"
+            disabled={!reEntryAfterTargetEnabled}
+          />
+          <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>&</span>
+          <NumericField
+            value={reEntryCandles}
+            onChange={setReEntryCandles}
+            className="w-8 h-8 px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm text-center"
+            min="1"
+            max="99"
+            disabled={!reEntryAfterTargetEnabled}
+          />
+          <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Candles</span>
+        </div>
+
+        <div className="flex items-center space-x-2 pl-6">
+          <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Based on last</label>
+          <NumericField
+            value={reEntryPeakCandles}
+            onChange={setReEntryPeakCandles}
+            className="w-8 h-8 px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm text-center"
+            min="1"
+            max="99"
+            disabled={!reEntryAfterTargetEnabled}
+          />
+          <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>candles peak</span>
+        </div>
+      </div>
+
+      {/* Signal Re-entry */}
+      <div className="rounded-md border border-gray-200 p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id={`${idPrefix}signalReEntryEnabled`}
+              checked={signalReEntryEnabled}
+              onChange={(e) => setSignalReEntryEnabled(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <label htmlFor={`${idPrefix}signalReEntryEnabled`} className="text-sm font-medium" style={{color:'red'}}>Signal Re-entry</label>
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+              onClick={() => setIsSignalReEntryInfoOpen((prev) => !prev)}
+              aria-label="Signal Re-entry info"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+            </button>
+            {isSignalReEntryInfoOpen && (
+              <div
+                className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
+                style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", fontSize: "11px", lineHeight: "18px" }}
+              >
+                After any exit (Target, Trailing SL, Stop-loss, or Minimum Target), if the strategy sends a REENTER signal, the trade will re-enter only if the current price is higher than the last exit price. Applies configured guards (candle size, time range, wait-after-sell) if they are enabled. If the strategy sends a REEXIT signal while in a re-entry position, the trade will exit that cycle immediately.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Re-entry Stop Loss */}
+      {(() => {
+        const isReEntryActive = reEntryAfterTargetEnabled || signalReEntryEnabled;
+        return (
+          <div className={`rounded-md border border-gray-200 p-3 space-y-2 transition-opacity ${isReEntryActive ? "" : "opacity-40 pointer-events-none"}`}>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id={`${idPrefix}reEntryStopLossEnabled`}
+                checked={reEntryStopLossEnabled}
+                onChange={(e) => setReEntryStopLossEnabled(e.target.checked)}
+                disabled={!isReEntryActive}
+                className="h-4 w-4"
+              />
+              <label htmlFor={`${idPrefix}reEntryStopLossEnabled`} className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>Re-entry Stop Loss</label>
+            </div>
+            <div className="flex items-center space-x-2 pl-6">
+              <NumericField
+                value={reEntryStopLoss}
+                onChange={setReEntryStopLoss}
+                className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm"
+                min="1"
+                max="99"
+                disabled={!isReEntryActive || !reEntryStopLossEnabled}
+              />
+              <span className={`text-sm ${isReEntryActive && reEntryStopLossEnabled ? "" : "text-gray-400"}`}>Points</span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ReEnter as Trailing */}
+      {(() => {
+        const isReEntryActive = reEntryAfterTargetEnabled || signalReEntryEnabled;
+        return (
+          <div className={`rounded-md border border-gray-200 p-3 space-y-2 transition-opacity ${isReEntryActive ? "" : "opacity-40 pointer-events-none"}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={`${idPrefix}reEntryAsTrailingEnabled`}
+                  checked={reEntryAsTrailingEnabled}
+                  onChange={(e) => setReEntryAsTrailingEnabled(e.target.checked)}
+                  disabled={!isReEntryActive}
+                  className="h-4 w-4"
+                />
+                <label htmlFor={`${idPrefix}reEntryAsTrailingEnabled`} className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>ReEnter as Trailing <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span></label>
+              </div>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                  onClick={() => setIsReEntryTrailingInfoOpen((prev) => !prev)}
+                  aria-label="ReEnter as Trailing info"
+                  disabled={!isReEntryActive}
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                </button>
+                {isReEntryTrailingInfoOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
+                    style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", fontSize: "11px", lineHeight: "18px" }}
+                  >
+                    When enabled, both Auto Re-entry and Signal Re-entry will immediately arm trailing SL at the re-entry price. If price drops by the trailing points from the highest point reached, the trade exits automatically.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 pl-6">
+              <label className={`text-sm ${isReEntryActive && reEntryAsTrailingEnabled ? "" : "text-gray-400"}`}>Trail</label>
+              <NumericField
+                value={reEntryTrailingPoints}
+                onChange={setReEntryTrailingPoints}
+                className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm"
+                min="1"
+                max="99"
+                disabled={!isReEntryActive || !reEntryAsTrailingEnabled}
+              />
+              <span className={`text-sm ${isReEntryActive && reEntryAsTrailingEnabled ? "" : "text-gray-400"}`}>Points</span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ReEntry Minimum Target */}
+      {(() => {
+        const isReEntryActive = reEntryAfterTargetEnabled || signalReEntryEnabled;
+        return (
+          <div className={`rounded-md border border-gray-200 p-3 space-y-3 transition-opacity ${isReEntryActive ? "" : "opacity-40 pointer-events-none"}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={`${idPrefix}reEntryMinTargetEnabled`}
+                  checked={reEntryMinTargetEnabled}
+                  onChange={(e) => setReEntryMinTargetEnabled(e.target.checked)}
+                  disabled={!isReEntryActive}
+                  className="h-4 w-4"
+                />
+                <label htmlFor={`${idPrefix}reEntryMinTargetEnabled`} className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>
+                    ReEntry Minimum Target <span className="text-xs text-gray-500 font-normal">({minToHoldMode === "candleClose" ? "Candle close" : "Live price"})</span>
+                  </label>
+              </div>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
+                  onClick={() => setIsReEntryMinTargetInfoOpen((prev) => !prev)}
+                  aria-label="ReEntry Minimum Target info"
+                  disabled={!isReEntryActive}
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                </button>
+                {isReEntryMinTargetInfoOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-56 rounded-md p-2 text-white shadow-lg"
+                    style={{
+                      zIndex: 9,
+                      background: "rgba(0, 0, 0, 0.8)",
+                      fontSize: "11px",
+                      lineHeight: "18px",
+                    }}
+                  >
+                    Applies only to re-entry trades (Auto Re-entry and Signal Re-entry). When a re-entry occurs, this minimum target overrides the normal Minimum Target. Normal BUY entries continue to use the standard Minimum Target settings.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 pl-6">
+              <label htmlFor={`${idPrefix}reEntryMinTargetPoints`} className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Points</label>
+              <NumericInput
+                id={`${idPrefix}reEntryMinTargetPoints`}
+                value={reEntryMinTargetPoints}
+                onChange={setReEntryMinTargetPoints}
+                className="w-20 h-8 text-sm"
+                disabled={!isReEntryActive || !reEntryMinTargetEnabled}
+              />
+              <label htmlFor={`${idPrefix}reEntryMinTargetTrigger`} className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Trigger</label>
+              <NumericInput
+                id={`${idPrefix}reEntryMinTargetTrigger`}
+                value={reEntryMinTargetTrigger}
+                onChange={setReEntryMinTargetTrigger}
+                className="w-20 h-8 text-sm"
+                disabled={!isReEntryActive || !reEntryMinTargetEnabled}
+              />
+            </div>
+
+            <div className="flex items-center space-x-4 pl-6">
+              <label className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Trailing</label>
+              <div className="flex items-center space-x-2">
+                <label className="flex items-center space-x-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="reEntryMinTargetTrailing"
+                    value="yes"
+                    checked={reEntryMinTargetTrailing === "yes"}
+                    onChange={(e) => setReEntryMinTargetTrailing(e.target.value)}
+                    disabled={!isReEntryActive || !reEntryMinTargetEnabled}
+                    className="h-4 w-4"
+                  />
+                  <span className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Yes</span>
+                </label>
+                <label className="flex items-center space-x-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="reEntryMinTargetTrailing"
+                    value="no"
+                    checked={reEntryMinTargetTrailing === "no"}
+                    onChange={(e) => setReEntryMinTargetTrailing(e.target.value)}
+                    disabled={!isReEntryActive || !reEntryMinTargetEnabled}
+                    className="h-4 w-4"
+                  />
+                  <span className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>No</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+
+  const renderTimeRange = (extraClass = "", idPrefix = "") => (
+    <div className={`space-y-4 ${extraClass}`}>
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          checked={rangeEnabled}
+          onChange={(e) => setRangeEnabled(e.target.checked)}
+          className="accent-blue-600 w-4 h-4"
+        />
+        <span className="text-base font-medium">Time Range</span>
+      </div>
+      
+      <div className="space-y-3">
+        <div className="flex items-center space-x-2">
+          <Input 
+            type="text" 
+            value={timeFrom} 
+            onChange={(e) => setTimeFrom(e.target.value)}
+            className="w-16 h-8 text-sm"
+            disabled={!rangeEnabled}
+          />
+          <select 
+            value={timeFromAmpm} 
+            onChange={(e) => setTimeFromAmpm(e.target.value)}
+            className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+            disabled={!rangeEnabled}
+          >
+            <option value="am">AM</option>
+            <option value="pm">PM</option>
+          </select>
+          <label className="text-sm w-8">To</label>
+          <Input 
+            type="text" 
+            value={timeTo} 
+            onChange={(e) => setTimeTo(e.target.value)}
+            className="w-16 h-8 text-sm"
+            disabled={!rangeEnabled}
+          />
+          <select 
+            value={timeToAmpm} 
+            onChange={(e) => setTimeToAmpm(e.target.value)}
+            className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+            disabled={!rangeEnabled}
+          >
+            <option value="am">AM</option>
+            <option value="pm">PM</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+  );
+
+  const renderSlTgRange = (extraClass = "", idPrefix = "") => (
+    <div className={`space-y-4 ${extraClass}`}>
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          checked={maxProfitLossEnabled}
+          onChange={(e) => setMaxProfitLossEnabled(e.target.checked)}
+          className="accent-blue-600 w-4 h-4"
+        />
+        <span className="text-base font-medium">SL / TG Range to Leave</span>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center space-x-2">
+          <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Profit</label>
+          <NumericInput
+            value={maxProfit}
+            onChange={setMaxProfit}
+            className="w-24 h-8 text-sm"
+            disabled={!maxProfitLossEnabled}
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Loss</label>
+          <NumericInput
+            value={maxLoss}
+            onChange={setMaxLoss}
+            className="w-24 h-8 text-sm"
+            disabled={!maxProfitLossEnabled}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderTradeTaking = (extraClass = "", idPrefix = "") => (
+    <div className={`space-y-4 ${extraClass}`}>
+      <div className="flex justify-between items-center">
+        <label className="text-sm font-medium">Available to Trade</label>
+        <span className={`text-sm font-bold ${
+          availableBalance === null
+            ? "text-muted-foreground"
+            : insufficientBalance
+              ? "text-red-600"
+              : "text-green-600"
+        }`}>
+          {availableBalance !== null
+            ? `₹${availableBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : "Not connected"}
+        </span>
+      </div>
+
+      <div data-slot="trade-summary-box" className={`p-3 rounded-lg trade-summary-card ${insufficientBalance ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-medium">
+            {selection?.symbol ?? "Select a symbol from Watchlist"}
+          </span>
+          <span className="text-sm font-bold">
+            {price > 0 ? `₹${price.toFixed(2)}` : "--"}
+          </span>
+        </div>
+
+        <div className="flex justify-between items-center mb-2">
+          <label className="text-sm">LOT ({lotSize}):</label>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={!!isAlreadyActive || lotValue <= 1}
+              onClick={() => setLotValue((v) => Math.max(1, (v || 1) - 1))}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+              title="Decrease Lot"
+            >
+              <Minus className="w-4 h-4 stroke-[2.5] text-white" />
+            </button>
+            <NumericInput
+              data-lot-input="true"
+              data-slot="trade-lot-input"
+              value={lotValue}
+              onChange={setLotValue}
+              fallback="1"
+              className={`w-16 h-8 text-sm text-center trade-lot-input ${isAlreadyActive ? "opacity-50 cursor-not-allowed" : ""}`}
+              min={1}
+              disabled={!!isAlreadyActive}
+            />
+            <button
+              type="button"
+              disabled={!!isAlreadyActive}
+              onClick={() => setLotValue((v) => (v || 0) + 1)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+              title="Increase Lot"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5] text-white" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center text-sm text-gray-600 mb-1" style={{ color: "var(--theme-text-secondary, #4b5563)" }}>
+          <span>Qty</span>
+          <span>{quantity}</span>
+        </div>
+
+        <div className="flex justify-between items-center text-sm font-medium" style={{ color: "var(--theme-text-secondary, #4b5563)" }}>
+          <span>Total Required</span>
+          <span className={insufficientBalance ? "text-red-600 font-bold" : ""}>
+            ₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+
+        {insufficientBalance && (
+          <p className="text-xs text-red-600 mt-2">
+            You need ₹{((marginRequired - availableBalance!)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} more to place this trade.
+          </p>
+        )}
+      </div>
+
+      <div className="flex space-x-3">
+        {!isAlreadyActive && (
+        <Button
+          onClick={() => {
+            if (!isButtonDisabled && selection?.symbol) {
+                // Tell angel-feed backend to add this symbol to active strategy symbols (max 2)
+                addActiveStrategySymbol(selection.symbol).catch(() => { /* ignore */ });
+
+                saveForm();
+                addWaitingTradeFromSelection();
+
+                const tradePayload = {
+                  symbol: selection.symbol,
+                  price: price,
+                  stateText: "...WAITING",
+                  logs: ["Strategy initialized - waiting for signals"],
+                  lotSize,
+                  lotValue,
+                  numberOfTrades,
+                  stopLossNumberEnabled: stopLossNumberEnabled || stopLossPercentageEnabled,
+                  stopLossNumber,
+                  trailingStopLossEnabled,
+                  trailingStopLossSteps,
+                  stopLossPercentageEnabled,
+                  stopLossPercentage,
+                  slMode,
+                  targetPointsEnabled,
+                  targetPoints,
+                  targetMode,
+                  minToHoldEnabled,
+                  minToHold,
+                  minToHoldTrigger,
+                  minToHoldTrailing: minToHoldTrailing === "yes",
+                  minToHoldMode,
+                  minToHoldArmMode,
+                  trailingAfterTargetEnabled,
+                  trailingAfterTarget,
+                  trailingMode,
+                  rangeEnabled,
+                  timeFrom,
+                  timeFromAmpm,
+                  timeTo,
+                  timeToAmpm,
+                  buyOverride: waitStrategyEnabled ? (buyOverrideSize || undefined) : undefined,
+                  waitAfterSellEnabled,
+                  waitAfterSellCandles,
+                  sellWhenLossCandlesEnabled,
+                  sellWhenLossCandles,
+                  maxProfitLossEnabled,
+                  maxProfit,
+                  maxLoss,
+                  reEntryAfterTargetEnabled,
+                  reEntryStartCandle,
+                  reEntryCandles,
+                  reEntryPoints,
+                  reEntryPeakCandles,
+                  reEntryStopLossEnabled,
+                  reEntryStopLoss,
+                  reEntryAsTrailingEnabled,
+                  reEntryTrailingPoints,
+                  reEntryMinTargetEnabled,
+                  reEntryMinTargetPoints,
+                  reEntryMinTargetTrigger,
+                  reEntryMinTargetTrailing: reEntryMinTargetTrailing === "yes",
+                  signalReEntryEnabled,
+                  triggerTimerEnabled,
+                  triggerTimeEnabled,
+                  triggerPriceEnabled,
+                  triggerHours,
+                  triggerMinutes,
+                  triggerSeconds,
+                  triggerMinPrice,
+                  triggerMaxPrice,
+                };
+
+                // PUT to update existing waiting trade, POST to add new one
+                fetch("/next-api/trades", {
+                  method: isAlreadyWaiting ? "PUT" : "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(tradePayload),
+                }).catch(() => { /* ignore */ });
+
+              router.push("/dashboard");
+            }
+          }}
+          className="flex-1 font-bold trade-enter-btn"
+          disabled={isButtonDisabled || false}
+          data-slot="trade-enter-btn"
+          data-enter-btn="true"
+        >
+          {buttonText}
+        </Button>
+        )}
+        <Button
+          variant="outline"
+          onClick={() => router.push("/dashboard")}
+          className="flex-1"
+        >
+          GO BACK
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className={`min-h-screen p-4 w-full max-w-[420px] mx-auto ${styles.tradePage}`} style={{ backgroundColor: "var(--theme-trade-page-bg)" }}>
+    <div className={`min-h-screen p-4 w-full ${desktopViewEnabled ? "max-w-6xl xl:max-w-7xl" : "max-w-[420px]"} mx-auto transition-all ${styles.tradePage}`} style={{ backgroundColor: "var(--theme-trade-page-bg)" }}>
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-lg font-bold">Trade Configuration</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="p-4 sm:p-6">
           
+          <div className={`relative grid gap-6 ${desktopViewEnabled ? "grid-cols-3" : "grid-cols-1"}`}>
+            {/* desktop column dividers */}
+            <div className={`${desktopViewEnabled ? "block" : "hidden"} absolute top-0 bottom-0 w-px bg-border`} style={{ left: "calc(33.3333% - 4px)" }} />
+            <div className={`${desktopViewEnabled ? "block" : "hidden"} absolute top-0 bottom-0 w-px bg-border`} style={{ left: "calc(66.6667% + 4px)" }} />
+
+            {/* COLUMN 1: Presets, Trades, Time Range, SL/TG, Trade Taking */}
+            <div className="space-y-6">
           {/* Strategy Selection */}
           <div className="space-y-2">
             <label htmlFor="strategy" className="text-sm font-medium">Strategy Presets</label>
@@ -494,9 +1675,7 @@ export default function TradePage() {
               <option value="allclear">All Clear</option>
             </select>
           </div>
-
-          <Separator />
-
+              <Separator />
           {/* Number of Trades */}
           <div className="space-y-2">
             <label htmlFor="trades" className="text-sm font-medium">Number of Trades to take</label>
@@ -514,202 +1693,21 @@ export default function TradePage() {
               ))}
             </select>
           </div>
-
-          <Separator />
-
-          {/* Auto Trigger */}
-          <div className="space-y-3">
-            <div
-              style={{
-                background: "var(--theme-bg)",
-                padding: "16px",
-                borderRadius: "12px",
-                border: "1px solid rgba(255,255,255,0.05)",
-                position: "relative",
-                overflow: "hidden"
-              }}
-            >
-              {/* Title row with toggle */}
-              <div className="flex items-center justify-between mb-5 relative z-10">
-                <div className="flex items-center gap-2">
-                  <Timer className="w-4 h-4" style={{ color: triggerTimerEnabled ? "var(--theme-btn-buy)" : "var(--theme-text-gray-400)" }} />
-                  <span style={{ color: "#ccc", fontWeight: 600, fontSize: "14px", letterSpacing: "0.3px" }}>
-                    Auto Trigger
-                  </span>
-                  {serverTime && (
-                    <span style={{ color: triggerTimerEnabled ? "#4ade80" : "var(--theme-text-gray-500)", fontSize: "11px", fontFamily: "monospace", fontWeight: 500, marginLeft: "4px" }}>
-                      {serverTime}
-                    </span>
-                  )}
-                </div>
-                
-                <button
-                  type="button"
-                  onClick={() => setTriggerTimerEnabled((prev) => !prev)}
-                  aria-pressed={triggerTimerEnabled}
-                  aria-label="Toggle auto trigger"
-                  style={{
-                    width: 44,
-                    height: 24,
-                    borderRadius: 12,
-                    background: triggerTimerEnabled ? "var(--theme-btn-buy)" : "var(--theme-text-gray-600)",
-                    position: "relative",
-                    transition: "background 0.2s",
-                    border: "none",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 3,
-                      left: triggerTimerEnabled ? 23 : 3,
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: "#fff",
-                      transition: "left 0.2s",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                    }}
-                  />
-                </button>
-              </div>
-
-              {triggerTimerEnabled && (
-              <div className="space-y-4 relative z-10">
-                {/* Time Based Section */}
-                <div className="rounded-lg border border-white/5 p-3 space-y-3 bg-white/5">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="triggerTimeEnabled"
-                      checked={triggerTimeEnabled}
-                      onChange={(e) => setTriggerTimeEnabled(e.target.checked)}
-                      className="h-4 w-4 accent-green-500"
-                    />
-                    <label htmlFor="triggerTimeEnabled" className="text-xs font-bold uppercase tracking-wider" style={{ color: "#ccc" }}>Time Based</label>
-                  </div>
-
-                  <div className={`flex items-center justify-center gap-3 ${triggerTimeEnabled ? "" : "opacity-30 pointer-events-none"}`}>
-                    <div className="flex flex-col items-center gap-1">
-                      <NumericField
-                        value={triggerHours}
-                        onChange={setTriggerHours}
-                        className="w-14 h-9 border-none rounded-lg text-center font-bold text-lg"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          color: "var(--theme-text-white)",
-                          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
-                        }}
-                      />
-                      <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Hrs</label>
-                    </div>
-                    <span style={{ color: "var(--theme-text-gray-600)", fontWeight: "bold", fontSize: "18px", marginTop: "-14px" }}>:</span>
-                    <div className="flex flex-col items-center gap-1">
-                      <NumericField
-                        value={triggerMinutes}
-                        onChange={setTriggerMinutes}
-                        className="w-14 h-9 border-none rounded-lg text-center font-bold text-lg"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          color: "var(--theme-text-white)",
-                          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
-                        }}
-                      />
-                      <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Min</label>
-                    </div>
-                    <span style={{ color: "var(--theme-text-gray-600)", fontWeight: "bold", fontSize: "18px", marginTop: "-14px" }}>:</span>
-                    <div className="flex flex-col items-center gap-1">
-                      <NumericField
-                        value={triggerSeconds}
-                        onChange={setTriggerSeconds}
-                        className="w-14 h-9 border-none rounded-lg text-center font-bold text-lg"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          color: "var(--theme-text-white)",
-                          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
-                        }}
-                      />
-                      <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Sec</label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Price Based Section */}
-                <div className="rounded-lg border border-white/5 p-3 space-y-3 bg-white/5">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="triggerPriceEnabled"
-                      checked={triggerPriceEnabled}
-                      onChange={(e) => setTriggerPriceEnabled(e.target.checked)}
-                      className="h-4 w-4 accent-green-500"
-                    />
-                    <label htmlFor="triggerPriceEnabled" className="text-xs font-bold uppercase tracking-wider" style={{ color: "#ccc" }}>Price Based</label>
-                  </div>
-
-                  <div className={`flex items-center justify-center gap-6 ${triggerPriceEnabled ? "" : "opacity-30 pointer-events-none"}`}>
-                    <div className="flex flex-col items-center gap-1">
-                      <NumericField
-                        value={triggerMinPrice}
-                        onChange={setTriggerMinPrice}
-                        className="w-20 h-9 border-none rounded-lg text-center font-bold text-base"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          color: "var(--theme-text-white)",
-                          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
-                        }}
-                      />
-                      <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Min Price</label>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <NumericField
-                        value={triggerMaxPrice}
-                        onChange={setTriggerMaxPrice}
-                        className="w-20 h-9 border-none rounded-lg text-center font-bold text-base"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          color: "var(--theme-text-white)",
-                          boxShadow: "inset 0 2px 4px rgba(0,0,0,0.2)",
-                        }}
-                      />
-                      <label style={{ color: "#ccc", fontSize: "9px", fontWeight: 600, textTransform: "uppercase" }}>Max Price</label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              )}
-
-              {/* Reset button only - Save is handled by main button */}
-              <div className="mt-4 relative z-10 flex justify-end">
-                <Button 
-                  onClick={() => {
-                    setTriggerHours(9);
-                    setTriggerMinutes(15);
-                    setTriggerSeconds(10);
-                    setTriggerMinPrice(100);
-                    setTriggerMaxPrice(800);
-                    setTriggerTimeEnabled(true);
-                    setTriggerPriceEnabled(true);
-                  }}
-                  className="text-[11px] h-8 px-4 text-black uppercase tracking-wider rounded-md border border-black/10"
-                  style={{
-                    backgroundColor: "var(--theme-btn-danger)",
-                    opacity: triggerTimerEnabled ? 1 : 0.4,
-                    transition: "all 0.2s ease"
-                  }}
-                >
-                  Reset Defaults
-                </Button>
-              </div>
+              <div className={desktopViewEnabled ? "" : "hidden"}><Separator /></div>
+              {renderTimeRange(desktopViewEnabled ? "" : "hidden")}
+              <div className={desktopViewEnabled ? "" : "hidden"}><Separator /></div>
+              {renderSlTgRange(desktopViewEnabled ? "" : "hidden")}
+              <div className={desktopViewEnabled ? "" : "hidden"}><Separator /></div>
+              {renderTradeTaking(desktopViewEnabled ? "" : "hidden")}
             </div>
-          </div>
 
-          <Separator />
+            {/* Auto Trigger (mobile position) */}
+            <div className={desktopViewEnabled ? "hidden" : ""}><Separator /></div>
+            {renderAutoTrigger(desktopViewEnabled ? "hidden" : "", "m-")}
+            <div className={desktopViewEnabled ? "hidden" : ""}><Separator /></div>
 
           {/* Stop Loss Strategy */}
-          <div className="space-y-4">
+          <div ref={slTopBoxRef} className={`space-y-4 ${desktopViewEnabled ? "col-start-3 row-start-1 rounded-xl border-2 border-primary/50 bg-primary/5 p-4" : ""}`}>
             <div className="text-base font-medium flex items-center gap-2"><ShieldAlert className="h-4 w-4" /> Stop Loss Strategies</div>
             
             <div className="space-y-3">
@@ -819,961 +1817,67 @@ export default function TradePage() {
             <p className="text-xs text-gray-500">If no stop loss strategy is checked, stop loss will not be applied for this trade.</p>
           </div>
 
-          <Separator />
+            <div className={desktopViewEnabled ? "hidden" : ""}><Separator /></div>
 
-          {/* Wait Strategy */}
-          <div className="space-y-2">
-            <div className="text-base font-medium flex items-center gap-2"><Clock className="h-4 w-4" /> Wait Strategies</div>
-            <div className="rounded-md border border-gray-200 p-3 space-y-3">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="waitStrategyEnabled"
-                  checked={waitStrategyEnabled}
-                  onChange={(e) => setWaitStrategyEnabled(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <label htmlFor="waitStrategyEnabled" className="text-sm font-medium">
-                  Wait when candle size ≥
-                </label>
-                <div className="relative inline-flex">
-                  <button
-                    type="button"
-                    className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
-                    onClick={() => setIsCandleSizeInfoOpen((prev) => !prev)}
-                    aria-label="Wait candle size info"
-                  >
-                    <HelpCircle className="h-3 w-3" />
-                  </button>
-                  {isCandleSizeInfoOpen && (
-                    <div
-                      className="absolute right-0 top-7 w-56 rounded-md p-3 text-white shadow-lg"
-                      style={{ zIndex: 9999, background: "rgba(0,0,0,0.9)", fontSize: "11px", lineHeight: "16px", maxHeight: "200px", overflowY: "auto" }}
-                    >
-                      When a BUY signal is skipped because the candle is too large, the trade remembers this. If the next signal before any other BUY is a REENTER from the strategy, it will enter at that point as if a BUY had occurred.
-                    </div>
-                  )}
-                </div>
-                <NumericField
-                  value={buyOverrideSize}
-                  onChange={setBuyOverrideSize}
-                  className="w-16 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="waitAfterSellEnabled"
-                  checked={waitAfterSellEnabled}
-                  onChange={(e) => setWaitAfterSellEnabled(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <label htmlFor="waitAfterSellEnabled" className="text-sm font-medium">After a SELL wait for</label>
-                <NumericField
-                  value={waitAfterSellCandles}
-                  onChange={setWaitAfterSellCandles}
-                  className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2 text-sm"
-                  min="1"
-                  max="99"
-                  disabled={!waitAfterSellEnabled}
-                />
-                <span className="text-sm ml-2">candles</span>
-              </div>
+            {/* Wait Strategies (mobile position) */}
+            {renderWaitStrategies(desktopViewEnabled ? "hidden" : "", "m-")}
 
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="sellWhenLossCandlesEnabled"
-                  checked={sellWhenLossCandlesEnabled}
-                  onChange={(e) => setSellWhenLossCandlesEnabled(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <label htmlFor="sellWhenLossCandlesEnabled" className="text-sm font-medium">SELL when in loss for</label>
-                <NumericField
-                  value={sellWhenLossCandles}
-                  onChange={setSellWhenLossCandles}
-                  className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 ml-2 text-sm"
-                  min="1"
-                  max="99"
-                  disabled={!sellWhenLossCandlesEnabled}
-                />
-                <span className="text-sm ml-2">candles</span>
-              </div>
-            </div>
-          </div>
+            <div className={desktopViewEnabled ? "hidden" : ""}><Separator /></div>
 
-          <Separator />
+            {/* Target Strategies (mobile position) */}
+            {renderTargetStrategies(desktopViewEnabled ? "hidden" : "", "m-")}
 
-          {/* Target / Profit Strategy */}
-          <div className="space-y-4">
-            <div className="text-base font-medium flex items-center gap-2"><Target className="h-4 w-4" /> Target Strategies</div>
-            
-            <div className="space-y-3">
-              <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="targetPointsEnabled"
-                    checked={targetPointsEnabled}
-                    onChange={(e) => setTargetPointsEnabled(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <label htmlFor="targetPointsEnabled" className="text-sm font-medium">Target Points</label>
-                </div>
+            {/* Re-entry Strategies (mobile position - continuous after target) */}
+            {renderReEntryStrategies(desktopViewEnabled ? "hidden" : "", "m-")}
 
-                <div className="flex items-center space-x-2 pl-6">
-                  <label htmlFor="targetPoints" className={`text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>Points</label>
-                  <NumericInput
-                    id="targetPoints"
-                    value={targetPoints}
-                    onChange={setTargetPoints}
-                    className="w-20 h-8 text-sm"
-                    disabled={!targetPointsEnabled}
-                  />
-                </div>
+            <div className={desktopViewEnabled ? "hidden" : ""}><Separator /></div>
 
-                <div className="flex items-center space-x-4 pl-6 pt-1">
-                  <label className={`text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>Use price:</label>
-                  <label className={`flex items-center space-x-1 text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>
-                    <input
-                      type="radio"
-                      name="priceMode"
-                      value="live"
-                      checked={priceMode === "live"}
-                      onChange={(e) => {
-                        const mode = e.target.value as "live" | "candleClose";
-                        setPriceMode(mode);
-                        setTargetMode(mode);
-                        setTrailingMode(mode);
-                      }}
-                      className="h-3 w-3"
-                      disabled={!targetPointsEnabled}
-                    />
-                    <span>LTP</span>
-                  </label>
-                  <label className={`flex items-center space-x-1 text-sm ${targetPointsEnabled ? "" : "text-gray-400"}`}>
-                    <input
-                      type="radio"
-                      name="priceMode"
-                      value="candleClose"
-                      checked={priceMode === "candleClose"}
-                      onChange={(e) => {
-                        const mode = e.target.value as "live" | "candleClose";
-                        setPriceMode(mode);
-                        setTargetMode(mode);
-                        setTrailingMode(mode);
-                      }}
-                      className="h-3 w-3"
-                      disabled={!targetPointsEnabled}
-                    />
-                    <span>Candle close</span>
-                  </label>
-                </div>
-              </div>
+            {/* Time Range (mobile position) */}
+            {renderTimeRange(desktopViewEnabled ? "hidden" : "", "m-")}
 
-              <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="trailingAfterTargetEnabled"
-                      checked={trailingAfterTargetEnabled}
-                      onChange={(e) => setTrailingAfterTargetEnabled(e.target.checked)}
-                      className="h-4 w-4"
-                      disabled={!!isAlreadyActive}
-                      style={isAlreadyActive ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-                    />
-                    <label htmlFor="trailingAfterTargetEnabled" className="text-sm font-medium">
-                      Trailing Target <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span>
-                    </label>
-                  </div>
+            <div className={desktopViewEnabled ? "hidden" : ""}><Separator /></div>
 
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
-                      onClick={() => setIsTrailingAfterInfoOpen((prev) => !prev)}
-                      aria-label="Trailing Target info"
-                    >
-                      <HelpCircle className="h-3.5 w-3.5" />
-                    </button>
-                    {isTrailingAfterInfoOpen && (
-                      <div
-                        className="absolute right-0 mt-2 w-60 rounded-md p-2 text-white shadow-lg"
-                        style={{
-                          zIndex: 9,
-                          background: "rgba(0, 0, 0, 0.8)",
-                          fontSize: "11px",
-                          lineHeight: "18px",
-                        }}
-                      >
-                        Once your primary target is hit, this trailing target keeps following price by the number of points you set. If price reverses by that amount, profits are locked automatically.
-                      </div>
-                    )}
-                  </div>
-                </div>
+            {/* SL / TG Range (mobile position) */}
+            {renderSlTgRange(desktopViewEnabled ? "hidden" : "", "m-")}
 
-                <div className="flex items-center space-x-2 pl-6">
-                  <label
-                    htmlFor="trailingAfterTargetValue"
-                    className={`text-sm ${trailingAfterTargetEnabled ? "" : "text-gray-400"}`}
-                  >
-                    Points
-                  </label>
-                  <NumericInput
-                    id="trailingAfterTargetValue"
-                    value={trailingAfterTarget}
-                    onChange={setTrailingAfterTarget}
-                    className="w-20 h-8 text-sm"
-                    disabled={!trailingAfterTargetEnabled}
-                  />
-                </div>
-              </div>
+            <div className={desktopViewEnabled ? "hidden" : ""}><Separator /></div>
 
-              <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="minToHoldEnabled"
-                      checked={minToHoldEnabled}
-                      onChange={(e) => setMinToHoldEnabled(e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                    <label htmlFor="minToHoldEnabled" className="text-sm font-medium" style={{color:'green'}}>Minimum target</label>
-                  </div>
+            {/* Trade Taking (mobile position) */}
+            {renderTradeTaking(desktopViewEnabled ? "hidden" : "", "m-")}
 
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
-                      onClick={() => setIsMinToHoldInfoOpen((prev) => !prev)}
-                      aria-label="Minimum to hold info"
-                    >
-                      <HelpCircle className="h-3.5 w-3.5" />
-                    </button>
-                    {isMinToHoldInfoOpen && (
-                      <div
-                        className="absolute right-0 mt-2 w-56 rounded-md p-2 text-white shadow-lg"
-                        style={{
-                          zIndex: 9,
-                          background: "rgba(0, 0, 0, 0.8)",
-                          fontSize: "11px",
-                          lineHeight: "18px",
-                        }}
-                      >
-                        Example: buy at 200 with minimum target {minToHold} and trigger @ {minToHoldTrigger}. Once price hits {200 + minToHold + minToHoldTrigger} ({200 + minToHold} + {minToHoldTrigger}), we lock the exit at {200 + minToHold}. Even if it rallies higher and drops back, you still capture those {minToHold} points.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2 pl-6">
-                  <label htmlFor="minToHoldValue" className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Points</label>
-                  <NumericInput
-                    id="minToHoldValue"
-                    value={minToHold}
-                    onChange={setMinToHold}
-                    className="w-20 h-8 text-sm"
-                    disabled={!minToHoldEnabled}
-                  />
-                  <label htmlFor="minToHoldTrigger" className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trigger @</label>
-                  <NumericInput
-                    id="minToHoldTrigger"
-                    value={minToHoldTrigger}
-                    onChange={setMinToHoldTrigger}
-                    className="w-16 h-8 text-sm"
-                    disabled={!minToHoldEnabled}
-                  />
-                </div>
-
-                <div className="flex items-center space-x-4 pl-6">
-                  <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trailing</label>
-                  <div className="flex items-center space-x-2">
-                    <label className="flex items-center space-x-1 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="minToHoldTrailing"
-                        value="yes"
-                        checked={minToHoldTrailing === "yes"}
-                        onChange={(e) => setMinToHoldTrailing(e.target.value)}
-                        disabled={!minToHoldEnabled}
-                        className="h-4 w-4"
-                      />
-                      <span className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Yes</span>
-                    </label>
-                    <label className="flex items-center space-x-1 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="minToHoldTrailing"
-                        value="no"
-                        checked={minToHoldTrailing === "no"}
-                        onChange={(e) => setMinToHoldTrailing(e.target.value)}
-                        disabled={!minToHoldEnabled}
-                        className="h-4 w-4"
-                      />
-                      <span className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>No</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4 pl-6 pt-1">
-                  <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Arming</label>
-                  <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
-                    <input
-                      type="radio"
-                      name="minToHoldArmMode"
-                      value="live"
-                      checked={minToHoldArmMode === "live"}
-                      onChange={(e) => {
-                        const mode = e.target.value as "live" | "candleClose";
-                        setMinToHoldArmMode(mode);
-                      }}
-                      className="h-3 w-3"
-                      disabled={!minToHoldEnabled}
-                    />
-                    <span>LTP</span>
-                  </label>
-                  <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
-                    <input
-                      type="radio"
-                      name="minToHoldArmMode"
-                      value="candleClose"
-                      checked={minToHoldArmMode === "candleClose"}
-                      onChange={(e) => {
-                        const mode = e.target.value as "live" | "candleClose";
-                        setMinToHoldArmMode(mode);
-                      }}
-                      className="h-3 w-3"
-                      disabled={!minToHoldEnabled}
-                    />
-                    <span>Candle close</span>
-                  </label>
-                </div>
-
-                <div className="flex items-center space-x-4 pl-6 pt-1">
-                  <label className={`text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>Trigger:</label>
-                  <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
-                    <input
-                      type="radio"
-                      name="minToHoldPriceMode"
-                      value="live"
-                      checked={minToHoldMode === "live"}
-                      onChange={(e) => {
-                        const mode = e.target.value as "live" | "candleClose";
-                        setMinToHoldMode(mode);
-                      }}
-                      className="h-3 w-3"
-                      disabled={!minToHoldEnabled}
-                    />
-                    <span>LTP</span>
-                  </label>
-                  <label className={`flex items-center space-x-1 text-sm ${minToHoldEnabled ? "" : "text-gray-400"}`}>
-                    <input
-                      type="radio"
-                      name="minToHoldPriceMode"
-                      value="candleClose"
-                      checked={minToHoldMode === "candleClose"}
-                      onChange={(e) => {
-                        const mode = e.target.value as "live" | "candleClose";
-                        setMinToHoldMode(mode);
-                      }}
-                      className="h-3 w-3"
-                      disabled={!minToHoldEnabled}
-                    />
-                    <span>Candle close</span>
-                  </label>
-                </div>
-              </div>
+            {/* Target Strategies (desktop row1 col2) */}
+            <div ref={targetTopBoxRef} className={desktopViewEnabled ? "block col-start-2 row-start-1 rounded-xl border-2 border-primary/50 bg-primary/5 p-4" : "hidden"}>
+              {renderTargetStrategies()}
             </div>
 
-            {/* Re-entry Strategies heading */}
-            <div className="text-base font-medium pt-2 flex items-center gap-2"><RefreshCw className="h-4 w-4" /> Re-entry Strategies</div>
-
-            {/* ReEntry After Target */}
-            <div className="space-y-2 border rounded-lg p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="reEntryAfterTargetEnabled"
-                    checked={reEntryAfterTargetEnabled}
-                    onChange={(e) => setReEntryAfterTargetEnabled(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <label htmlFor="reEntryAfterTargetEnabled" className="text-sm font-medium" style={{color:'red'}}>Auto Re-entry</label>
-                </div>
-
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
-                    onClick={() => setIsReEntryInfoOpen((prev) => !prev)}
-                    aria-label="ReEntry after target info"
-                  >
-                    <HelpCircle className="h-3.5 w-3.5" />
-                  </button>
-                  {isReEntryInfoOpen && (
-                    <div
-                      className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
-                      style={{
-                        zIndex: 9,
-                        background: "rgba(0, 0, 0, 0.8)",
-                        fontSize: "11px",
-                        lineHeight: "18px",
-                      }}
-                    >
-                      After a profitable exit (target, trailing SL, or minimum target), re-entry arms for the specified candle window. A new buy fires only when the price crosses the highest close of the last N candles + Plus points, and the 10-EMA sits above the 30-EMA while itself rising vs 5 candles ago. Stop-loss or losing exits do not arm it.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 pl-6">
-                <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Plus</label>
-                <NumericField
-                  value={reEntryPoints}
-                  onChange={setReEntryPoints}
-                  className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm"
-                  min="1"
-                  max="99"
-                  disabled={!reEntryAfterTargetEnabled}
-                />
-                <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Pts After Target</span>
-              </div>
-
-              <div className="flex items-center space-x-2 pl-6">
-                <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Uptrend between</label>
-                <NumericField
-                  value={reEntryStartCandle}
-                  onChange={setReEntryStartCandle}
-                  className="w-8 h-8 px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm text-center"
-                  min="0"
-                  max="99"
-                  disabled={!reEntryAfterTargetEnabled}
-                />
-                <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>&</span>
-                <NumericField
-                  value={reEntryCandles}
-                  onChange={setReEntryCandles}
-                  className="w-8 h-8 px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm text-center"
-                  min="1"
-                  max="99"
-                  disabled={!reEntryAfterTargetEnabled}
-                />
-                <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Candles</span>
-              </div>
-
-              <div className="flex items-center space-x-2 pl-6">
-                <label className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>Based on last</label>
-                <NumericField
-                  value={reEntryPeakCandles}
-                  onChange={setReEntryPeakCandles}
-                  className="w-8 h-8 px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm text-center"
-                  min="1"
-                  max="99"
-                  disabled={!reEntryAfterTargetEnabled}
-                />
-                <span className={`text-sm ${reEntryAfterTargetEnabled ? "" : "text-gray-400"}`}>candles peak</span>
-              </div>
-            </div>
-
-            {/* Signal Re-entry */}
-            <div className="rounded-md border border-gray-200 p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="signalReEntryEnabled"
-                    checked={signalReEntryEnabled}
-                    onChange={(e) => setSignalReEntryEnabled(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <label htmlFor="signalReEntryEnabled" className="text-sm font-medium" style={{color:'red'}}>Signal Re-entry</label>
-                </div>
-
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
-                    onClick={() => setIsSignalReEntryInfoOpen((prev) => !prev)}
-                    aria-label="Signal Re-entry info"
-                  >
-                    <HelpCircle className="h-3.5 w-3.5" />
-                  </button>
-                  {isSignalReEntryInfoOpen && (
-                    <div
-                      className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
-                      style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", fontSize: "11px", lineHeight: "18px" }}
-                    >
-                      After any exit (Target, Trailing SL, Stop-loss, or Minimum Target), if the strategy sends a REENTER signal, the trade will re-enter only if the current price is higher than the last exit price. Applies configured guards (candle size, time range, wait-after-sell) if they are enabled. If the strategy sends a REEXIT signal while in a re-entry position, the trade will exit that cycle immediately.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Re-entry Stop Loss */}
-            {(() => {
-              const isReEntryActive = reEntryAfterTargetEnabled || signalReEntryEnabled;
-              return (
-                <div className={`rounded-md border border-gray-200 p-3 space-y-2 transition-opacity ${isReEntryActive ? "" : "opacity-40 pointer-events-none"}`}>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="reEntryStopLossEnabled"
-                      checked={reEntryStopLossEnabled}
-                      onChange={(e) => setReEntryStopLossEnabled(e.target.checked)}
-                      disabled={!isReEntryActive}
-                      className="h-4 w-4"
-                    />
-                    <label htmlFor="reEntryStopLossEnabled" className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>Re-entry Stop Loss</label>
-                  </div>
-                  <div className="flex items-center space-x-2 pl-6">
-                    <NumericField
-                      value={reEntryStopLoss}
-                      onChange={setReEntryStopLoss}
-                      className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm"
-                      min="1"
-                      max="99"
-                      disabled={!isReEntryActive || !reEntryStopLossEnabled}
-                    />
-                    <span className={`text-sm ${isReEntryActive && reEntryStopLossEnabled ? "" : "text-gray-400"}`}>Points</span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ReEnter as Trailing */}
-            {(() => {
-              const isReEntryActive = reEntryAfterTargetEnabled || signalReEntryEnabled;
-              return (
-                <div className={`rounded-md border border-gray-200 p-3 space-y-2 transition-opacity ${isReEntryActive ? "" : "opacity-40 pointer-events-none"}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="reEntryAsTrailingEnabled"
-                        checked={reEntryAsTrailingEnabled}
-                        onChange={(e) => setReEntryAsTrailingEnabled(e.target.checked)}
-                        disabled={!isReEntryActive}
-                        className="h-4 w-4"
-                      />
-                      <label htmlFor="reEntryAsTrailingEnabled" className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>ReEnter as Trailing <span className="text-xs text-gray-500 font-normal">({priceMode === "candleClose" ? "Candle close" : "Live price"})</span></label>
-                    </div>
-
-                    <div className="relative">
-                      <button
-                        type="button"
-                        className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
-                        onClick={() => setIsReEntryTrailingInfoOpen((prev) => !prev)}
-                        aria-label="ReEnter as Trailing info"
-                        disabled={!isReEntryActive}
-                      >
-                        <HelpCircle className="h-3.5 w-3.5" />
-                      </button>
-                      {isReEntryTrailingInfoOpen && (
-                        <div
-                          className="absolute right-0 mt-2 w-64 rounded-md p-2 text-white shadow-lg"
-                          style={{ zIndex: 9, background: "rgba(0,0,0,0.8)", fontSize: "11px", lineHeight: "18px" }}
-                        >
-                          When enabled, both Auto Re-entry and Signal Re-entry will immediately arm trailing SL at the re-entry price. If price drops by the trailing points from the highest point reached, the trade exits automatically.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2 pl-6">
-                    <label className={`text-sm ${isReEntryActive && reEntryAsTrailingEnabled ? "" : "text-gray-400"}`}>Trail</label>
-                    <NumericField
-                      value={reEntryTrailingPoints}
-                      onChange={setReEntryTrailingPoints}
-                      className="w-14 h-8 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 text-sm"
-                      min="1"
-                      max="99"
-                      disabled={!isReEntryActive || !reEntryAsTrailingEnabled}
-                    />
-                    <span className={`text-sm ${isReEntryActive && reEntryAsTrailingEnabled ? "" : "text-gray-400"}`}>Points</span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ReEntry Minimum Target */}
-            {(() => {
-              const isReEntryActive = reEntryAfterTargetEnabled || signalReEntryEnabled;
-              return (
-                <div className={`rounded-md border border-gray-200 p-3 space-y-3 transition-opacity ${isReEntryActive ? "" : "opacity-40 pointer-events-none"}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="reEntryMinTargetEnabled"
-                        checked={reEntryMinTargetEnabled}
-                        onChange={(e) => setReEntryMinTargetEnabled(e.target.checked)}
-                        disabled={!isReEntryActive}
-                        className="h-4 w-4"
-                      />
-                      <label htmlFor="reEntryMinTargetEnabled" className="text-sm font-medium" style={{ color: isReEntryActive ? "green" : "#9ca3af" }}>
-                          ReEntry Minimum Target <span className="text-xs text-gray-500 font-normal">({minToHoldMode === "candleClose" ? "Candle close" : "Live price"})</span>
-                        </label>
-                    </div>
-
-                    <div className="relative">
-                      <button
-                        type="button"
-                        className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:text-gray-700"
-                        onClick={() => setIsReEntryMinTargetInfoOpen((prev) => !prev)}
-                        aria-label="ReEntry Minimum Target info"
-                        disabled={!isReEntryActive}
-                      >
-                        <HelpCircle className="h-3.5 w-3.5" />
-                      </button>
-                      {isReEntryMinTargetInfoOpen && (
-                        <div
-                          className="absolute right-0 mt-2 w-56 rounded-md p-2 text-white shadow-lg"
-                          style={{
-                            zIndex: 9,
-                            background: "rgba(0, 0, 0, 0.8)",
-                            fontSize: "11px",
-                            lineHeight: "18px",
-                          }}
-                        >
-                          Applies only to re-entry trades (Auto Re-entry and Signal Re-entry). When a re-entry occurs, this minimum target overrides the normal Minimum Target. Normal BUY entries continue to use the standard Minimum Target settings.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2 pl-6">
-                    <label htmlFor="reEntryMinTargetPoints" className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Points</label>
-                    <NumericInput
-                      id="reEntryMinTargetPoints"
-                      value={reEntryMinTargetPoints}
-                      onChange={setReEntryMinTargetPoints}
-                      className="w-20 h-8 text-sm"
-                      disabled={!isReEntryActive || !reEntryMinTargetEnabled}
-                    />
-                    <label htmlFor="reEntryMinTargetTrigger" className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Trigger</label>
-                    <NumericInput
-                      id="reEntryMinTargetTrigger"
-                      value={reEntryMinTargetTrigger}
-                      onChange={setReEntryMinTargetTrigger}
-                      className="w-20 h-8 text-sm"
-                      disabled={!isReEntryActive || !reEntryMinTargetEnabled}
-                    />
-                  </div>
-
-                  <div className="flex items-center space-x-4 pl-6">
-                    <label className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Trailing</label>
-                    <div className="flex items-center space-x-2">
-                      <label className="flex items-center space-x-1 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="reEntryMinTargetTrailing"
-                          value="yes"
-                          checked={reEntryMinTargetTrailing === "yes"}
-                          onChange={(e) => setReEntryMinTargetTrailing(e.target.value)}
-                          disabled={!isReEntryActive || !reEntryMinTargetEnabled}
-                          className="h-4 w-4"
-                        />
-                        <span className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>Yes</span>
-                      </label>
-                      <label className="flex items-center space-x-1 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="reEntryMinTargetTrailing"
-                          value="no"
-                          checked={reEntryMinTargetTrailing === "no"}
-                          onChange={(e) => setReEntryMinTargetTrailing(e.target.value)}
-                          disabled={!isReEntryActive || !reEntryMinTargetEnabled}
-                          className="h-4 w-4"
-                        />
-                        <span className={`text-sm ${isReEntryActive && reEntryMinTargetEnabled ? "" : "text-gray-400"}`}>No</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <p className="text-xs text-gray-500">If no target/profit strategy is checked, target booking will not be applied for this trade.</p>
-          </div>
-
-          <Separator />
-
-          {/* Range */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={rangeEnabled}
-                onChange={(e) => setRangeEnabled(e.target.checked)}
-                className="accent-blue-600 w-4 h-4"
-              />
-              <span className="text-base font-medium">Time Range</span>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Input 
-                  type="text" 
-                  value={timeFrom} 
-                  onChange={(e) => setTimeFrom(e.target.value)}
-                  className="w-16 h-8 text-sm"
-                  disabled={!rangeEnabled}
-                />
-                <select 
-                  value={timeFromAmpm} 
-                  onChange={(e) => setTimeFromAmpm(e.target.value)}
-                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-                  disabled={!rangeEnabled}
-                >
-                  <option value="am">AM</option>
-                  <option value="pm">PM</option>
-                </select>
-                <label className="text-sm w-8">To</label>
-                <Input 
-                  type="text" 
-                  value={timeTo} 
-                  onChange={(e) => setTimeTo(e.target.value)}
-                  className="w-16 h-8 text-sm"
-                  disabled={!rangeEnabled}
-                />
-                <select 
-                  value={timeToAmpm} 
-                  onChange={(e) => setTimeToAmpm(e.target.value)}
-                  className="w-14 h-8 px-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-                  disabled={!rangeEnabled}
-                >
-                  <option value="am">AM</option>
-                  <option value="pm">PM</option>
-                </select>
-              </div>
-
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* SL / TG Range to Leave */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={maxProfitLossEnabled}
-                onChange={(e) => setMaxProfitLossEnabled(e.target.checked)}
-                className="accent-blue-600 w-4 h-4"
-              />
-              <span className="text-base font-medium">SL / TG Range to Leave</span>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Profit</label>
-                <NumericInput
-                  value={maxProfit}
-                  onChange={setMaxProfit}
-                  className="w-24 h-8 text-sm"
-                  disabled={!maxProfitLossEnabled}
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <label className={`text-sm w-24 ${maxProfitLossEnabled ? '' : 'text-gray-400'}`}>Max Loss</label>
-                <NumericInput
-                  value={maxLoss}
-                  onChange={setMaxLoss}
-                  className="w-24 h-8 text-sm"
-                  disabled={!maxProfitLossEnabled}
-                />
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Trade Taking Section */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <label className="text-sm font-medium">Available to Trade</label>
-              <span className={`text-sm font-bold ${
-                availableBalance === null
-                  ? "text-muted-foreground"
-                  : insufficientBalance
-                    ? "text-red-600"
-                    : "text-green-600"
-              }`}>
-                {availableBalance !== null
-                  ? `₹${availableBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : "Not connected"}
-              </span>
-            </div>
-
-            <div data-slot="trade-summary-box" className={`p-3 rounded-lg trade-summary-card ${insufficientBalance ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">
-                  {selection?.symbol ?? "Select a symbol from Watchlist"}
-                </span>
-                <span className="text-sm font-bold">
-                  {price > 0 ? `₹${price.toFixed(2)}` : "--"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm">LOT ({lotSize}):</label>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    disabled={!!isAlreadyActive || lotValue <= 1}
-                    onClick={() => setLotValue((v) => Math.max(1, (v || 1) - 1))}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
-                    title="Decrease Lot"
-                  >
-                    <Minus className="w-4 h-4 stroke-[2.5] text-white" />
-                  </button>
-                  <NumericInput
-                    data-lot-input="true"
-                    data-slot="trade-lot-input"
-                    value={lotValue}
-                    onChange={setLotValue}
-                    fallback="1"
-                    className={`w-16 h-8 text-sm text-center trade-lot-input ${isAlreadyActive ? "opacity-50 cursor-not-allowed" : ""}`}
-                    min={1}
-                    disabled={!!isAlreadyActive}
-                  />
-                  <button
-                    type="button"
-                    disabled={!!isAlreadyActive}
-                    onClick={() => setLotValue((v) => (v || 0) + 1)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
-                    title="Increase Lot"
-                  >
-                    <Plus className="w-4 h-4 stroke-[2.5] text-white" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center text-sm text-gray-600 mb-1" style={{ color: "var(--theme-text-secondary, #4b5563)" }}>
-                <span>Qty</span>
-                <span>{quantity}</span>
-              </div>
-
-              <div className="flex justify-between items-center text-sm font-medium" style={{ color: "var(--theme-text-secondary, #4b5563)" }}>
-                <span>Total Required</span>
-                <span className={insufficientBalance ? "text-red-600 font-bold" : ""}>
-                  ₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-
-              {insufficientBalance && (
-                <p className="text-xs text-red-600 mt-2">
-                  You need ₹{((marginRequired - availableBalance!)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} more to place this trade.
-                </p>
-              )}
-            </div>
-
-            <div className="flex space-x-3">
-              {!isAlreadyActive && (
-              <Button
-                onClick={() => {
-                  if (!isButtonDisabled && selection?.symbol) {
-                      // Tell angel-feed backend to add this symbol to active strategy symbols (max 2)
-                      addActiveStrategySymbol(selection.symbol).catch(() => { /* ignore */ });
-
-                      saveForm();
-                      addWaitingTradeFromSelection();
-
-                      const tradePayload = {
-                        symbol: selection.symbol,
-                        price: price,
-                        stateText: "...WAITING",
-                        logs: ["Strategy initialized - waiting for signals"],
-                        lotSize,
-                        lotValue,
-                        numberOfTrades,
-                        stopLossNumberEnabled: stopLossNumberEnabled || stopLossPercentageEnabled,
-                        stopLossNumber,
-                        trailingStopLossEnabled,
-                        trailingStopLossSteps,
-                        stopLossPercentageEnabled,
-                        stopLossPercentage,
-                        slMode,
-                        targetPointsEnabled,
-                        targetPoints,
-                        targetMode,
-                        minToHoldEnabled,
-                        minToHold,
-                        minToHoldTrigger,
-                        minToHoldTrailing: minToHoldTrailing === "yes",
-                        minToHoldMode,
-                        minToHoldArmMode,
-                        trailingAfterTargetEnabled,
-                        trailingAfterTarget,
-                        trailingMode,
-                        rangeEnabled,
-                        timeFrom,
-                        timeFromAmpm,
-                        timeTo,
-                        timeToAmpm,
-                        buyOverride: waitStrategyEnabled ? (buyOverrideSize || undefined) : undefined,
-                        waitAfterSellEnabled,
-                        waitAfterSellCandles,
-                        sellWhenLossCandlesEnabled,
-                        sellWhenLossCandles,
-                        maxProfitLossEnabled,
-                        maxProfit,
-                        maxLoss,
-                        reEntryAfterTargetEnabled,
-                        reEntryStartCandle,
-                        reEntryCandles,
-                        reEntryPoints,
-                        reEntryPeakCandles,
-                        reEntryStopLossEnabled,
-                        reEntryStopLoss,
-                        reEntryAsTrailingEnabled,
-                        reEntryTrailingPoints,
-                        reEntryMinTargetEnabled,
-                        reEntryMinTargetPoints,
-                        reEntryMinTargetTrigger,
-                        reEntryMinTargetTrailing: reEntryMinTargetTrailing === "yes",
-                        signalReEntryEnabled,
-                        triggerTimerEnabled,
-                        triggerTimeEnabled,
-                        triggerPriceEnabled,
-                        triggerHours,
-                        triggerMinutes,
-                        triggerSeconds,
-                        triggerMinPrice,
-                        triggerMaxPrice,
-                      };
-
-                      // PUT to update existing waiting trade, POST to add new one
-                      fetch("/next-api/trades", {
-                        method: isAlreadyWaiting ? "PUT" : "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(tradePayload),
-                      }).catch(() => { /* ignore */ });
-
-                    router.push("/dashboard");
-                  }
+            {/* More Settings toggle (desktop row2, spans cols 2-3) */}
+            <div className={desktopViewEnabled ? "flex col-start-2 col-span-2 row-start-2 items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3" : "hidden"}>
+              <div className="text-base font-medium flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" /> More Settings</div>
+              <button
+                type="button"
+                onClick={() => setShowMoreSettings((prev) => !prev)}
+                aria-pressed={showMoreSettings}
+                aria-label="Toggle more settings"
+                style={{
+                  width: 44, height: 24, borderRadius: 12,
+                  background: showMoreSettings ? "var(--theme-btn-buy)" : "var(--theme-text-gray-600)",
+                  position: "relative", transition: "background 0.2s",
+                  border: "none", cursor: "pointer", flexShrink: 0,
                 }}
-                className="flex-1 font-bold trade-enter-btn"
-                disabled={isButtonDisabled || false}
-                data-slot="trade-enter-btn"
-                data-enter-btn="true"
               >
-                {buttonText}
-              </Button>
-              )}
-              <Button
-                variant="outline"
-                onClick={() => router.push("/dashboard")}
-                className="flex-1"
-              >
-                GO BACK
-              </Button>
+                <span style={{ position: "absolute", top: 3, left: showMoreSettings ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+              </button>
             </div>
+
+            {/* Auto Trigger + Wait (desktop row3 col2, collapsible) */}
+            <div className={showMoreSettings && desktopViewEnabled ? "col-start-2 row-start-3 space-y-6" : "hidden"}>
+              {renderAutoTrigger()}
+              <Separator />
+              {renderWaitStrategies()}
+            </div>
+
+            {/* Re-entry (desktop row3 col3, collapsible) */}
+            {renderReEntryStrategies(showMoreSettings && desktopViewEnabled ? "col-start-3 row-start-3" : "hidden")}
           </div>
         </CardContent>
       </Card>
