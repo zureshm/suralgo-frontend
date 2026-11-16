@@ -1597,7 +1597,7 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         const patch: { provider: string; model?: string } = { provider: p };
                         const groqModels = ["openai/gpt-oss-120b"];
                         const aicModels = ["deepseek/deepseek-chat", "openai/gpt-5-mini", "google/gemini-2.5-flash", "anthropic/claude-haiku-4.5"];
-                        const indosModels = ["Alibaba/qwen3.8-flash", "Novita/xiaomimimo/mimo-v2.5", "openrouter/meta-llama/llama-4-scout", "deepseek/deepseek-v4-flash"];
+                        const indosModels = ["Novita/qwen/qwen3.8-flash", "gemini/gemini-3.5-flash-lite", "openrouter/meta-llama/llama-4-scout", "deepseek/deepseek-v4-flash"];
                         if (p === "groq" && !groqModels.includes(aiModel)) patch.model = groqModels[0];
                         if (p === "aicredits" && !aicModels.includes(aiModel)) patch.model = aicModels[0];
                         if (p === "indos" && !indosModels.includes(aiModel)) patch.model = indosModels[0];
@@ -1686,8 +1686,8 @@ export default function SettingsPopup({ open, onClose }: Props) {
                         outline: "none",
                       }}
                     >
-                      <option value="Alibaba/qwen3.8-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Qwen 3.8 Flash — cheapest, recommended</option>
-                      <option value="Novita/xiaomimimo/mimo-v2.5" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Mimo V2.5 — low cost</option>
+                      <option value="Novita/qwen/qwen3.8-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Qwen 3.8 Flash — cheapest, recommended</option>
+                      <option value="gemini/gemini-3.5-flash-lite" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Gemini 3.5 Flash Lite — no thinking, cheap</option>
                       <option value="openrouter/meta-llama/llama-4-scout" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Llama 4 Scout — lowest price</option>
                       <option value="deepseek/deepseek-v4-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>DeepSeek V4 Flash — best quality</option>
                     </select>
