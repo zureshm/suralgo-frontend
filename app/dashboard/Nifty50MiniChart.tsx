@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createChart, CandlestickSeries, IChartApi, ISeriesApi } from "lightweight-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart2 } from "lucide-react";
-import { CandleData, toChartTime, isWithinMarketHours } from "@/lib/strategy-chart";
+import { CandleData, toChartTime, isWithinMarketHours, isValidCandle } from "@/lib/strategy-chart";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:2000";
 const NIFTY50_WS_URL = process.env.NEXT_PUBLIC_NIFTY50_WS_URL || API_BASE_URL.replace(/^http/, "ws") + "/ws/nifty50";
@@ -32,8 +32,8 @@ export default function Nifty50MiniChart() {
       .then((r) => r.json())
       .then((d) => {
         if (disposed) return;
-        const completed = (d.completedCandles || []).filter((c: CandleData) => isWithinMarketHours(c.time));
-        const current = d.currentCandle && isWithinMarketHours(d.currentCandle.time) ? d.currentCandle : null;
+        const completed = (d.completedCandles || []).filter((c: CandleData) => isValidCandle(c));
+        const current = d.currentCandle && isValidCandle(d.currentCandle) ? d.currentCandle : null;
         if (completed.length > 0 || current) {
           setData({ completedCandles: completed, currentCandle: current });
         }
@@ -49,8 +49,8 @@ export default function Nifty50MiniChart() {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "snapshot" || msg.type === "update") {
-            const incomingCompleted = (msg.completedCandles || []).filter((c: CandleData) => isWithinMarketHours(c.time));
-            const incomingCurrent = msg.currentCandle && isWithinMarketHours(msg.currentCandle.time) ? msg.currentCandle : null;
+            const incomingCompleted = (msg.completedCandles || []).filter((c: CandleData) => isValidCandle(c));
+            const incomingCurrent = msg.currentCandle && isValidCandle(msg.currentCandle) ? msg.currentCandle : null;
 
             setData((prev) => {
               if (incomingCompleted.length === 0 && !incomingCurrent && prev.completedCandles.length > 0) {
@@ -95,8 +95,8 @@ export default function Nifty50MiniChart() {
     const container = chartRef.current;
     if (!container) return;
 
-    const allCandles = [...(data.completedCandles || [])].filter((c) => c != null);
-    if (data.currentCandle) {
+    const allCandles = [...(data.completedCandles || [])].filter((c) => isValidCandle(c));
+    if (data.currentCandle && isValidCandle(data.currentCandle)) {
       allCandles.push(data.currentCandle);
     }
     if (allCandles.length === 0) return;

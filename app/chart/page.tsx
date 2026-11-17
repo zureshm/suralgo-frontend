@@ -24,6 +24,7 @@ import {
   UTBotLabel,
   CandleData,
   isWithinMarketHours,
+  isValidCandle,
 } from "@/lib/strategy-chart";
 
 const lsNum = (key: string, fallback: number) => {
@@ -142,8 +143,8 @@ function StrategyChartPage() {
       .then((r) => r.json())
       .then((data) => {
         if (disposed) return;
-        const completed = (data.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
-        const current = data.currentCandle && isWithinMarketHours(data.currentCandle.time) ? data.currentCandle : null;
+        const completed = (data.completedCandles || []).filter((c: any) => isValidCandle(c));
+        const current = data.currentCandle && isValidCandle(data.currentCandle) ? data.currentCandle : null;
         if (completed.length > 0 || current) {
           setCandles(current ? [...completed, current] : completed);
           setLoading(false);
@@ -161,8 +162,8 @@ function StrategyChartPage() {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "snapshot" || msg.type === "update") {
-            const incoming = (msg.completedCandles || []).filter((c: any) => isWithinMarketHours(c.time));
-            const currentC = msg.currentCandle && isWithinMarketHours(msg.currentCandle.time) ? msg.currentCandle : null;
+            const incoming = (msg.completedCandles || []).filter((c: any) => isValidCandle(c));
+            const currentC = msg.currentCandle && isValidCandle(msg.currentCandle) ? msg.currentCandle : null;
 
             setCandles((prev) => {
               // Sticky guard: don't wipe on empty (after hours)
@@ -207,7 +208,7 @@ function StrategyChartPage() {
       fetchSymbolCandles()
         .then((data) => {
           if (cancelled) return;
-          const filtered = (data[symbol] || []).filter(c => isWithinMarketHours(c.time));
+          const filtered = (data[symbol] || []).filter(c => isValidCandle(c));
           setCandles(filtered);
           setError(null);
         })
@@ -341,7 +342,7 @@ function StrategyChartPage() {
 
     // Filter invalid times, deduplicate, sort ascending
     const mapped = candles
-      .filter((c) => c != null)
+      .filter((c) => isValidCandle(c))
       .map((c) => ({
         time: toChartTime(c.time),
         open: c.open,

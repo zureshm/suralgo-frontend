@@ -8,6 +8,8 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useTradeStore } from "../store/TradeStore";
 import { useSharedAiSettings } from "@/lib/useSharedAiSettings";
 
+const APP_VERSION = "1.0.0";
+
 interface ClampedNumericFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> {
   value: number;
   onChange: (val: number) => void;
@@ -96,7 +98,7 @@ export default function SettingsDesktop() {
   const autoCutoffDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [watchdogEnabled, setWatchdogEnabled] = useState(false);
-  const [watchdogCheckpoints, setWatchdogCheckpoints] = useState([
+  const [watchdogCheckpoints, setWatchdogCheckpoints] = useState<Array<{ points: number; breakBelow: number; trailing?: boolean }>>([
     { points: 16, breakBelow: 10 },
     { points: 25, breakBelow: 15 },
     { points: 40, breakBelow: 25 },
@@ -108,6 +110,9 @@ export default function SettingsDesktop() {
     { points: 190, breakBelow: 160 },
     { points: 210, breakBelow: 180 },
   ]);
+  const [watchdogTab, setWatchdogTab] = useState<"profit" | "negative">("profit");
+  const [watchdogSlEnabled, setWatchdogSlEnabled] = useState(false);
+  const [watchdogSlPoints, setWatchdogSlPoints] = useState(15);
   const watchdogLoadedRef = useRef(false);
   const watchdogDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -192,6 +197,8 @@ export default function SettingsDesktop() {
           if (Array.isArray(data.watchdogCheckpoints)) {
             setWatchdogCheckpoints(data.watchdogCheckpoints);
           }
+          if (typeof data.watchdogSlEnabled === "boolean") setWatchdogSlEnabled(data.watchdogSlEnabled);
+          if (typeof data.watchdogSlPoints === "number") setWatchdogSlPoints(data.watchdogSlPoints);
           watchdogLoadedRef.current = true;
         }
       })
@@ -371,13 +378,15 @@ export default function SettingsDesktop() {
         body: JSON.stringify({
           watchdogEnabled,
           watchdogCheckpoints,
+          watchdogSlEnabled,
+          watchdogSlPoints,
         }),
       }).catch((err) => console.error("Failed to save watchdog settings:", err));
     }, 400);
     return () => {
       if (watchdogDebounceRef.current) clearTimeout(watchdogDebounceRef.current);
     };
-  }, [watchdogEnabled, watchdogCheckpoints]);
+  }, [watchdogEnabled, watchdogCheckpoints, watchdogSlEnabled, watchdogSlPoints]);
 
   // Test API key when it changes (or provider changes)
   const testAiConnection = useCallback(async () => {
@@ -689,70 +698,178 @@ export default function SettingsDesktop() {
 
                   {watchdogEnabled && (
                   <>
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--theme-popup-text)" }}>Checkpoints</span>
-                    <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>Based on current trade points achieved</span>
+                  <div className="flex items-center gap-2 mt-3.5 mb-3 border-b border-white/5 pb-2">
+                    <button
+                      type="button"
+                      onClick={() => setWatchdogTab("profit")}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                      style={{
+                        background: watchdogTab === "profit" ? "var(--theme-popup-border)" : "var(--theme-popup-field-bg)",
+                        color: watchdogTab === "profit" ? "#fff" : "var(--theme-popup-text)",
+                        border: `1px solid ${watchdogTab === "profit" ? "var(--theme-popup-border)" : "var(--theme-popup-field-border)"}`,
+                      }}
+                    >
+                      Profit Checkpoints
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWatchdogTab("negative")}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                      style={{
+                        background: watchdogTab === "negative" ? "var(--theme-popup-border)" : "var(--theme-popup-field-bg)",
+                        color: watchdogTab === "negative" ? "#fff" : "var(--theme-popup-text)",
+                        border: `1px solid ${watchdogTab === "negative" ? "var(--theme-popup-border)" : "var(--theme-popup-field-border)"}`,
+                      }}
+                    >
+                      Negative Scenarios
+                    </button>
                   </div>
 
-                  <div className="space-y-2.5">
-                    {watchdogCheckpoints.map((cp, idx) => (
-                      <div key={idx} className="flex flex-wrap items-center justify-between gap-3 p-2.5 rounded-lg border border-white/5" style={{ background: "var(--theme-popup-bg)" }}>
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)", minWidth: "140px" }}>
-                            Checkpoint {idx + 1} Points
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs font-bold text-emerald-400">+</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={999}
-                              value={cp.points}
-                              disabled={!watchdogEnabled}
-                              onChange={(e) => {
-                                const val = Number(e.target.value) || 0;
-                                setWatchdogCheckpoints((prev) => {
-                                  const updated = [...prev];
-                                  updated[idx] = { ...updated[idx], points: val };
-                                  return updated;
-                                });
-                              }}
-                              className="w-16 h-8 px-2 border rounded text-center text-sm font-semibold focus:outline-none"
-                              style={{ background: "var(--theme-popup-field-bg)", color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
-                            />
-                            <span className="text-[11px] font-medium" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                  {watchdogTab === "profit" && (
+                    <>
+                      <div className="flex items-baseline gap-2 mb-4">
+                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--theme-popup-text)" }}>Checkpoints</span>
+                        <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>Based on current trade points achieved</span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {watchdogCheckpoints.map((cp, idx) => (
+                          <div key={idx} className="flex flex-wrap items-center justify-between gap-3 p-2.5 rounded-lg border border-white/5" style={{ background: "var(--theme-popup-bg)" }}>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)", minWidth: "140px" }}>
+                                Checkpoint {idx + 1} Points
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs font-bold text-emerald-400">+</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={999}
+                                  value={cp.points}
+                                  disabled={!watchdogEnabled}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value) || 0;
+                                    setWatchdogCheckpoints((prev) => {
+                                      const updated = [...prev];
+                                      updated[idx] = { ...updated[idx], points: val };
+                                      return updated;
+                                    });
+                                  }}
+                                  className="w-16 h-8 px-2 border rounded text-center text-sm font-semibold focus:outline-none"
+                                  style={{ background: "var(--theme-popup-field-bg)", color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
+                                />
+                                <span className="text-[11px] font-medium" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-medium" style={{ color: "var(--theme-popup-label)", minWidth: "170px" }}>
+                                Break when reach below point
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs font-bold text-amber-400">+</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={999}
+                                  value={cp.breakBelow}
+                                  disabled={!watchdogEnabled}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value) || 0;
+                                    setWatchdogCheckpoints((prev) => {
+                                      const updated = [...prev];
+                                      updated[idx] = { ...updated[idx], breakBelow: val };
+                                      return updated;
+                                    });
+                                  }}
+                                  className="w-16 h-8 px-2 border rounded text-center text-sm font-semibold focus:outline-none"
+                                  style={{ background: "var(--theme-popup-field-bg)", color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
+                                />
+                                <span className="text-[11px] font-medium" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={!watchdogEnabled}
+                                title="Trail: once armed, the floor follows the peak — exits after giving back (checkpoint − break) pts from the high"
+                                onClick={() => {
+                                  setWatchdogCheckpoints((prev) => {
+                                    const updated = [...prev];
+                                    updated[idx] = { ...updated[idx], trailing: !cp.trailing };
+                                    return updated;
+                                  });
+                                }}
+                                style={{
+                                  height: 24,
+                                  padding: "0 10px",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  borderRadius: 12,
+                                  border: "none",
+                                  cursor: watchdogEnabled ? "pointer" : "not-allowed",
+                                  background: cp.trailing ? "#6366f1" : "var(--theme-popup-field-bg)",
+                                  color: cp.trailing ? "#ffffff" : "var(--theme-popup-label)",
+                                  opacity: watchdogEnabled ? 1 : 0.45,
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                Trail
+                              </button>
+                            </div>
                           </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {watchdogTab === "negative" && (
+                    <>
+                      <div className="flex items-baseline gap-2 mb-4">
+                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--theme-popup-text)" }}>SL Trigger Point</span>
+                        <span className="text-[11px]" style={{ color: "var(--theme-popup-label)" }}>Exit trigger when position moves backwards</span>
+                      </div>
+
+                      <div className="p-3 rounded-lg border border-white/5 space-y-3" style={{ background: "var(--theme-popup-bg)" }}>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold" style={{ color: "var(--theme-popup-text)", minWidth: "140px" }}>
+                              SL Checkpoint
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs font-bold text-rose-400">-</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={999}
+                                value={watchdogSlPoints}
+                                disabled={!watchdogEnabled}
+                                onChange={(e) => setWatchdogSlPoints(Math.max(0, Number(e.target.value) || 0))}
+                                className="w-16 h-8 px-2 border rounded text-center text-sm font-semibold focus:outline-none"
+                                style={{ background: "var(--theme-popup-field-bg)", color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
+                              />
+                              <span className="text-[11px] font-medium" style={{ color: "var(--theme-popup-label)" }}>pts</span>
+                            </div>
+                          </div>
+
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={watchdogSlEnabled}
+                              disabled={!watchdogEnabled}
+                              onChange={(e) => setWatchdogSlEnabled(e.target.checked)}
+                              className="h-4 w-4 accent-rose-500 cursor-pointer rounded"
+                            />
+                            <span className="text-xs font-medium" style={{ color: "var(--theme-popup-text)" }}>
+                              Enable SL Exit
+                            </span>
+                          </label>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-medium" style={{ color: "var(--theme-popup-label)", minWidth: "170px" }}>
-                            Break when reach below point
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs font-bold text-amber-400">+</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={999}
-                              value={cp.breakBelow}
-                              disabled={!watchdogEnabled}
-                              onChange={(e) => {
-                                const val = Number(e.target.value) || 0;
-                                setWatchdogCheckpoints((prev) => {
-                                  const updated = [...prev];
-                                  updated[idx] = { ...updated[idx], breakBelow: val };
-                                  return updated;
-                                });
-                              }}
-                              className="w-16 h-8 px-2 border rounded text-center text-sm font-semibold focus:outline-none"
-                              style={{ background: "var(--theme-popup-field-bg)", color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
-                            />
-                            <span className="text-[11px] font-medium" style={{ color: "var(--theme-popup-label)" }}>pts</span>
-                          </div>
+                        <div className="text-[11px] pt-2 border-t border-white/5" style={{ color: "var(--theme-popup-label)" }}>
+                          When enabled, if LTP falls backwards by <span className="font-bold text-rose-400">{watchdogSlPoints} pts</span> below entry, Watchdog triggers an exit for that symbol.
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  )}
                   </>
                   )}
                 </div>
@@ -901,7 +1018,7 @@ export default function SettingsDesktop() {
                         </div>
                         {aiProvider !== "local" && aiProvider !== "local_v2" && aiProvider !== "local_v3" && aiProvider !== "local_v4" && (
                           <a
-                            href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : "https://console.groq.com/keys"}
+                            href={aiProvider === "claude" ? "https://console.anthropic.com/settings/keys" : aiProvider === "aicredits" ? "https://aicredits.in/dashboard/keys" : aiProvider === "indos" ? "https://indos.tech/keys" : "https://console.groq.com/keys"}
                             target="_blank"
                             rel="noreferrer"
                             className="text-xs underline font-semibold"
@@ -912,7 +1029,17 @@ export default function SettingsDesktop() {
                         )}
                       </div>
                       <select
-                        value={aiProvider} onChange={(e) => updateAiSettings({ provider: e.target.value })}
+                        value={aiProvider} onChange={(e) => {
+                          const p = e.target.value;
+                          const patch: { provider: string; model?: string } = { provider: p };
+                          const groqModels = ["openai/gpt-oss-120b"];
+                          const aicModels = ["deepseek/deepseek-chat", "openai/gpt-5-mini", "google/gemini-2.5-flash", "anthropic/claude-haiku-4.5"];
+                          const indosModels = ["gemini/gemini-3.5-flash-lite", "openrouter/meta-llama/llama-4-scout", "deepseek/deepseek-v4-flash"];
+                          if (p === "groq" && !groqModels.includes(aiModel)) patch.model = groqModels[0];
+                          if (p === "aicredits" && !aicModels.includes(aiModel)) patch.model = aicModels[0];
+                          if (p === "indos" && !indosModels.includes(aiModel)) patch.model = indosModels[0];
+                          updateAiSettings(patch);
+                        }}
                         className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
                         style={{ color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
                       >
@@ -921,6 +1048,8 @@ export default function SettingsDesktop() {
                         <option value="local_v3" style={{ background: "var(--theme-popup-bg)" }}>Dinkan V3 (Swift Trend Sniper)</option>
                         <option value="local_v4" style={{ background: "var(--theme-popup-bg)" }}>Dinkan V4 (Choppy Filter)</option>
                         <option value="groq" style={{ background: "var(--theme-popup-bg)" }}>Groq (free)</option>
+                        <option value="aicredits" style={{ background: "var(--theme-popup-bg)" }}>AI Credits (paid, INR)</option>
+                        <option value="indos" style={{ background: "var(--theme-popup-bg)" }}>Indos (₹500 free credits)</option>
                         <option value="claude" style={{ background: "var(--theme-popup-bg)" }}>Claude Haiku 3.5 (paid)</option>
                       </select>
                     </div>
@@ -1091,9 +1220,41 @@ export default function SettingsDesktop() {
                       className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
                       style={{ color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
                     >
-                      <option value="openai/gpt-oss-20b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT OSS 20B — fast, low cost</option>
                       <option value="openai/gpt-oss-120b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT OSS 120B — highest quality (recommended)</option>
-                      <option value="qwen/qwen3.6-27b" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Qwen 3.6 27B — preview</option>
+                    </select>
+                  </div>
+                  )}
+
+                  {/* AI Credits Model dropdown */}
+                  {aiProvider === "aicredits" && (
+                  <div className="pt-4">
+                    <label className="block mb-1" style={labelStyle}>AI Credits Model</label>
+                    <select
+                      value={aiModel} onChange={(e) => updateAiSettings({ model: e.target.value })}
+                      className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
+                      style={{ color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
+                    >
+                      <option value="deepseek/deepseek-chat" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>DeepSeek V3 — cheapest, recommended</option>
+                      <option value="openai/gpt-5-mini" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>GPT-5 Mini — low cost</option>
+                      <option value="google/gemini-2.5-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Gemini 2.5 Flash</option>
+                      <option value="anthropic/claude-haiku-4.5" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Claude Haiku 4.5 — premium</option>
+                    </select>
+                  </div>
+                  )}
+
+                  {/* Indos Model dropdown */}
+                  {aiProvider === "indos" && (
+                  <div className="pt-4">
+                    <label className="block mb-1" style={labelStyle}>Indos Model</label>
+                    <select
+                      value={aiModel} onChange={(e) => updateAiSettings({ model: e.target.value })}
+                      className="w-full h-9 px-2 rounded-lg text-xs font-bold border border-black/10 bg-transparent"
+                      style={{ color: "var(--theme-popup-text)", borderColor: "var(--theme-popup-field-border)" }}
+                    >
+                      
+                      <option value="gemini/gemini-3.5-flash-lite" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Gemini 3.5 Flash Lite — recommended</option>
+                      <option value="openrouter/meta-llama/llama-4-scout" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>Llama 4 Scout — lowest price</option>
+                      <option value="deepseek/deepseek-v4-flash" style={{ background: "var(--theme-popup-bg)", color: "var(--theme-popup-text)" }}>DeepSeek V4 Flash — best quality</option>
                     </select>
                   </div>
                   )}
@@ -1125,7 +1286,7 @@ export default function SettingsDesktop() {
                     <textarea
                       value={aiApiKey}
                       onChange={(e) => updateAiSettings({ apiKey: e.target.value })}
-                      placeholder={`Paste your ${aiProvider === "claude" ? "Claude" : "Groq"} API key(s) here — one per line`}
+                      placeholder={`Paste your ${aiProvider === "claude" ? "Claude" : aiProvider === "aicredits" ? "AI Credits" : aiProvider === "indos" ? "Indos" : "Groq"} API key(s) here — one per line`}
                       rows={3}
                       className="w-full px-3 py-2 rounded-lg text-xs resize-vertical"
                       style={{
@@ -1329,6 +1490,11 @@ export default function SettingsDesktop() {
                   )}
                 </div>
               )}
+
+              {/* App version */}
+              <div className="text-center text-xs mt-4" style={{ color: "var(--theme-popup-label)" }}>
+                Version: {APP_VERSION}
+              </div>
             </section>
           </div>
         )}
