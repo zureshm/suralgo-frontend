@@ -524,19 +524,6 @@ let lastStrategyCandleTime = "";
 
 let lastHandledSignalKey: Record<string, string> = {};
 
-// Tracks the candle time when a waiting trade was added so it ignores the current candle's signal and waits for the next new candle
-const tradeAddedCandleTime: Record<string, string> = {};
-
-// Symbols bought before any signal was observed since (re-)add — the entry
-// candle is deferred to the first observed candle so cached exit signals the
-// server keeps serving are blocked as same-candle.
-const pendingEntryCandle = new Set<string>();
-
-// First-time adds (symbol never streamed/traded before) — the baseline
-// staleness check is skipped so the first served signal can fire immediately.
-// Re-adds of previously seen symbols keep the baseline protection.
-const firstAddSymbols = new Set<string>();
-
 // Trigger Timer state — tracks which symbols have already fired today to prevent re-firing
 const triggerTimerFired: Set<string> = new Set();
 
@@ -1011,12 +998,6 @@ function loadState() {
           if (typeof v === "string") lastCandleTimeMap[k] = v;
         }
       }
-      if (data.tradeAddedCandleTime && typeof data.tradeAddedCandleTime === "object") {
-        for (const [k, v] of Object.entries(data.tradeAddedCandleTime)) {
-          if (typeof v === "string") tradeAddedCandleTime[k] = v;
-        }
-      }
-
       if (typeof data.autoCutoffEnabled === "boolean") autoCutoffEnabled = data.autoCutoffEnabled;
       if (typeof data.autoCutoffHours === "string") autoCutoffHours = data.autoCutoffHours;
       if (typeof data.autoCutoffMinutes === "string") autoCutoffMinutes = data.autoCutoffMinutes;
@@ -1118,7 +1099,6 @@ function persistState() {
       symbolHistoryStatus,
       lastBuyCandleTime,
       lastCandleTimeMap,
-      tradeAddedCandleTime,
 
     }, null, 2);
 
@@ -1195,8 +1175,6 @@ export function setAiSymbolEnabled(symbol: string, enabled: boolean) {
     delete lastAiResult[symbol];
     delete lastAiCandleTime[symbol];
     delete pendingBuyBuffer[symbol];
-    delete pendingSidewaysExits[symbol];
-    pendingEntryCandle.delete(symbol);
     for (let i = aiSuggestions.length - 1; i >= 0; i--) {
       if (aiSuggestions[i].symbol === symbol) aiSuggestions.splice(i, 1);
     }
@@ -1366,7 +1344,7 @@ function addHistoryEntry(symbol: string, pnl: number, logs: string[], config?: T
 
 
 
-function activateWaitingTrade(symbol: string, entryPrice: string, logLine: string, signalCandleTime?: string) {
+function activateWaitingTrade(symbol: string, entryPrice: string, logLine: string) {
 
   const trade = waitingTrades.find((t) => t.symbol === symbol);
 
@@ -1468,7 +1446,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
     buyOverride: trade.buyOverride,
 
     entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
-    entryCandleTime: signalCandleTime || lastStrategyCandleTime || lastCandleTimeMap[symbol],
+    entryCandleTime: lastCandleTimeMap[symbol] || lastStrategyCandleTime,
     entryTimestamp: Date.now(),
 
     exitTime: undefined,
@@ -1545,13 +1523,7 @@ function activateWaitingTrade(symbol: string, entryPrice: string, logLine: strin
   lastBuyTimestamp[symbol] = Date.now();
 
   // Track the candle time of this BUY so strategy exit signals on the same candle are blocked
-  lastBuyCandleTime[symbol] = signalCandleTime || lastStrategyCandleTime || lastCandleTimeMap[symbol];
-
-  // Bought before any signal was observed since (re-)add — defer the entry
-  // candle to the first observed candle so cached signals are same-candle.
-  if (signalCandleTime == null && tradeAddedCandleTime[symbol] == null) pendingEntryCandle.add(symbol);
-  delete tradeAddedCandleTime[symbol];
-  firstAddSymbols.delete(symbol);
+  lastBuyCandleTime[symbol] = lastCandleTimeMap[symbol] || lastStrategyCandleTime;
 
   // Send real BUY order to broker
   sendBrokerOrder(symbol, getTradeQty(trade), "BUY");
@@ -1567,12 +1539,6 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
   if (tradeToExit) {
     sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
   }
-
-  // Drop stale per-symbol signal state — a buffered BUY or sideways count
-  // must not fire for a position that no longer exists.
-  delete pendingBuyBuffer[symbol];
-  delete pendingSidewaysExits[symbol];
-  pendingEntryCandle.delete(symbol);
 
   activeTrades = activeTrades.map((trade) => {
 
@@ -1678,8 +1644,6 @@ function completeActiveTrade(symbol: string, exitPrice: string, logLine: string)
       trailingTrailActive: false, trailingHighWatermark: undefined,
         watchdogMaxGain: 0, watchdogArmedCheckpoint: undefined,
 
-      lastSellCandleTime: lastStrategyCandleTime || trade.lastSellCandleTime,
-
     };
 
   });
@@ -1697,12 +1661,6 @@ function forceExitTrade(symbol: string, exitPrice: string, totalPnl: number, log
   if (tradeToExit) {
     sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
   }
-
-  // Drop stale per-symbol signal state — a buffered BUY or sideways count
-  // must not fire for a position that no longer exists.
-  delete pendingBuyBuffer[symbol];
-  delete pendingSidewaysExits[symbol];
-  pendingEntryCandle.delete(symbol);
 
   const exitTradeRef = activeTrades.find((t) => t.symbol === symbol && t.status === "ACTIVE");
   if (exitTradeRef) {
@@ -1755,12 +1713,6 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
   if (tradeToExit) {
     sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
   }
-
-  // Drop stale per-symbol signal state — a buffered BUY or sideways count
-  // must not fire for a position that no longer exists.
-  delete pendingBuyBuffer[symbol];
-  delete pendingSidewaysExits[symbol];
-  pendingEntryCandle.delete(symbol);
 
   // A completed cycle must not carry an armed Auto Execute Exit into the
   // next cycle — clear before the map spreads the trade object.
@@ -1903,8 +1855,6 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
         watchdogMaxGain: 0, watchdogArmedCheckpoint: undefined,
       trailingSlHighWatermark: undefined,
 
-      lastSellCandleTime: lastStrategyCandleTime || trade.lastSellCandleTime,
-
       signalReEntryArmed,
 
       ...reEntryInfo,
@@ -1917,7 +1867,7 @@ function completeCycleWithoutExit(symbol: string, exitPrice: string, logLine: st
 
 
 
-function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: string, signalCandleTime?: string) {
+function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: string) {
 
   queueSound("enter");
 
@@ -1942,7 +1892,7 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
       ...trade, entryPrice, inPosition: true,
 
       entryTime: logLine.includes("at ") ? logLine.split("at ")[1] : undefined,
-      entryCandleTime: signalCandleTime || lastStrategyCandleTime || lastCandleTimeMap[symbol],
+      entryCandleTime: lastCandleTimeMap[symbol] || lastStrategyCandleTime,
       entryTimestamp: Date.now(),
 
       logs: reEntryLogs,
@@ -1978,13 +1928,7 @@ function updateActiveTradeBuy(symbol: string, entryPrice: string, logLine: strin
   lastBuyTimestamp[symbol] = Date.now();
 
   // Track the candle time of this BUY so strategy exit signals on the same candle are blocked
-  lastBuyCandleTime[symbol] = signalCandleTime || lastStrategyCandleTime || lastCandleTimeMap[symbol];
-
-  // Bought before any signal was observed since (re-)add — defer the entry
-  // candle to the first observed candle so cached signals are same-candle.
-  if (signalCandleTime == null && tradeAddedCandleTime[symbol] == null) pendingEntryCandle.add(symbol);
-  delete tradeAddedCandleTime[symbol];
-  firstAddSymbols.delete(symbol);
+  lastBuyCandleTime[symbol] = lastCandleTimeMap[symbol] || lastStrategyCandleTime;
 
   // Send real BUY order to broker (re-entry)
   if (matchedTrade) {
@@ -2232,18 +2176,6 @@ function handleStrategySignal(signal: any) {
 
   }
 
-  // A trade bought before its first observed signal since (re-)add gets its
-  // entry candle stamped now — the cached signal currently being served then
-  // counts as the entry candle and cannot fire an exit.
-  if (signalSymbol && pendingEntryCandle.has(signalSymbol) && candleTime) {
-    pendingEntryCandle.delete(signalSymbol);
-    lastBuyCandleTime[signalSymbol] = candleTime;
-    const pendingEntryTrade = activeTrades.find((t) => t.symbol === signalSymbol && t.status === "ACTIVE");
-    if (pendingEntryTrade) pendingEntryTrade.entryCandleTime = candleTime;
-  }
-
-
-
   // AI Guard â€” combined analysis once per new candle per symbol (only for symbols with AI toggle ON)
   if (isAiGuardActive() && signalSymbol && aiSymbolEnabled[signalSymbol] === true && candleTime && candleTime !== lastAiCandleTime[signalSymbol]) {
     lastAiCandleTime[signalSymbol] = candleTime;
@@ -2359,9 +2291,9 @@ function handleStrategySignal(signal: any) {
             const matchingTrade = waitingTrades.find((t) => t.symbol === signalSymbol);
             const activeTrade2 = activeTrades.find((t) => t.symbol === signalSymbol && t.status === "ACTIVE");
             if (matchingTrade) {
-              activateWaitingTrade(signalSymbol, entryPrice, fireLog, candleTime);
+              activateWaitingTrade(signalSymbol, entryPrice, fireLog);
             } else if (activeTrade2 && !activeTrade2.inPosition) {
-              updateActiveTradeBuy(signalSymbol, entryPrice, fireLog, candleTime);
+              updateActiveTradeBuy(signalSymbol, entryPrice, fireLog);
             }
             delete pendingBuyBuffer[signalSymbol];
             setPendingSkippedBuy(signalSymbol, false);
@@ -2627,38 +2559,6 @@ function handleStrategySignal(signal: any) {
 
     const matchingTrade = waitingTrades.find((t) => t.symbol === signal.symbol);
 
-    // A waiting trade must never enter on the candle recorded when it was
-    // created. If no baseline exists (restored trade, or symbol never polled
-    // before the trade was added), the first observed signal only records the
-    // baseline — entry requires a newer candle. This also blocks stale signals
-    // the strategy server keeps serving after the candle feed has stopped.
-    if (matchingTrade && !firstAddSymbols.has(signalSymbol)) {
-      const baseline = tradeAddedCandleTime[signalSymbol];
-      // Block the birth/first-observed candle AND any older cached signal —
-      // bounded to 4h so a next-day signal is never misclassified as stale.
-      const baseMin = toMinutes(baseline);
-      const sigMinB = toMinutes(signal.lastCandleTime);
-      const staleGap = baseMin >= 0 && sigMinB >= 0 ? baseMin - sigMinB : -1;
-      if (baseline == null || (staleGap >= 0 && staleGap <= 240)) {
-        if (baseline == null && signal.lastCandleTime) tradeAddedCandleTime[signalSymbol] = signal.lastCandleTime;
-        lastHandledSignalKey[signalSymbol] = signalKey;
-        return;
-      }
-    }
-
-    // Active trade between cycles — a cached BUY at/before the last sell
-    // candle must not re-enter (same 4h-bounded staleness rule).
-    const activeBetweenCycles = !matchingTrade && activeForSymbol && !activeForSymbol.inPosition ? activeForSymbol : null;
-    if (activeBetweenCycles?.lastSellCandleTime) {
-      const sellMinB = toMinutes(activeBetweenCycles.lastSellCandleTime);
-      const sigMinBuy = toMinutes(signal.lastCandleTime);
-      const staleSellGap = sellMinB >= 0 && sigMinBuy >= 0 ? sellMinB - sigMinBuy : -1;
-      if (staleSellGap >= 0 && staleSellGap <= 240) {
-        lastHandledSignalKey[signalSymbol] = signalKey;
-        return;
-      }
-    }
-
     // Candle size check for Wait Strategy (buyOverride)
 
     const candles = signal.candles;
@@ -2783,11 +2683,11 @@ function handleStrategySignal(signal: any) {
 
     if (matchingTrade) {
 
-      activateWaitingTrade(matchingTrade.symbol, String(latestClose ?? ""), `${signal.signal} triggered for ₹ ` + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime), candleTime);
+      activateWaitingTrade(matchingTrade.symbol, String(latestClose ?? ""), `${signal.signal} triggered for ₹ ` + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     } else if (activeForSymbol && !activeForSymbol.inPosition) {
 
-      updateActiveTradeBuy(activeForSymbol.symbol, String(latestClose ?? ""), `${signal.signal} triggered for ₹ ` + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime), candleTime);
+      updateActiveTradeBuy(activeForSymbol.symbol, String(latestClose ?? ""), `${signal.signal} triggered for ₹ ` + String(latestClose ?? "") + " at " + fmtTime(signal.lastCandleTime));
 
     }
 
@@ -2822,33 +2722,6 @@ function handleStrategySignal(signal: any) {
     if (!reHasPendingSkip && !reHasSignalReEntry) {
       lastHandledSignalKey[signalSymbol] = signal.signal + "-" + signal.lastCandleTime;
       return;
-    }
-
-    // Same baseline rule as BUY for waiting trades — a cached REENTER must not
-    // fire on the trade's birth/first-observed candle or an older one.
-    if (waitingTrades.some((t) => t.symbol === signalSymbol) && !firstAddSymbols.has(signalSymbol)) {
-      const baseline = tradeAddedCandleTime[signalSymbol];
-      const baseMin = toMinutes(baseline);
-      const sigMinB = toMinutes(signal.lastCandleTime);
-      const staleGap = baseMin >= 0 && sigMinB >= 0 ? baseMin - sigMinB : -1;
-      if (baseline == null || (staleGap >= 0 && staleGap <= 240)) {
-        if (baseline == null && signal.lastCandleTime) tradeAddedCandleTime[signalSymbol] = signal.lastCandleTime;
-        lastHandledSignalKey[signalSymbol] = signalKey;
-        return;
-      }
-    }
-
-    // Active trade between cycles — a cached REENTER at/before the last sell
-    // candle must not re-enter (same 4h-bounded staleness rule).
-    if (!waitingTrades.some((t) => t.symbol === signalSymbol)) {
-      const lastSell = (reenterTrade as ActiveTrade).lastSellCandleTime;
-      const sellMinR = toMinutes(lastSell);
-      const sigMinR = toMinutes(signal.lastCandleTime);
-      const staleSellGap = sellMinR >= 0 && sigMinR >= 0 ? sellMinR - sigMinR : -1;
-      if (staleSellGap >= 0 && staleSellGap <= 240) {
-        lastHandledSignalKey[signalSymbol] = signalKey;
-        return;
-      }
     }
 
     const hasPendingSkip = reenterTrade.pendingSkippedBuy === true;
@@ -2931,9 +2804,9 @@ function handleStrategySignal(signal: any) {
     const reenterLabel = hasPendingSkip ? "REENTER (skipped candle re-entry)" : "SIGNAL RE-ENTRY";
     const reenterLog = `${reenterLabel} triggered for ₹${latestClose ?? ""} at ${fmtTime(signal.lastCandleTime)}`;
     if (waitingTrades.find((t) => t.symbol === signalSymbol)) {
-      activateWaitingTrade(signalSymbol, String(latestClose ?? ""), reenterLog, candleTime);
+      activateWaitingTrade(signalSymbol, String(latestClose ?? ""), reenterLog);
     } else if (activeForSymbol && !activeForSymbol.inPosition) {
-      updateActiveTradeBuy(signalSymbol, String(latestClose ?? ""), reenterLog, candleTime);
+      updateActiveTradeBuy(signalSymbol, String(latestClose ?? ""), reenterLog);
     }
     delete pendingBuyBuffer[signalSymbol];
     setPendingSkippedBuy(signalSymbol, false);
@@ -3944,17 +3817,7 @@ export function addWaitingTrade(trade: WaitingTrade) {
 
   if (waitingTrades.some((t) => t.symbol === trade.symbol)) return;
 
-  // Re-add detection: the engine streamed/traded this symbol before, so the
-  // currently-served signal may be a cached one from before removal — the
-  // baseline starts unset and the first observed signal is ignored.
-  // A first-time add has no such risk — signals fire immediately.
-  const isReAdd = symbolsWithFirstSignal.has(trade.symbol) || lastCandleTimeMap[trade.symbol] != null || tradeHistory.some((h) => h.symbol === trade.symbol);
-  if (isReAdd) firstAddSymbols.delete(trade.symbol); else firstAddSymbols.add(trade.symbol);
-  delete tradeAddedCandleTime[trade.symbol];
   delete lastBuyCandleTime[trade.symbol];
-  delete pendingBuyBuffer[trade.symbol];
-  delete pendingSidewaysExits[trade.symbol];
-  pendingEntryCandle.delete(trade.symbol);
   triggerTimerFired.delete(trade.symbol);
 
   // Reset first-signal tracking so the loader shows correctly for this (re-)add
@@ -4175,8 +4038,6 @@ export function cancelWaitingTrade(symbol: string) {
   waitingTrades = waitingTrades.filter((t) => t.symbol !== symbol);
 
   delete pendingBuyBuffer[symbol];
-  delete tradeAddedCandleTime[symbol];
-  firstAddSymbols.delete(symbol);
   delete lastHandledSignalKey[symbol];
   delete lastBuyCandleTime[symbol];
   delete niftySignalBinding[symbol];
@@ -4203,12 +4064,6 @@ export function manualExit(symbol: string, exitPrice: string, lastCandleTime: st
   if (tradeToExit) {
     sendBrokerOrder(symbol, getTradeQty(tradeToExit), "SELL");
   }
-
-  // Drop stale per-symbol signal state — a buffered BUY or sideways count
-  // must not fire for a position that no longer exists.
-  delete pendingBuyBuffer[symbol];
-  delete pendingSidewaysExits[symbol];
-  pendingEntryCandle.delete(symbol);
 
   activeTrades = activeTrades.map((trade) => {
 
@@ -4268,8 +4123,6 @@ export function manualExit(symbol: string, exitPrice: string, lastCandleTime: st
 
   activeTrades = activeTrades.filter((t) => !(t.symbol === symbol && t.status === "COMPLETED"));
 
-  delete tradeAddedCandleTime[symbol];
-  firstAddSymbols.delete(symbol);
   if (lastCandleTime) {
     lastHandledSignalKey[symbol] = `EXIT-${lastCandleTime}`;
   } else {
@@ -4290,8 +4143,6 @@ export function removeCompletedTrade(symbol: string) {
   activeTrades = activeTrades.filter((t) => t.symbol !== symbol);
 
   delete pendingBuyBuffer[symbol];
-  delete tradeAddedCandleTime[symbol];
-  firstAddSymbols.delete(symbol);
   delete lastHandledSignalKey[symbol];
   delete lastBuyCandleTime[symbol];
   delete niftySignalBinding[symbol];
