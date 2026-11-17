@@ -23,6 +23,8 @@ export type WaitingTrade = {
   stopLossNumber: number;
   trailingStopLossEnabled: boolean;
   trailingStopLossSteps: number;
+  stopLossPercentageEnabled?: boolean;
+  stopLossPercentage?: number;
   slMode?: "live" | "candleClose";
   targetPointsEnabled: boolean;
   targetPoints: number;
@@ -73,6 +75,7 @@ export type WaitingTrade = {
   triggerMinPrice?: number;
   triggerMaxPrice?: number;
   autoTriggerBuyPrice?: number;
+  autoTriggerBuyMode?: "on" | "below";
 };
 
 // active trade shown in top running-trade card after strategy triggers it
@@ -88,6 +91,8 @@ export type ActiveTrade = {
   stopLossNumber: number;
   trailingStopLossEnabled: boolean;
   trailingStopLossSteps: number;
+  stopLossPercentageEnabled?: boolean;
+  stopLossPercentage?: number;
   slMode?: "live" | "candleClose";
   targetPointsEnabled: boolean;
   targetPoints: number;
@@ -155,6 +160,7 @@ export type ActiveTrade = {
   triggerMinPrice?: number;
   triggerMaxPrice?: number;
   autoTriggerBuyPrice?: number;
+  autoTriggerBuyMode?: "on" | "below";
   autoExecuteExitPrice?: number;
 };
 
@@ -180,6 +186,8 @@ export type TradeHistoryItem = {
     stopLossNumberEnabled: boolean;
     trailingStopLossEnabled?: boolean;
     trailingStopLossSteps?: number;
+    stopLossPercentageEnabled?: boolean;
+    stopLossPercentage?: number;
     targetPoints?: number;
     targetPointsEnabled: boolean;
     trailingAfterTarget?: number;
@@ -200,6 +208,8 @@ type TradeConfigSnapshotSource = {
   stopLossNumber: number;
   trailingStopLossEnabled: boolean;
   trailingStopLossSteps: number;
+  stopLossPercentageEnabled?: boolean;
+  stopLossPercentage?: number;
   targetPointsEnabled: boolean;
   targetPoints: number;
   trailingAfterTargetEnabled: boolean;
@@ -221,6 +231,8 @@ const buildTradeConfigSnapshot = (
   stopLossNumber: trade.stopLossNumberEnabled ? trade.stopLossNumber : undefined,
   trailingStopLossEnabled: Boolean(trade.trailingStopLossEnabled),
   trailingStopLossSteps: trade.trailingStopLossEnabled ? trade.trailingStopLossSteps : undefined,
+  stopLossPercentageEnabled: Boolean(trade.stopLossPercentageEnabled),
+  stopLossPercentage: trade.stopLossPercentageEnabled ? trade.stopLossPercentage : undefined,
   targetPointsEnabled: Boolean(trade.targetPointsEnabled),
   targetPoints: trade.targetPointsEnabled ? trade.targetPoints : undefined,
   trailingAfterTargetEnabled: Boolean(trade.trailingAfterTargetEnabled),
@@ -419,6 +431,8 @@ export function TradeStoreProvider({
       stopLossNumber: readFormNumber(sym, "stopLossNumber", 15),
       trailingStopLossEnabled: readFormBool(sym, "trailingStopLossEnabled", false),
       trailingStopLossSteps: readFormNumber(sym, "trailingStopLossSteps", 5),
+      stopLossPercentageEnabled: readFormBool(sym, "stopLossPercentageEnabled", false),
+      stopLossPercentage: readFormNumber(sym, "stopLossPercentage", 10),
       slMode: readFormString(sym, "slMode", "live") as "live" | "candleClose",
       targetPointsEnabled: readFormBool(sym, "targetPointsEnabled", true),
       targetPoints: readFormNumber(sym, "targetPoints", 20),
@@ -537,6 +551,9 @@ export function TradeStoreProvider({
       stopLossNumber: tradeToActivate.stopLossNumber,
       trailingStopLossEnabled: tradeToActivate.trailingStopLossEnabled,
       trailingStopLossSteps: tradeToActivate.trailingStopLossSteps,
+      stopLossPercentageEnabled: tradeToActivate.stopLossPercentageEnabled,
+      stopLossPercentage: tradeToActivate.stopLossPercentage,
+      slMode: tradeToActivate.slMode,
       targetPointsEnabled: tradeToActivate.targetPointsEnabled,
       targetPoints: tradeToActivate.targetPoints,
       targetMode: tradeToActivate.targetMode,

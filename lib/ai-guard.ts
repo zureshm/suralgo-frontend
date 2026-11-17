@@ -193,6 +193,38 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     parseContent: (data) => data?.choices?.[0]?.message?.content || "",
     providerName: "Groq",
   },
+  aicredits: {
+    url: "https://api.aicredits.in/v1/chat/completions",
+    model: "",
+    headers: (apiKey) => ({ "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }),
+    buildBody: (systemPrompt, userPrompt, maxTokens) => ({
+      model: aiGuardSettings.model || "deepseek/deepseek-chat",
+      temperature: 0,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    }),
+    parseContent: (data) => data?.choices?.[0]?.message?.content || "",
+    providerName: "AI Credits",
+  },
+  indos: {
+    url: "https://api.indos.tech/v1/chat/completions",
+    model: "",
+    headers: (apiKey) => ({ "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }),
+    buildBody: (systemPrompt, userPrompt, maxTokens) => ({
+      model: aiGuardSettings.model || "gemini/gemini-3.5-flash-lite",
+      temperature: 0,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    }),
+    parseContent: (data) => data?.choices?.[0]?.message?.content || "",
+    providerName: "Indos",
+  },
   claude: {
     url: ANTHROPIC_URL,
     model: ANTHROPIC_MODEL,

@@ -13,8 +13,9 @@ export async function POST(
     if (!Number.isFinite(triggerPrice) || triggerPrice <= 0) {
       return NextResponse.json({ error: "Invalid trigger price" }, { status: 400 });
     }
-    const ok = setAutoTriggerBuyPrice(decodeURIComponent(symbol), triggerPrice);
-    return NextResponse.json({ ok, autoTriggerBuyPrice: triggerPrice });
+    const mode = body?.mode === "below" ? "below" : "on";
+    const ok = setAutoTriggerBuyPrice(decodeURIComponent(symbol), triggerPrice, mode);
+    return NextResponse.json({ ok, autoTriggerBuyPrice: triggerPrice, autoTriggerBuyMode: mode });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
